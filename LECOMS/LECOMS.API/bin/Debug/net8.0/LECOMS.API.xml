@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>LECOMS.API</name>
+    </assembly>
+    <members>
+        <member name="M:LECOMS.API.Controllers.EmailController.SendEmail(LECOMS.Data.DTOs.Email.EmailRequestDTO)">
+            <summary>
+            Send email
+            </summary>
+            <param name="requestDTO"></param>
+            <returns></returns>
+        </member>
+    </members>
+</doc>
