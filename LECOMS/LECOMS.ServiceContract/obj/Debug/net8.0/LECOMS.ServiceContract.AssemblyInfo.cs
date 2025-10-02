@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("LECOMS.ServiceContract")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7742ed2aea832011026619f86ec259caeb5ee7b1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+299143be8b87261bf098c4e5a2a70584a548caeb")]
 [assembly: System.Reflection.AssemblyProductAttribute("LECOMS.ServiceContract")]
 [assembly: System.Reflection.AssemblyTitleAttribute("LECOMS.ServiceContract")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

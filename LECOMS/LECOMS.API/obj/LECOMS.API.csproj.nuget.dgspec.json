@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.API\\LECOMS.API.csproj": {}
+    "D:\\LECOMS\\LECOMS\\LECOMS.API\\LECOMS.API.csproj": {}
   },
   "projects": {
-    "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.API\\LECOMS.API.csproj": {
+    "D:\\LECOMS\\LECOMS\\LECOMS.API\\LECOMS.API.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.API\\LECOMS.API.csproj",
+        "projectUniqueName": "D:\\LECOMS\\LECOMS\\LECOMS.API\\LECOMS.API.csproj",
         "projectName": "LECOMS.API",
-        "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.API\\LECOMS.API.csproj",
+        "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.API\\LECOMS.API.csproj",
         "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.API\\obj\\",
+        "outputPath": "D:\\LECOMS\\LECOMS\\LECOMS.API\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -32,11 +32,11 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj"
               },
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Service\\LECOMS.Service.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Service\\LECOMS.Service.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.Service\\LECOMS.Service.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Service\\LECOMS.Service.csproj"
               }
             }
           }
@@ -149,14 +149,14 @@
         }
       }
     },
-    "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Common\\LECOMS.Common.csproj": {
+    "D:\\LECOMS\\LECOMS\\LECOMS.Common\\LECOMS.Common.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Common\\LECOMS.Common.csproj",
+        "projectUniqueName": "D:\\LECOMS\\LECOMS\\LECOMS.Common\\LECOMS.Common.csproj",
         "projectName": "LECOMS.Common",
-        "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Common\\LECOMS.Common.csproj",
+        "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Common\\LECOMS.Common.csproj",
         "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Common\\obj\\",
+        "outputPath": "D:\\LECOMS\\LECOMS\\LECOMS.Common\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -177,8 +177,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj"
               }
             }
           }
@@ -264,14 +264,14 @@
         }
       }
     },
-    "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj": {
+    "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj",
+        "projectUniqueName": "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj",
         "projectName": "LECOMS.Data",
-        "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj",
+        "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj",
         "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\obj\\",
+        "outputPath": "D:\\LECOMS\\LECOMS\\LECOMS.Data\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -379,14 +379,14 @@
         }
       }
     },
-    "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj": {
+    "D:\\LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj",
+        "projectUniqueName": "D:\\LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj",
         "projectName": "LECOMS.RepositoryContract",
-        "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj",
+        "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj",
         "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.RepositoryContract\\obj\\",
+        "outputPath": "D:\\LECOMS\\LECOMS\\LECOMS.RepositoryContract\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -407,8 +407,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj"
               }
             }
           }
@@ -494,14 +494,14 @@
         }
       }
     },
-    "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj": {
+    "D:\\LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj",
+        "projectUniqueName": "D:\\LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj",
         "projectName": "LECOMS.Repository",
-        "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj",
+        "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj",
         "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Repository\\obj\\",
+        "outputPath": "D:\\LECOMS\\LECOMS\\LECOMS.Repository\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -522,14 +522,14 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Common\\LECOMS.Common.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Common\\LECOMS.Common.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.Common\\LECOMS.Common.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Common\\LECOMS.Common.csproj"
               },
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj"
               },
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj"
               }
             }
           }
@@ -615,14 +615,14 @@
         }
       }
     },
-    "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.ServiceContract\\LECOMS.ServiceContract.csproj": {
+    "D:\\LECOMS\\LECOMS\\LECOMS.ServiceContract\\LECOMS.ServiceContract.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.ServiceContract\\LECOMS.ServiceContract.csproj",
+        "projectUniqueName": "D:\\LECOMS\\LECOMS\\LECOMS.ServiceContract\\LECOMS.ServiceContract.csproj",
         "projectName": "LECOMS.ServiceContract",
-        "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.ServiceContract\\LECOMS.ServiceContract.csproj",
+        "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.ServiceContract\\LECOMS.ServiceContract.csproj",
         "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.ServiceContract\\obj\\",
+        "outputPath": "D:\\LECOMS\\LECOMS\\LECOMS.ServiceContract\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -643,11 +643,11 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj"
               },
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj"
               }
             }
           }
@@ -733,14 +733,14 @@
         }
       }
     },
-    "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Service\\LECOMS.Service.csproj": {
+    "D:\\LECOMS\\LECOMS\\LECOMS.Service\\LECOMS.Service.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Service\\LECOMS.Service.csproj",
+        "projectUniqueName": "D:\\LECOMS\\LECOMS\\LECOMS.Service\\LECOMS.Service.csproj",
         "projectName": "LECOMS.Service",
-        "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Service\\LECOMS.Service.csproj",
+        "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Service\\LECOMS.Service.csproj",
         "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Service\\obj\\",
+        "outputPath": "D:\\LECOMS\\LECOMS\\LECOMS.Service\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -761,17 +761,17 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj"
               },
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.RepositoryContract\\LECOMS.RepositoryContract.csproj"
               },
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.Repository\\LECOMS.Repository.csproj"
               },
-              "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.ServiceContract\\LECOMS.ServiceContract.csproj": {
-                "projectPath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.ServiceContract\\LECOMS.ServiceContract.csproj"
+              "D:\\LECOMS\\LECOMS\\LECOMS.ServiceContract\\LECOMS.ServiceContract.csproj": {
+                "projectPath": "D:\\LECOMS\\LECOMS\\LECOMS.ServiceContract\\LECOMS.ServiceContract.csproj"
               }
             }
           }

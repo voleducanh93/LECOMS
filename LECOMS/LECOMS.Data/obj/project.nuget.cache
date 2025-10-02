@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "zTYWd4Zb9UE=",
+  "dgSpecHash": "VRH5WElUCBg=",
   "success": true,
-  "projectFilePath": "D:\\BE_SEP490_LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj",
+  "projectFilePath": "D:\\LECOMS\\LECOMS\\LECOMS.Data\\LECOMS.Data.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Admin\\.nuget\\packages\\automapper\\13.0.1\\automapper.13.0.1.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\azure.core\\1.38.0\\azure.core.1.38.0.nupkg.sha512",
