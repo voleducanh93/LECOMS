@@ -42,7 +42,7 @@ namespace LECOMS.Service.Services
 
             EmailRequestDTO request = new EmailRequestDTO
             {
-                Subject = "ChildVaccine Email Confirmation",
+                Subject = "Lecoms Email Confirmation",
                 toEmail = email,
                 Body = $"Click vào link sau để xác nhận tài khoản: {confirmLink}"
             };

@@ -1,0 +1,39 @@
+﻿# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+DesignTimeBuild/
+.dtbcache.v2
+CopilotIndices*/
+FileContentIndex/
+v17/
+
+# build output
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+*.cache
+*.tmp
+
+# Rider/VS Code (tuỳ dùng)
+.idea/
+.vscode/
+
+# DotNet tools
+/.tools/
+
+# NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+!**/packages/repositories.config
+
+# hệ điều hành
+Thumbs.db
+.DS_Store
+
+# cấu hình dev (nếu chứa secret)
+appsettings.Development.json
