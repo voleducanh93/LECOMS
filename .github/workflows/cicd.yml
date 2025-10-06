@@ -32,7 +32,7 @@ jobs:
       - name: Build image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./LECOMS
           file: ./LECOMS/LECOMS/Dockerfile
           push: false
           tags: |
