@@ -32,8 +32,8 @@ jobs:
       - name: Build image
         uses: docker/build-push-action@v6
         with:
-          context: ./LECOMS/LECOMS
-          file: ./LECOMS/LECOMS/Dockerfile
+          context: ./LECOMS   
+          file: ./LECOMS/Dockerfile
           push: false
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/lecoms-api:latest
