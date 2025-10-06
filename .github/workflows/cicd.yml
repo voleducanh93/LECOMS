@@ -39,7 +39,7 @@ jobs:
             voleducanh93/lecoms-api:latest
 
       - name: Push image
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/lecoms-api:latest
+        run: docker push voleducanh93/lecoms-api:latest
 
       # DÙNG PASSWORD CHO SSH
       - name: Deploy on VPS (password auth)
