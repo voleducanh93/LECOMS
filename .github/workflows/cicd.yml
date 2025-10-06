@@ -36,7 +36,7 @@ jobs:
           file: ./LECOMS/Dockerfile
           push: false
           tags: |
-            voleducanh93/lecoms-api:latest
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
       - name: Push image
         run: docker push voleducanh93/lecoms-api:latest
