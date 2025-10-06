@@ -36,7 +36,7 @@ jobs:
           file: ./LECOMS/Dockerfile
           push: false
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/lecoms-api:latest
+            $IMAGE_NAME:$IMAGE_TAG
 
       - name: Push image
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/lecoms-api:latest
