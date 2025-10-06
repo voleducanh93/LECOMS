@@ -2,6 +2,7 @@
 using LECOMS.Data.Entities;
 using LECOMS.Service;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Azure.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -61,6 +62,11 @@ builder.Services.AddServices(builder.Configuration);
 builder.Services.AddScoped<UserManager<User>>();
 builder.Services.AddScoped<SignInManager<User>>();
 
+// Lưu DataProtection keys vào volume /keys
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/keys"))
+    .SetApplicationName("LECOMS");
+
 // Add JWT Configuration
 var jwtSecret = builder.Configuration["JWT:Key"];
 if (string.IsNullOrEmpty(jwtSecret))
@@ -116,6 +122,11 @@ builder.Services
     });
 
 var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<LECOMS.Data.Models.LecomDbContext>();
+    db.Database.Migrate();
+}
 
 // Create default roles and admin user
 using (var scope = app.Services.CreateScope())
