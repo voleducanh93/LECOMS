@@ -33,7 +33,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./LECOMS.API/Dockerfile
+          file: ./LECOMS/LECOMS/Dockerfile
           push: false
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/lecoms-api:latest
