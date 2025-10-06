@@ -35,8 +35,9 @@ jobs:
           context: ./LECOMS   
           file: ./LECOMS/Dockerfile
           push: false
+          load: true               # <—
           tags: |
-            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            voleducanh93/lecoms-api:latest
 
       - name: Push image
         run: docker push voleducanh93/lecoms-api:latest
@@ -70,7 +71,7 @@ jobs:
               --name lecoms-api \
               --restart unless-stopped \
               --env-file /var/lecoms/.env \
-              -p 8080:8080 \
+              -p 8080:8080 \    
               ${{ secrets.DOCKERHUB_USERNAME }}/lecoms-api:latest
 
             # dọn rác
