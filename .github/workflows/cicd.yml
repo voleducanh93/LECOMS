@@ -13,8 +13,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      IMAGE_NAME: voleducanh93/lecoms-api
-      IMAGE_TAG: latest
+        IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/lecoms-api
+        IMAGE_TAG: latest
+
 
     steps:
       - name: Checkout
