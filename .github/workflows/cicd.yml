@@ -13,9 +13,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-        IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/lecoms-api
-        IMAGE_TAG: latest
-
+      IMAGE_NAME: voleducanh93/lecoms-api
+      IMAGE_TAG: latest
 
     steps:
       - name: Checkout
@@ -33,12 +32,11 @@ jobs:
       - name: Build & Push image
         uses: docker/build-push-action@v6
         with:
-            context: ./LECOMS
-            file: ./LECOMS/Dockerfile
-            push: true
-            tags: |
-             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-
+          context: ./LECOMS   
+          file: ./LECOMS/Dockerfile
+          push: true
+          tags: |
+            voleducanh93/lecoms-api:latest
 
       - name: Push image
         run: docker push voleducanh93/lecoms-api:latest
