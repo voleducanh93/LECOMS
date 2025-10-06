@@ -69,9 +69,9 @@ jobs:
             docker run -d \
               --name lecoms-api \
               --restart unless-stopped \
-              # --env-file /opt/lecoms/.env.prod \
+              --env-file /var/lecoms/.env \
               -p 8080:8080 \
-              ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+              ${{ secrets.DOCKERHUB_USERNAME }}/lecoms-api:latest
 
             # dọn rác
             docker image prune -af || true
