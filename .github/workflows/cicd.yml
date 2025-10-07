@@ -19,6 +19,7 @@ jobs:
     env:
       IMAGE_NAME: voleducanh93/lecoms-api
       IMAGE_TAG: latest
+      SHORT_SHA: ${{ github.sha.substr(0,7) }}
 
     steps:
       - name: Checkout
@@ -36,6 +37,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # (Tùy chọn) cache build
       - name: Build & Push image
         uses: docker/build-push-action@v6
         with:
@@ -43,10 +45,12 @@ jobs:
           file: ./LECOMS/Dockerfile
           push: true
           platforms: linux/amd64
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
           tags: |
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_NAME }}:sha-${{ env.SHORT_SHA }}
 
-      # Triển khai lên VPS
       - name: Deploy on VPS (password auth)
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -57,14 +61,15 @@ jobs:
           script: |
             set -e
 
-            # chuẩn bị thư mục và file env (chọn /var/lecoms cho nhất quán)
-            sudo mkdir -p /var/lecoms
-            # đảm bảo /var/lecoms/.env đã có sẵn trên VPS (không ghi đè ở đây)
+            # đảm bảo env tồn tại
+            if [ ! -f /var/lecoms/.env ]; then
+              echo "ERROR: /var/lecoms/.env not found"; exit 1;
+            fi
 
             # login dockerhub trên VPS
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-            # lấy image mới
+            # lấy image mới nhất
             docker pull ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
             # stop & remove container cũ (nếu có)
@@ -72,14 +77,16 @@ jobs:
               docker rm -f lecoms-api || true
             fi
 
-            # run container mới
+            # chạy container mới (port 8080)
             docker run -d \
               --name lecoms-api \
               --restart unless-stopped \
               --env-file /var/lecoms/.env \
               -p 8080:8080 \
+              --health-cmd="curl -f http://localhost:8080/health || exit 1" \
+              --health-interval=30s --health-retries=3 --health-timeout=5s \
               ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-            # dọn rác image/containers đã dừng
+            # dọn rác an toàn
             docker container prune -f || true
             docker image prune -af || true
