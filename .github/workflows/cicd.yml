@@ -7,6 +7,10 @@ on:
     branches: [ main ]
     types: [ closed ]
 
+concurrency:
+  group: lecoms-api-deploy
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
@@ -20,6 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up QEMU (multi-arch)
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -32,32 +39,32 @@ jobs:
       - name: Build & Push image
         uses: docker/build-push-action@v6
         with:
-          context: ./LECOMS   
+          context: ./LECOMS
           file: ./LECOMS/Dockerfile
           push: true
+          platforms: linux/amd64
           tags: |
-            voleducanh93/lecoms-api:latest
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-      - name: Push image
-        run: docker push voleducanh93/lecoms-api:latest
-
-      # DÙNG PASSWORD CHO SSH
+      # Triển khai lên VPS
       - name: Deploy on VPS (password auth)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           port: ${{ secrets.VPS_PORT }}
-          password: ${{ secrets.VPS_PASSWORD }}   # <— dùng mật khẩu
+          password: ${{ secrets.VPS_PASSWORD }}
           script: |
             set -e
-            # đảm bảo thư mục & file env tồn tại sẵn trên VPS
-            mkdir -p /opt/lecoms
+
+            # chuẩn bị thư mục và file env (chọn /var/lecoms cho nhất quán)
+            sudo mkdir -p /var/lecoms
+            # đảm bảo /var/lecoms/.env đã có sẵn trên VPS (không ghi đè ở đây)
 
             # login dockerhub trên VPS
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-            # pull image mới
+            # lấy image mới
             docker pull ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
             # stop & remove container cũ (nếu có)
@@ -65,14 +72,14 @@ jobs:
               docker rm -f lecoms-api || true
             fi
 
-            # run container mới (map port 8080, nạp env từ file)
+            # run container mới
             docker run -d \
               --name lecoms-api \
               --restart unless-stopped \
               --env-file /var/lecoms/.env \
-              -p 8080:8080 \    
-              ${{ secrets.DOCKERHUB_USERNAME }}/lecoms-api:latest
+              -p 8080:8080 \
+              ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-            # dọn rác
-            docker image prune -af || true
+            # dọn rác image/containers đã dừng
             docker container prune -f || true
+            docker image prune -af || true
