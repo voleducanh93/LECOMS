@@ -19,11 +19,14 @@ jobs:
     env:
       IMAGE_NAME: voleducanh93/lecoms-api
       IMAGE_TAG: latest
-      SHORT_SHA: ${{ github.sha.substr(0,7) }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Tạo SHORT_SHA bằng shell (thay cho substr() trong expressions)
+      - name: Set SHORT_SHA env
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
       - name: Set up QEMU (multi-arch)
         uses: docker/setup-qemu-action@v3
@@ -37,7 +40,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # (Tùy chọn) cache build
       - name: Build & Push image
         uses: docker/build-push-action@v6
         with:
@@ -61,29 +63,34 @@ jobs:
           script: |
             set -e
 
-            # đảm bảo env tồn tại
+            # đảm bảo file env tồn tại
             if [ ! -f /var/lecoms/.env ]; then
               echo "ERROR: /var/lecoms/.env not found"; exit 1;
             fi
 
-            # login dockerhub trên VPS
+            # cài curl nếu thiếu (cho healthcheck)
+            if ! command -v curl >/dev/null 2>&1; then
+              sudo apt-get update -y && sudo apt-get install -y curl
+            fi
+
+            # login dockerhub
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-            # lấy image mới nhất
+            # pull image mới nhất (latest)
             docker pull ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-            # stop & remove container cũ (nếu có)
+            # dừng & xoá container cũ nếu có
             if [ "$(docker ps -aq -f name=lecoms-api)" ]; then
               docker rm -f lecoms-api || true
             fi
 
-            # chạy container mới (port 8080)
+            # chạy container mới
             docker run -d \
               --name lecoms-api \
               --restart unless-stopped \
               --env-file /var/lecoms/.env \
               -p 8080:8080 \
-              --health-cmd="curl -f http://localhost:8080/health || exit 1" \
+              --health-cmd="curl -fsS http://localhost:8080/health || exit 1" \
               --health-interval=30s --health-retries=3 --health-timeout=5s \
               ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
