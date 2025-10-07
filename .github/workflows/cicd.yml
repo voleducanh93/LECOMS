@@ -63,28 +63,41 @@ jobs:
           script: |
             set -e
 
-            # đảm bảo file env tồn tại
+            echo "==> Precheck .env"
             if [ ! -f /var/lecoms/.env ]; then
               echo "ERROR: /var/lecoms/.env not found"; exit 1;
             fi
 
-            # cài curl nếu thiếu (cho healthcheck)
+            echo "==> Ensure curl exists (for healthcheck)"
             if ! command -v curl >/dev/null 2>&1; then
               sudo apt-get update -y && sudo apt-get install -y curl
             fi
 
-            # login dockerhub
+            echo "==> Docker Hub login"
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-            # pull image mới nhất (latest)
+            echo "==> Pull latest image"
             docker pull ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-            # dừng & xoá container cũ nếu có
+            echo "==> Stop/remove old container by name"
             if [ "$(docker ps -aq -f name=lecoms-api)" ]; then
               docker rm -f lecoms-api || true
             fi
 
-            # chạy container mới
+            echo "==> Free up port 8080 from ANY docker container"
+            if docker ps --format '{{.ID}} {{.Ports}}' | grep -q ':8080->'; then
+              docker ps --format '{{.ID}} {{.Names}} {{.Ports}}' | grep ':8080->' || true
+              docker ps --format '{{.ID}} {{.Ports}}' | grep ':8080->' | awk '{print $1}' | xargs -r docker rm -f
+            fi
+
+            echo "==> Check if a NON-docker process uses 8080"
+            if sudo ss -ltnp | grep -q ':8080 '; then
+              echo "ERROR: A non-docker process is listening on 8080:"
+              sudo ss -ltnp | grep ':8080 ' || true
+              exit 1
+            fi
+
+            echo "==> Run new container on 8080"
             docker run -d \
               --name lecoms-api \
               --restart unless-stopped \
@@ -94,6 +107,9 @@ jobs:
               --health-interval=30s --health-retries=3 --health-timeout=5s \
               ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-            # dọn rác an toàn
+            echo "==> Cleanup"
             docker container prune -f || true
             docker image prune -af || true
+
+            echo "==> Done"
+            docker ps --filter "name=lecoms-api"
