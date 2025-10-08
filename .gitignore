@@ -37,3 +37,4 @@ Thumbs.db
 
 # cấu hình dev (nếu chứa secret)
 appsettings.Development.json
+/LECOMS/LECOMS.API/appsettings.Development.json
