@@ -20,7 +20,7 @@ obj/
 
 # Rider/VS Code (tuỳ dùng)
 .idea/
-.vscode/ 
+.vscode/
 
 # DotNet tools
 /.tools/
