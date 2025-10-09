@@ -36,5 +36,4 @@ Thumbs.db
 .DS_Store
 
 # cấu hình dev (nếu chứa secret)
-appsettings.Development.json
-/LECOMS/LECOMS.API/appsettings.Development.json
+appsettings.Development.json/LECOMS/LECOMS.API/appsettings.Development.json
