@@ -35,8 +35,5 @@ obj/
 Thumbs.db
 .DS_Store
 
-# (Bỏ ignore dev config nếu muốn commit appsettings.json)
-# appsettings.Development.json   ← XÓA hoặc COMMENT đi
-
-# Nếu có tạo Production riêng thì mới ignore:
-# appsettings.Production.json
+# cấu hình dev (nếu chứa secret)
+appsettings.Development.json
