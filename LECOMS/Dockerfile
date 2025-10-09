@@ -31,5 +31,7 @@ COPY --from=build /app/publish ./
 
 EXPOSE 8080
 
+ENV Jwt__Key=""
+
 # Tránh phải ghi đúng tên DLL: chạy DLL đầu tiên tìm thấy
 ENTRYPOINT ["dotnet", "LECOMS.API.dll"]
