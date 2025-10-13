@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using LECOMS.Data.DTOs.Auth;
+using LECOMS.Data.DTOs.Seller;
 using LECOMS.Data.DTOs.User;
 using LECOMS.Data.Entities;
 using System;
@@ -26,8 +27,25 @@ namespace LECOMS.Common.Helper
                 .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.FullName))
                 .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => true))
                 .ForMember(dest => dest.Id, opt => opt.Ignore());
-        
-        }
+            // Thêm mapping cho Shop và Seller Registration
+            CreateMap<Shop, ShopDTO>().ReverseMap();
 
+            CreateMap<SellerRegistrationRequestDTO, Shop>()
+                .ForMember(d => d.Name, o => o.MapFrom(s => s.ShopName))
+                .ForMember(d => d.Description, o => o.MapFrom(s => s.ShopDescription))
+                .ForMember(d => d.PhoneNumber, o => o.MapFrom(s => s.ShopPhoneNumber))
+                .ForMember(d => d.Address, o => o.MapFrom(s => s.ShopAddress))
+                .ForMember(d => d.BusinessType, o => o.MapFrom(s => s.BusinessType))
+                .ForMember(d => d.OwnershipDocumentUrl, o => o.MapFrom(s => s.OwnershipDocumentUrl))
+                .ForMember(d => d.Category, o => o.MapFrom(s => s.Category))
+                .ForMember(d => d.AcceptedTerms, o => o.MapFrom(s => s.AcceptedTerms))
+                .ForMember(d => d.OwnerFullName, o => o.MapFrom(s => s.OwnerFullName))
+                .ForMember(d => d.OwnerDateOfBirth, o => o.MapFrom(s => s.OwnerDateOfBirth))
+                .ForMember(d => d.OwnerPersonalIdNumber, o => o.MapFrom(s => s.OwnerPersonalIdNumber))
+                .ForMember(d => d.OwnerPersonalIdFrontUrl, o => o.MapFrom(s => s.OwnerPersonalIdFrontUrl))
+                .ForMember(d => d.OwnerPersonalIdBackUrl, o => o.MapFrom(s => s.OwnerPersonalIdBackUrl));
+            CreateMap<ShopUpdateDTO, Shop>()
+                .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
+        }
     }
 }

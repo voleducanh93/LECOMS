@@ -49,6 +49,7 @@ namespace LECOMS.Data.Models
         public DbSet<Voucher> Vouchers => Set<Voucher>();
         public DbSet<WalletAccount> WalletAccounts => Set<WalletAccount>();
         public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
+        public DbSet<Shop> Shops { get; set; }
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -278,6 +279,13 @@ namespace LECOMS.Data.Models
                     prop.SetScale(2);
                 }
             }
+            // Thêm cấu hình mối quan hệ 1-1 giữa User và Shop
+            b.Entity<User>()
+             .HasOne(u => u.Shop)
+             .WithOne(s => s.Seller)
+             .HasForeignKey<Shop>(s => s.SellerId)
+             .OnDelete(DeleteBehavior.Cascade);
+
         }
     }
 }

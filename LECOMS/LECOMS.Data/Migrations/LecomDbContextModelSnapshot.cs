@@ -955,6 +955,84 @@ namespace LECOMS.Data.Migrations
                     b.ToTable("ShipmentItems");
                 });
 
+            modelBuilder.Entity("LECOMS.Data.Entities.Shop", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("AcceptedTerms")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("BusinessType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Category")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("OwnerDateOfBirth")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OwnerFullName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OwnerPersonalIdBackUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OwnerPersonalIdFrontUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OwnerPersonalIdNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OwnershipDocumentUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RejectedReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SellerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SellerId")
+                        .IsUnique();
+
+                    b.ToTable("Shops");
+                });
+
             modelBuilder.Entity("LECOMS.Data.Entities.User", b =>
                 {
                     b.Property<string>("Id")
@@ -1698,6 +1776,17 @@ namespace LECOMS.Data.Migrations
                     b.Navigation("Shipment");
                 });
 
+            modelBuilder.Entity("LECOMS.Data.Entities.Shop", b =>
+                {
+                    b.HasOne("LECOMS.Data.Entities.User", "Seller")
+                        .WithOne("Shop")
+                        .HasForeignKey("LECOMS.Data.Entities.Shop", "SellerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Seller");
+                });
+
             modelBuilder.Entity("LECOMS.Data.Entities.UserBadge", b =>
                 {
                     b.HasOne("LECOMS.Data.Entities.Badge", "Badge")
@@ -1915,6 +2004,9 @@ namespace LECOMS.Data.Migrations
                     b.Navigation("Posts");
 
                     b.Navigation("Reviews");
+
+                    b.Navigation("Shop")
+                        .IsRequired();
 
                     b.Navigation("UserBadges");
 

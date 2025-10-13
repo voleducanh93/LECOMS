@@ -24,6 +24,7 @@ namespace LECOMS.Service
             services.AddScoped<APIResponse>();
             services.AddTransient<IUserService, UserService>();
             services.AddTransient<IAuthService, AuthService>();
+            services.AddTransient<IShopService, ShopService>();
 
             return services;
         }

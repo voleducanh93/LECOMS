@@ -13,12 +13,13 @@ namespace LECOMS.Repository.Repositories
     {
         private readonly LecomDbContext _context;
         public IUserRepository Users { get; }
+        public IShopRepository Shops { get; }
 
-        public UnitOfWork(LecomDbContext context, IUserRepository userRepository)
+        public UnitOfWork(LecomDbContext context, IUserRepository userRepository, IShopRepository shopRepository)
         {
             _context = context;
             Users = userRepository;
-
+            Shops = shopRepository;
 
         }
         public async Task<int> CompleteAsync()

@@ -10,6 +10,7 @@ namespace LECOMS.RepositoryContract.Interfaces
     public interface IUnitOfWork : IDisposable
     {
         IUserRepository Users { get; }
+        IShopRepository Shops { get; }
 
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();

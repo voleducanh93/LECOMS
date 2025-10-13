@@ -14,6 +14,7 @@ namespace LECOMS.Data.Entities
         public string? RefreshToken { get; set; }
         public DateTime? RefreshTokenExpiryTime { get; set; }
         public string? CertificateImageUrl { get; set; }
+        public virtual Shop Shop { get; set; }
 
         // Navigation
         public ICollection<Address> Addresses { get; set; } = new List<Address>();
