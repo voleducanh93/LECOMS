@@ -14,13 +14,26 @@ namespace LECOMS.Repository.Repositories
         private readonly LecomDbContext _context;
         public IUserRepository Users { get; }
         public IShopRepository Shops { get; }
+        public ICourseRepository Courses { get; }
+        public ICourseSectionRepository Sections { get; }
+        public ILessonRepository Lessons { get; }
+        public ICourseProductRepository CourseProducts { get; }
+        public ICourseCategoryRepository CourseCategories { get; }
 
-        public UnitOfWork(LecomDbContext context, IUserRepository userRepository, IShopRepository shopRepository)
+        public UnitOfWork(LecomDbContext context, IUserRepository userRepository, IShopRepository shopRepository, ICourseRepository courseRepo,
+        ICourseSectionRepository sectionRepo,
+        ILessonRepository lessonRepo,
+        ICourseProductRepository cpRepo, ICourseCategoryRepository courseCategories)
         {
             _context = context;
             Users = userRepository;
             Shops = shopRepository;
 
+            Courses = courseRepo;
+            Sections = sectionRepo;
+            Lessons = lessonRepo;
+            CourseProducts = cpRepo;
+            CourseCategories = courseCategories;
         }
         public async Task<int> CompleteAsync()
         {

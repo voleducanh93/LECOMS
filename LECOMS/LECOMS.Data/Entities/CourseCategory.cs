@@ -8,12 +8,18 @@ using System.Threading.Tasks;
 
 namespace LECOMS.Data.Entities
 {
-    [Index(nameof(Slug), IsUnique = true)]
+    [Index(nameof(Slug), IsUnique = true)]  // 👈 tạo chỉ mục unique cho Slug
     public class CourseCategory
     {
-        [Key] public string Id { get; set; }
-        [Required, MaxLength(150)] public string Name { get; set; } = null!;
-        [Required, MaxLength(180)] public string Slug { get; set; } = null!;
+        [Key]
+        public string Id { get; set; }
+
+        [Required, MaxLength(150)]
+        public string Name { get; set; } = null!;
+
+        [Required, MaxLength(180)]
+        public string Slug { get; set; } = null!;  // 👈 BẮT BUỘC có giá trị (NOT NULL)
+
         public byte Active { get; set; } = 1;
 
         public ICollection<Course> Courses { get; set; } = new List<Course>();

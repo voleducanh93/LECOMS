@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LECOMS.Data.Migrations
 {
     [DbContext(typeof(LecomDbContext))]
-    [Migration("20251013160739_Migrations")]
+    [Migration("20251014092003_Migrations")]
     partial class Migrations
     {
         /// <inheritdoc />
@@ -243,6 +243,9 @@ namespace LECOMS.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int>("ShopId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(220)
@@ -260,6 +263,8 @@ namespace LECOMS.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("ShopId");
 
                     b.HasIndex("Slug")
                         .IsUnique();
@@ -1541,7 +1546,15 @@ namespace LECOMS.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("LECOMS.Data.Entities.Shop", "Shop")
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Category");
+
+                    b.Navigation("Shop");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.CourseProduct", b =>

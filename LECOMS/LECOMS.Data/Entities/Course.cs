@@ -19,7 +19,8 @@ namespace LECOMS.Data.Entities
 
         [Required] public string CategoryId { get; set; }
         [ForeignKey(nameof(CategoryId))] public CourseCategory Category { get; set; } = null!;
-
+        [Required] public int ShopId { get; set; }
+        [ForeignKey(nameof(ShopId))] public Shop Shop { get; set; } = null!;
         public byte Active { get; set; } = 1;
 
         public ICollection<CourseSection> Sections { get; set; } = new List<CourseSection>();

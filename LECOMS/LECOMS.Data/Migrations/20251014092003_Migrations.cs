@@ -502,28 +502,6 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Courses",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Slug = table.Column<string>(type: "nvarchar(220)", maxLength: 220, nullable: false),
-                    Summary = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    CategoryId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Active = table.Column<byte>(type: "tinyint", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Courses", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Courses_CourseCategories_CategoryId",
-                        column: x => x.CategoryId,
-                        principalTable: "CourseCategories",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "LeaderboardEntries",
                 columns: table => new
                 {
@@ -744,6 +722,35 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Courses",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Slug = table.Column<string>(type: "nvarchar(220)", maxLength: 220, nullable: false),
+                    Summary = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    CategoryId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ShopId = table.Column<int>(type: "int", nullable: false),
+                    Active = table.Column<byte>(type: "tinyint", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Courses", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Courses_CourseCategories_CategoryId",
+                        column: x => x.CategoryId,
+                        principalTable: "CourseCategories",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Courses_Shops_ShopId",
+                        column: x => x.ShopId,
+                        principalTable: "Shops",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "WalletTransactions",
                 columns: table => new
                 {
@@ -768,81 +775,6 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Certificates",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Code = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    IssuedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Certificates", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Certificates_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Certificates_Courses_CourseId",
-                        column: x => x.CourseId,
-                        principalTable: "Courses",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "CourseSections",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    OrderIndex = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_CourseSections", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_CourseSections_Courses_CourseId",
-                        column: x => x.CourseId,
-                        principalTable: "Courses",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Enrollments",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Progress = table.Column<double>(type: "float", nullable: false),
-                    EnrolledAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Enrollments", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Enrollments_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Enrollments_Courses_CourseId",
-                        column: x => x.CourseId,
-                        principalTable: "Courses",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "CartItems",
                 columns: table => new
                 {
@@ -862,31 +794,6 @@ namespace LECOMS.Data.Migrations
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_CartItems_Products_ProductId",
-                        column: x => x.ProductId,
-                        principalTable: "Products",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "CourseProducts",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    ProductId = table.Column<string>(type: "nvarchar(450)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_CourseProducts", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_CourseProducts_Courses_CourseId",
-                        column: x => x.CourseId,
-                        principalTable: "Courses",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_CourseProducts_Products_ProductId",
                         column: x => x.ProductId,
                         principalTable: "Products",
                         principalColumn: "Id",
@@ -971,26 +878,103 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Lessons",
+                name: "Certificates",
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    CourseSectionId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Code = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    IssuedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Certificates", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Certificates_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Certificates_Courses_CourseId",
+                        column: x => x.CourseId,
+                        principalTable: "Courses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CourseProducts",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ProductId = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CourseProducts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CourseProducts_Courses_CourseId",
+                        column: x => x.CourseId,
+                        principalTable: "Courses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CourseProducts_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CourseSections",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Type = table.Column<int>(type: "int", nullable: false),
-                    DurationSeconds = table.Column<int>(type: "int", nullable: true),
-                    ContentUrl = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                     OrderIndex = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Lessons", x => x.Id);
+                    table.PrimaryKey("PK_CourseSections", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Lessons_CourseSections_CourseSectionId",
-                        column: x => x.CourseSectionId,
-                        principalTable: "CourseSections",
+                        name: "FK_CourseSections_Courses_CourseId",
+                        column: x => x.CourseId,
+                        principalTable: "Courses",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Enrollments",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Progress = table.Column<double>(type: "float", nullable: false),
+                    EnrolledAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Enrollments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Enrollments_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Enrollments_Courses_CourseId",
+                        column: x => x.CourseId,
+                        principalTable: "Courses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1015,6 +999,29 @@ namespace LECOMS.Data.Migrations
                         name: "FK_ShipmentItems_Shipments_ShipmentId",
                         column: x => x.ShipmentId,
                         principalTable: "Shipments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Lessons",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    CourseSectionId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    DurationSeconds = table.Column<int>(type: "int", nullable: true),
+                    ContentUrl = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    OrderIndex = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Lessons", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Lessons_CourseSections_CourseSectionId",
+                        column: x => x.CourseSectionId,
+                        principalTable: "CourseSections",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -1139,6 +1146,11 @@ namespace LECOMS.Data.Migrations
                 name: "IX_Courses_CategoryId",
                 table: "Courses",
                 column: "CategoryId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Courses_ShopId",
+                table: "Courses",
+                column: "ShopId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Courses_Slug",
@@ -1395,9 +1407,6 @@ namespace LECOMS.Data.Migrations
                 name: "ShipmentItems");
 
             migrationBuilder.DropTable(
-                name: "Shops");
-
-            migrationBuilder.DropTable(
                 name: "UserBadges");
 
             migrationBuilder.DropTable(
@@ -1459,6 +1468,9 @@ namespace LECOMS.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "CourseCategories");
+
+            migrationBuilder.DropTable(
+                name: "Shops");
 
             migrationBuilder.DropTable(
                 name: "ProductCategories");

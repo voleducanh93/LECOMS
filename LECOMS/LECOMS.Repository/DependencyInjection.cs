@@ -19,6 +19,11 @@ namespace LECOMS.Repository
             services.AddTransient<IUserRepository, UserRepository>();
             services.AddTransient<IEmailRepository, EmailRepository>();
             services.AddTransient<IShopRepository, ShopRepository>();
+            services.AddTransient<ICourseRepository, CourseRepository>();
+            services.AddTransient<ICourseSectionRepository, CourseSectionRepository>();
+            services.AddTransient<ILessonRepository, LessonRepository>();
+            services.AddTransient<ICourseProductRepository, CourseProductRepository>();
+            services.AddTransient<ICourseCategoryRepository, CourseCategoryRepository>();
             //DI Unit Of Work
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             return services;

@@ -12,6 +12,12 @@ namespace LECOMS.RepositoryContract.Interfaces
         IUserRepository Users { get; }
         IShopRepository Shops { get; }
 
+        ICourseRepository Courses { get; }          // thêm
+        ICourseSectionRepository Sections { get; }  // thêm
+        ILessonRepository Lessons { get; }          // thêm
+        ICourseProductRepository CourseProducts { get; } // thêm
+
+        ICourseCategoryRepository CourseCategories { get; } // thêm 
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
     }

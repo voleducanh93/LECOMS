@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using LECOMS.Data.DTOs.Auth;
+using LECOMS.Data.DTOs.Course;
 using LECOMS.Data.DTOs.Seller;
 using LECOMS.Data.DTOs.User;
 using LECOMS.Data.Entities;
@@ -46,6 +47,17 @@ namespace LECOMS.Common.Helper
                 .ForMember(d => d.OwnerPersonalIdBackUrl, o => o.MapFrom(s => s.OwnerPersonalIdBackUrl));
             CreateMap<ShopUpdateDTO, Shop>()
                 .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
+
+            //CourseCategory Mapping
+            CreateMap<CourseCategory, CourseCategoryDTO>().ReverseMap();
+            CreateMap<CourseCategoryCreateDTO, CourseCategory>()
+                .ForMember(d => d.Id, o => o.Ignore());
+
+            CreateMap<Lesson, LessonDto>(); // nếu bạn có DTO trả ra
+            CreateMap<CreateLessonDto, Lesson>()
+                .ForMember(d => d.Id, o => o.Ignore()); // set Guid trong service
+
+
         }
     }
 }
