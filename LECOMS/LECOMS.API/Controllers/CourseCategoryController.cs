@@ -25,7 +25,7 @@ namespace LECOMS.API.Controllers
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] CourseCategoryCreateDTO dto)
         {
             try

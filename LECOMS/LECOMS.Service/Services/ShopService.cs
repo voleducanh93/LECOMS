@@ -23,7 +23,7 @@ namespace LECOMS.Service.Services
         }
         public async Task<ShopDTO> GetByIdAsync(int id)
         {
-            var shop = await _uow.Shops.GetAsync(s => s.Id == id);
+            var shop = await _uow.Shops.GetAsync(s => s.Id == id, includeProperties: "Category");
             return shop == null ? null : _mapper.Map<ShopDTO>(shop);
         }
         public async Task<bool> HasShopAsync(string sellerId)
@@ -35,25 +35,49 @@ namespace LECOMS.Service.Services
             if (await _uow.Shops.ExistsBySellerIdAsync(sellerId))
                 throw new InvalidOperationException("This seller already has a shop.");
 
-            var shop = _mapper.Map<Shop>(dto);
-            shop.SellerId = sellerId;
-            shop.Status = "Pending";
+            // ✅ Kiểm tra category tồn tại
+            var category = await _uow.CourseCategories.GetAsync(c => c.Id == dto.CategoryId);
+            if (category == null)
+                throw new InvalidOperationException("Selected category not found.");
+
+            var shop = new Shop
+            {
+                Name = dto.ShopName,
+                Description = dto.ShopDescription,
+                PhoneNumber = dto.ShopPhoneNumber,
+                Address = dto.ShopAddress,
+                BusinessType = dto.BusinessType,
+                OwnershipDocumentUrl = dto.OwnershipDocumentUrl,
+                CategoryId = dto.CategoryId,
+                AcceptedTerms = dto.AcceptedTerms,
+                OwnerFullName = dto.OwnerFullName,
+                OwnerDateOfBirth = dto.OwnerDateOfBirth,
+                OwnerPersonalIdNumber = dto.OwnerPersonalIdNumber,
+                OwnerPersonalIdFrontUrl = dto.OwnerPersonalIdFrontUrl,
+                OwnerPersonalIdBackUrl = dto.OwnerPersonalIdBackUrl,
+                SellerId = sellerId,
+                Status = "Pending"
+            };
+
             await _uow.Shops.AddAsync(shop);
             await _uow.CompleteAsync();
+            shop = await _uow.Shops.GetAsync(s => s.Id == shop.Id, includeProperties: "Category");
 
             return _mapper.Map<ShopDTO>(shop);
         }
 
+
         public async Task<ShopDTO> GetShopBySellerIdAsync(string sellerId)
         {
-            var shop = await _uow.Shops.GetBySellerIdAsync(sellerId);
+            var shop = await _uow.Shops.GetBySellerIdAsync(sellerId, includeProperties: "Category");
             return shop == null ? null : _mapper.Map<ShopDTO>(shop);
         }
 
         public async Task<IEnumerable<ShopDTO>> GetAllAsync(string? status = null)
         {
             var shops = await _uow.Shops.GetAllAsync(
-                filter: s => string.IsNullOrEmpty(status) || s.Status == status
+                filter: s => string.IsNullOrEmpty(status) || s.Status == status,
+                includeProperties: "Category"
             );
             return _mapper.Map<IEnumerable<ShopDTO>>(shops);
         }
@@ -69,6 +93,7 @@ namespace LECOMS.Service.Services
             _mapper.Map(dto, shop);
             await _uow.Shops.UpdateAsync(shop);
             await _uow.CompleteAsync();
+            shop = await _uow.Shops.GetAsync(s => s.Id == id, includeProperties: "Category");
 
             return _mapper.Map<ShopDTO>(shop);
         }
@@ -96,6 +121,8 @@ namespace LECOMS.Service.Services
 
             await _uow.Shops.UpdateAsync(shop);
             await _uow.CompleteAsync();
+
+            shop = await _uow.Shops.GetAsync(s => s.Id == id, includeProperties: "Category");
             return _mapper.Map<ShopDTO>(shop);
         }
 
@@ -109,6 +136,8 @@ namespace LECOMS.Service.Services
 
             await _uow.Shops.UpdateAsync(shop);
             await _uow.CompleteAsync();
+            shop = await _uow.Shops.GetAsync(s => s.Id == id, includeProperties: "Category");
+
             return _mapper.Map<ShopDTO>(shop);
         }
     }

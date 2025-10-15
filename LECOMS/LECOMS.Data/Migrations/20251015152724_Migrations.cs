@@ -420,42 +420,6 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Shops",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Address = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
-                    BusinessType = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    OwnershipDocumentUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Category = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    AcceptedTerms = table.Column<bool>(type: "bit", nullable: false),
-                    OwnerFullName = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    OwnerDateOfBirth = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    OwnerPersonalIdNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    OwnerPersonalIdFrontUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    OwnerPersonalIdBackUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    RejectedReason = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ApprovedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    SellerId = table.Column<string>(type: "nvarchar(450)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Shops", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Shops_AspNetUsers_SellerId",
-                        column: x => x.SellerId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "WalletAccounts",
                 columns: table => new
                 {
@@ -497,6 +461,48 @@ namespace LECOMS.Data.Migrations
                         name: "FK_UserBadges_Badges_BadgeId",
                         column: x => x.BadgeId,
                         principalTable: "Badges",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Shops",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Address = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    BusinessType = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    OwnershipDocumentUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CategoryId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    AcceptedTerms = table.Column<bool>(type: "bit", nullable: false),
+                    OwnerFullName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    OwnerDateOfBirth = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    OwnerPersonalIdNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    OwnerPersonalIdFrontUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    OwnerPersonalIdBackUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    RejectedReason = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ApprovedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    SellerId = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Shops", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Shops_AspNetUsers_SellerId",
+                        column: x => x.SellerId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Shops_CourseCategories_CategoryId",
+                        column: x => x.CategoryId,
+                        principalTable: "CourseCategories",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -722,6 +728,30 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "WalletTransactions",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    WalletAccountId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    BalanceAfter = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    OrderId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Note = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WalletTransactions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WalletTransactions_WalletAccounts_WalletAccountId",
+                        column: x => x.WalletAccountId,
+                        principalTable: "WalletAccounts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Courses",
                 columns: table => new
                 {
@@ -748,30 +778,6 @@ namespace LECOMS.Data.Migrations
                         principalTable: "Shops",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "WalletTransactions",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    WalletAccountId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Type = table.Column<int>(type: "int", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    BalanceAfter = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    OrderId = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Note = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_WalletTransactions", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_WalletTransactions_WalletAccounts_WalletAccountId",
-                        column: x => x.WalletAccountId,
-                        principalTable: "WalletAccounts",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -1286,6 +1292,11 @@ namespace LECOMS.Data.Migrations
                 column: "OrderId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Shops_CategoryId",
+                table: "Shops",
+                column: "CategoryId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Shops_SellerId",
                 table: "Shops",
                 column: "SellerId",
@@ -1467,9 +1478,6 @@ namespace LECOMS.Data.Migrations
                 name: "Orders");
 
             migrationBuilder.DropTable(
-                name: "CourseCategories");
-
-            migrationBuilder.DropTable(
                 name: "Shops");
 
             migrationBuilder.DropTable(
@@ -1477,6 +1485,9 @@ namespace LECOMS.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
+
+            migrationBuilder.DropTable(
+                name: "CourseCategories");
         }
     }
 }

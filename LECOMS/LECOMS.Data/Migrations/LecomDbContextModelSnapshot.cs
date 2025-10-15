@@ -982,8 +982,9 @@ namespace LECOMS.Data.Migrations
                     b.Property<string>("BusinessType")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Category")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<string>("CategoryId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -1031,6 +1032,8 @@ namespace LECOMS.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
 
                     b.HasIndex("SellerId")
                         .IsUnique();
@@ -1791,11 +1794,19 @@ namespace LECOMS.Data.Migrations
 
             modelBuilder.Entity("LECOMS.Data.Entities.Shop", b =>
                 {
+                    b.HasOne("LECOMS.Data.Entities.CourseCategory", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("LECOMS.Data.Entities.User", "Seller")
                         .WithOne("Shop")
                         .HasForeignKey("LECOMS.Data.Entities.Shop", "SellerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Category");
 
                     b.Navigation("Seller");
                 });

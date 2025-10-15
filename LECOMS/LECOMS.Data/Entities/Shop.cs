@@ -22,27 +22,29 @@ namespace LECOMS.Data.Entities
         public string Address { get; set; }
 
         public string? BusinessType { get; set; }
-
         public string? OwnershipDocumentUrl { get; set; }
 
-        public string? Category { get; set; }
+        // ✅ Liên kết category (Admin tạo)
+        [Required]
+        public string CategoryId { get; set; }
+
+        [ForeignKey(nameof(CategoryId))]
+        public CourseCategory Category { get; set; }
 
         public bool AcceptedTerms { get; set; } = false;
 
-        // Thông tin chủ sở hữu
+        // Chủ sở hữu
         public string? OwnerFullName { get; set; }
         public DateTime? OwnerDateOfBirth { get; set; }
         public string? OwnerPersonalIdNumber { get; set; }
         public string? OwnerPersonalIdFrontUrl { get; set; }
         public string? OwnerPersonalIdBackUrl { get; set; }
 
-        // Trạng thái phê duyệt
-        public string Status { get; set; } = "Pending"; // Pending | Approved | Rejected
+        public string Status { get; set; } = "Pending";
         public string? RejectedReason { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ApprovedAt { get; set; }
 
-        // Khóa ngoại tới User
         public string SellerId { get; set; }
         [ForeignKey("SellerId")]
         public virtual User Seller { get; set; }

@@ -19,10 +19,14 @@ namespace LECOMS.Data.DTOs.Seller
 
         public string? BusinessType { get; set; }
         public string? OwnershipDocumentUrl { get; set; }
-        public string? Category { get; set; }
+
+        // ✅ Thay Category bằng CategoryId
+        [Required]
+        public string CategoryId { get; set; }
+
         public bool AcceptedTerms { get; set; }
 
-        // Thông tin chủ sở hữu
+        // Chủ sở hữu
         public string? OwnerFullName { get; set; }
         public DateTime? OwnerDateOfBirth { get; set; }
         public string? OwnerPersonalIdNumber { get; set; }
