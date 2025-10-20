@@ -1,9 +1,11 @@
-﻿using LECOMS.Data.DTOs.Seller;
+﻿using LECOMS.Common.Helper;
+using LECOMS.Data.DTOs.Seller;
 using LECOMS.Data.Entities;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Net;
 
 namespace LECOMS.API.Controllers
 {
@@ -20,6 +22,10 @@ namespace LECOMS.API.Controllers
             _userManager = userManager;
         }
 
+        // -----------------------------------------------------------
+        // SELLER FUNCTIONALITY
+        // -----------------------------------------------------------
+
         /// <summary>
         /// Seller đăng ký mở shop
         /// </summary>
@@ -27,24 +33,38 @@ namespace LECOMS.API.Controllers
         [Authorize]
         public async Task<IActionResult> RegisterShop([FromBody] SellerRegistrationRequestDTO dto)
         {
+            var response = new APIResponse();
+
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add("Invalid data.");
+                return StatusCode((int)response.StatusCode, response);
+            }
 
             var userId = _userManager.GetUserId(User);
 
             try
             {
                 var result = await _shopService.CreateShopAsync(userId, dto);
-                return CreatedAtAction(nameof(GetMyShop), new { }, result);
+                response.StatusCode = HttpStatusCode.Created;
+                response.Result = result;
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = $"Internal error: {ex.Message}" });
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add($"Internal error: {ex.Message}");
             }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
         /// <summary>
@@ -54,10 +74,32 @@ namespace LECOMS.API.Controllers
         [Authorize]
         public async Task<IActionResult> GetMyShop()
         {
+            var response = new APIResponse();
             var userId = _userManager.GetUserId(User);
-            var shop = await _shopService.GetShopBySellerIdAsync(userId);
-            if (shop == null) return NotFound(new { message = "Shop not found." });
-            return Ok(shop);
+
+            try
+            {
+                var shop = await _shopService.GetShopBySellerIdAsync(userId);
+                if (shop == null)
+                {
+                    response.IsSuccess = false;
+                    response.StatusCode = HttpStatusCode.NotFound;
+                    response.ErrorMessages.Add("Shop not found.");
+                }
+                else
+                {
+                    response.StatusCode = HttpStatusCode.OK;
+                    response.Result = shop;
+                }
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
         /// <summary>
@@ -67,23 +109,39 @@ namespace LECOMS.API.Controllers
         [Authorize]
         public async Task<IActionResult> UpdateShop(int id, [FromBody] ShopUpdateDTO dto)
         {
-            if (dto == null) return BadRequest("Invalid data.");
+            var response = new APIResponse();
+
+            if (dto == null)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add("Invalid data.");
+                return StatusCode((int)response.StatusCode, response);
+            }
+
             var userId = _userManager.GetUserId(User);
             var isAdmin = User.IsInRole("Admin");
 
             try
             {
                 var result = await _shopService.UpdateShopAsync(id, dto, userId, isAdmin);
-                return Ok(result);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
             }
             catch (UnauthorizedAccessException)
             {
-                return Forbid();
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.Forbidden;
+                response.ErrorMessages.Add("You are not authorized to update this shop.");
             }
             catch (KeyNotFoundException)
             {
-                return NotFound(new { message = "Shop not found." });
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.ErrorMessages.Add("Shop not found.");
             }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
         /// <summary>
@@ -93,22 +151,38 @@ namespace LECOMS.API.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteShop(int id)
         {
+            var response = new APIResponse();
             var userId = _userManager.GetUserId(User);
             var isAdmin = User.IsInRole("Admin");
 
             try
             {
                 var deleted = await _shopService.DeleteShopAsync(id, userId, isAdmin);
-                if (!deleted) return NotFound(new { message = "Shop not found." });
-                return Ok(new { message = "Shop deleted successfully." });
+                if (!deleted)
+                {
+                    response.IsSuccess = false;
+                    response.StatusCode = HttpStatusCode.NotFound;
+                    response.ErrorMessages.Add("Shop not found.");
+                }
+                else
+                {
+                    response.StatusCode = HttpStatusCode.OK;
+                    response.Result = new { message = "Shop deleted successfully." };
+                }
             }
             catch (UnauthorizedAccessException)
             {
-                return Forbid();
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.Forbidden;
+                response.ErrorMessages.Add("You are not authorized to delete this shop.");
             }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
-        // ----------------- ADMIN FUNCTIONALITY -----------------
+        // -----------------------------------------------------------
+        // ADMIN FUNCTIONALITY
+        // -----------------------------------------------------------
 
         /// <summary>
         /// Admin lấy tất cả shop (lọc theo trạng thái nếu cần)
@@ -117,8 +191,21 @@ namespace LECOMS.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllShops([FromQuery] string? status = null)
         {
-            var result = await _shopService.GetAllAsync(status);
-            return Ok(result);
+            var response = new APIResponse();
+            try
+            {
+                var result = await _shopService.GetAllAsync(status);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
         /// <summary>
@@ -128,9 +215,30 @@ namespace LECOMS.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetShopById(int id)
         {
-            var shop = await _shopService.GetByIdAsync(id);
-            if (shop == null) return NotFound(new { message = "Shop not found." });
-            return Ok(shop);
+            var response = new APIResponse();
+            try
+            {
+                var shop = await _shopService.GetByIdAsync(id);
+                if (shop == null)
+                {
+                    response.IsSuccess = false;
+                    response.StatusCode = HttpStatusCode.NotFound;
+                    response.ErrorMessages.Add("Shop not found.");
+                }
+                else
+                {
+                    response.StatusCode = HttpStatusCode.OK;
+                    response.Result = shop;
+                }
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
         /// <summary>
@@ -140,16 +248,22 @@ namespace LECOMS.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ApproveShop(int id)
         {
-            var adminId = _userManager.GetUserId(User);
+            var response = new APIResponse();
             try
             {
+                var adminId = _userManager.GetUserId(User);
                 var result = await _shopService.ApproveShopAsync(id, adminId);
-                return Ok(result);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
             }
             catch (KeyNotFoundException)
             {
-                return NotFound(new { message = "Shop not found." });
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.ErrorMessages.Add("Shop not found.");
             }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
         /// <summary>
@@ -159,19 +273,31 @@ namespace LECOMS.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RejectShop(int id, [FromBody] RejectShopRequest dto)
         {
+            var response = new APIResponse();
+
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add("Invalid request.");
+                return StatusCode((int)response.StatusCode, response);
+            }
 
             var adminId = _userManager.GetUserId(User);
             try
             {
                 var result = await _shopService.RejectShopAsync(id, adminId, dto.Reason);
-                return Ok(result);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
             }
             catch (KeyNotFoundException)
             {
-                return NotFound(new { message = "Shop not found." });
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.ErrorMessages.Add("Shop not found.");
             }
+
+            return StatusCode((int)response.StatusCode, response);
         }
     }
 }
