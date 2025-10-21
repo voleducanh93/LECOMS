@@ -19,11 +19,12 @@ namespace LECOMS.Repository.Repositories
         public ILessonRepository Lessons { get; }
         public ICourseProductRepository CourseProducts { get; }
         public ICourseCategoryRepository CourseCategories { get; }
-
+        public IProductCategoryRepository ProductCategories { get; }
+        public IProductRepository Products { get; } 
         public UnitOfWork(LecomDbContext context, IUserRepository userRepository, IShopRepository shopRepository, ICourseRepository courseRepo,
         ICourseSectionRepository sectionRepo,
         ILessonRepository lessonRepo,
-        ICourseProductRepository cpRepo, ICourseCategoryRepository courseCategories)
+        ICourseProductRepository cpRepo, ICourseCategoryRepository courseCategories, IProductCategoryRepository productCategories, IProductRepository products)
         {
             _context = context;
             Users = userRepository;
@@ -34,6 +35,8 @@ namespace LECOMS.Repository.Repositories
             Lessons = lessonRepo;
             CourseProducts = cpRepo;
             CourseCategories = courseCategories;
+            ProductCategories = productCategories;
+            Products = products;
         }
         public async Task<int> CompleteAsync()
         {

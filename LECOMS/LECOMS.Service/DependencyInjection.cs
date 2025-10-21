@@ -27,6 +27,8 @@ namespace LECOMS.Service
             services.AddTransient<IShopService, ShopService>();
             services.AddTransient<ISellerCourseService, SellerCourseService>();
             services.AddTransient<ICourseCategoryService, CourseCategoryService>();
+            services.AddTransient<IProductCategoryService, ProductCategoryService>();
+            services.AddTransient<IProductService, ProductService>();
             return services;
         }
     }

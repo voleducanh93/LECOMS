@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using LECOMS.Data.DTOs.Auth;
 using LECOMS.Data.DTOs.Course;
+using LECOMS.Data.DTOs.Product;
 using LECOMS.Data.DTOs.Seller;
 using LECOMS.Data.DTOs.User;
 using LECOMS.Data.Entities;
@@ -69,6 +70,34 @@ namespace LECOMS.Common.Helper
             CreateMap<Lesson, LessonDto>();
             CreateMap<CreateLessonDto, Lesson>()
                 .ForMember(d => d.Id, o => o.Ignore());
+
+            // Entity → DTO
+            CreateMap<Product, ProductDTO>()
+                .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
+                .ReverseMap();
+
+            // Create DTO → Entity
+            CreateMap<ProductCreateDTO, Product>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore()) // set trong service
+                .ForMember(dest => dest.Slug, opt => opt.Ignore()) // tạo slug tự động
+                .ForMember(dest => dest.Active, opt => opt.MapFrom(_ => (byte)1));
+
+            // Update DTO → Entity
+            CreateMap<ProductUpdateDTO, Product>()
+                .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
+
+            // ==========================
+            // 🧱 PRODUCT CATEGORY MAPPING
+
+            // Entity → DTO
+            CreateMap<ProductCategory, ProductCategoryDTO>().ReverseMap();
+
+            // Create DTO → Entity
+            CreateMap<ProductCategoryCreateDTO, ProductCategory>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore()) // tạo Guid trong service
+                .ForMember(dest => dest.Slug, opt => opt.Ignore()) // tạo slug trong service
+                .ForMember(dest => dest.Active, opt => opt.MapFrom(_ => (byte)1));
+
         }
     }
 }
