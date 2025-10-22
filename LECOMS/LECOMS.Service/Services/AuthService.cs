@@ -65,7 +65,7 @@ namespace LECOMS.Service.Services
             return new LoginResponseDTO
             {
                 Token = token,
-                RefeshToken = refreshToken,
+                RefreshToken = refreshToken,
                 UserId = user.Id
             };
         }
@@ -237,7 +237,7 @@ namespace LECOMS.Service.Services
             return new LoginResponseDTO
             {
                 Token = newToken,
-                RefeshToken = newRefreshToken,
+                RefreshToken = newRefreshToken,
                 UserId = user.Id
             };
         }
