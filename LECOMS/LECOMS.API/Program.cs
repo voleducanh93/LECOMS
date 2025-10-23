@@ -112,6 +112,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Đăng ký cấu hình Cloudinary để có thể inject IOptions<CloudinarySettings>
+builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 
 //child
 builder.Services
