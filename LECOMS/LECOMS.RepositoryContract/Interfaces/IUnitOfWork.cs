@@ -20,7 +20,11 @@ namespace LECOMS.RepositoryContract.Interfaces
         ICourseCategoryRepository CourseCategories { get; } // thêm 
 
         IProductCategoryRepository ProductCategories { get; }
-        IProductRepository Products { get; }    
+        IProductRepository Products { get; }
+
+        // Enrollment repository exposure
+        IEnrollmentRepository Enrollments { get; }
+
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
     }
