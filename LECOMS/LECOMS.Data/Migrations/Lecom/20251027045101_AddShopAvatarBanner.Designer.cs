@@ -4,16 +4,19 @@ using LECOMS.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace LECOMS.Data.Migrations
+namespace LECOMS.Data.Migrations.Lecom
 {
     [DbContext(typeof(LecomDbContext))]
-    partial class LecomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251027045101_AddShopAvatarBanner")]
+    partial class AddShopAvatarBanner
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1032,18 +1035,6 @@ namespace LECOMS.Data.Migrations
                         .HasColumnType("nvarchar(1000)");
 
                     b.Property<string>("ShopBanner")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("ShopFacebook")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("ShopInstagram")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("ShopTiktok")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 

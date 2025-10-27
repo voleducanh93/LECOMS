@@ -45,6 +45,11 @@ namespace LECOMS.Common.Helper
                 .ForMember(d => d.Address, o => o.MapFrom(s => s.ShopAddress))
                 .ForMember(d => d.BusinessType, o => o.MapFrom(s => s.BusinessType))
                 .ForMember(d => d.OwnershipDocumentUrl, o => o.MapFrom(s => s.OwnershipDocumentUrl))
+                .ForMember(d => d.ShopAvatar, o => o.MapFrom(s => s.ShopAvatar))
+                .ForMember(d => d.ShopBanner, o => o.MapFrom(s => s.ShopBanner))
+                .ForMember(d => d.ShopFacebook, o => o.MapFrom(s => s.ShopFacebook))
+                .ForMember(d => d.ShopTiktok, o => o.MapFrom(s => s.ShopTiktok))
+                .ForMember(d => d.ShopInstagram, o => o.MapFrom(s => s.ShopInstagram))
                 // ✅ cập nhật CategoryId thay cho Category
                 .ForMember(d => d.CategoryId, o => o.MapFrom(s => s.CategoryId))
                 // ❌ bỏ dòng cũ `.ForMember(d => d.Category, ...)`

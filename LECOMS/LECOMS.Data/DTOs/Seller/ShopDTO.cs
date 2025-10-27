@@ -15,7 +15,13 @@ namespace LECOMS.Data.DTOs.Seller
             public string? BusinessType { get; set; }
             public string? OwnershipDocumentUrl { get; set; }
 
-            // ✅ Đổi Category → CategoryId, thêm tên category nếu muốn hiển thị
+            public string? ShopAvatar { get; set; }
+            public string? ShopBanner { get; set; }
+            public string? ShopFacebook { get; set; }
+            public string? ShopTiktok { get; set; }
+            public string? ShopInstagram { get; set; }
+
+        // ✅ Đổi Category → CategoryId, thêm tên category nếu muốn hiển thị
             public string CategoryId { get; set; }
             public string? CategoryName { get; set; }  // lấy từ CourseCategory.Name (option)
 

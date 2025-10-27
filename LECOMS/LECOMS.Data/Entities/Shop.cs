@@ -24,6 +24,21 @@ namespace LECOMS.Data.Entities
         public string? BusinessType { get; set; }
         public string? OwnershipDocumentUrl { get; set; }
 
+        [MaxLength(1000)]
+        public string? ShopAvatar { get; set; }
+
+        [MaxLength(1000)]
+        public string? ShopBanner { get; set; }
+
+        [MaxLength(1000)]
+        public string? ShopFacebook { get; set; }
+
+        [MaxLength(1000)]
+        public string? ShopTiktok { get; set; }
+
+        [MaxLength(1000)]
+        public string? ShopInstagram { get; set; }
+
         // ✅ Liên kết category (Admin tạo)
         [Required]
         public string CategoryId { get; set; }

@@ -20,6 +20,12 @@ namespace LECOMS.Data.DTOs.Seller
         public string? BusinessType { get; set; }
         public string? OwnershipDocumentUrl { get; set; }
 
+        public string? ShopAvatar { get; set; }
+        public string? ShopBanner { get; set; }
+        public string? ShopFacebook { get; set; }
+        public string? ShopTiktok { get; set; }
+        public string? ShopInstagram { get; set; }
+
         // ✅ Thay Category bằng CategoryId
         [Required]
         public string CategoryId { get; set; }

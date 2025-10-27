@@ -4,16 +4,19 @@ using LECOMS.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace LECOMS.Data.Migrations
+namespace LECOMS.Data.Migrations.Lecom
 {
     [DbContext(typeof(LecomDbContext))]
-    partial class LecomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251027051710_AddShopSocialLinks")]
+    partial class AddShopSocialLinks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
