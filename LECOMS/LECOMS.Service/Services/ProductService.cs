@@ -23,7 +23,7 @@ namespace LECOMS.Service.Services
         }
 
         /// <summary>
-        /// Lấy tất cả sản phẩm thuộc shop
+        /// Lấy tất cả sản phẩm thuộc shop (bao gồm Category và Images)
         /// </summary>
         public async Task<IEnumerable<ProductDTO>> GetAllByShopAsync(int shopId)
         {
@@ -31,16 +31,20 @@ namespace LECOMS.Service.Services
             if (shop == null)
                 throw new InvalidOperationException("Shop not found.");
 
-            var products = await _uow.Products.GetAllByShopAsync(shopId, includeProperties: "Category");
+            var products = await _uow.Products.GetAllByShopAsync(shopId, includeProperties: "Category,Images");
             return _mapper.Map<IEnumerable<ProductDTO>>(products);
         }
 
         /// <summary>
-        /// Lấy sản phẩm theo ID
+        /// Lấy sản phẩm theo ID (bao gồm Category và Images)
         /// </summary>
         public async Task<ProductDTO> GetByIdAsync(string id)
         {
-            var product = await _uow.Products.GetAsync(p => p.Id == id, includeProperties: "Category");
+            var product = await _uow.Products.GetAsync(
+                p => p.Id == id,
+                includeProperties: "Category,Images"
+            );
+
             if (product == null)
                 throw new KeyNotFoundException("Product not found.");
 
@@ -48,89 +52,134 @@ namespace LECOMS.Service.Services
         }
 
         /// <summary>
-        /// Seller tạo sản phẩm mới
+        /// Seller tạo sản phẩm mới (kèm nhiều ảnh)
         /// </summary>
         public async Task<ProductDTO> CreateAsync(int shopId, ProductCreateDTO dto)
         {
-            var shop = await _uow.Shops.GetAsync(s => s.Id == shopId);
-            if (shop == null)
-                throw new InvalidOperationException("Shop not found.");
+            using var transaction = await _uow.BeginTransactionAsync();
 
-            var category = await _uow.ProductCategories.GetAsync(c => c.Id == dto.CategoryId);
-            if (category == null)
-                throw new InvalidOperationException("Category not found.");
-
-            var slug = GenerateSlug(dto.Name);
-            var existSlug = await _uow.Products.ExistsSlugAsync(slug);
-            if (existSlug)
-                throw new InvalidOperationException("Slug already exists for another product.");
-
-            var product = new Product
+            try
             {
-                Id = Guid.NewGuid().ToString(),
-                Name = dto.Name.Trim(),
-                Slug = slug,
-                Description = dto.Description,
-                CategoryId = dto.CategoryId,
-                Price = dto.Price,
-                Stock = dto.Stock,
-                Active = 1
-            };
+                // ✅ Kiểm tra Shop và Category hợp lệ
+                var shop = await _uow.Shops.GetAsync(s => s.Id == shopId)
+                           ?? throw new InvalidOperationException("Shop not found.");
 
-            await _uow.Products.AddAsync(product);
-            await _uow.CompleteAsync();
+                var category = await _uow.ProductCategories.GetAsync(c => c.Id == dto.CategoryId)
+                               ?? throw new InvalidOperationException("Category not found.");
 
-            product = await _uow.Products.GetAsync(p => p.Id == product.Id, includeProperties: "Category");
-            return _mapper.Map<ProductDTO>(product);
+                // ✅ Sinh slug
+                var slug = GenerateSlug(dto.Name);
+                if (await _uow.Products.ExistsSlugAsync(slug))
+                    throw new InvalidOperationException("Slug already exists for another product.");
+
+                // ✅ Tạo Product entity
+                var product = _mapper.Map<Product>(dto);
+                product.Id = Guid.NewGuid().ToString();
+                product.Slug = slug;
+                product.ShopId = shopId; // ✅ Gán ShopId tại đây
+                product.LastUpdatedAt = DateTime.UtcNow;
+                product.Status = dto.Status ?? Data.Enum.ProductStatus.Draft;
+
+                await _uow.Products.AddAsync(product);
+
+                // ✅ Nếu có ảnh -> lưu ProductImage
+                if (dto.Images != null && dto.Images.Count > 0)
+                {
+                    foreach (var img in dto.Images)
+                    {
+                        await _uow.ProductImages.AddAsync(new ProductImage
+                        {
+                            ProductId = product.Id,
+                            Url = img.Url,
+                            OrderIndex = img.OrderIndex,
+                            IsPrimary = img.IsPrimary
+                        });
+                    }
+                }
+
+                await _uow.CompleteAsync();
+                await transaction.CommitAsync();
+
+                var loaded = await _uow.Products.GetAsync(
+                    p => p.Id == product.Id,
+                    includeProperties: "Category,Images"
+                );
+
+                return _mapper.Map<ProductDTO>(loaded);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         /// <summary>
-        /// Cập nhật sản phẩm
+        /// Cập nhật thông tin sản phẩm (có thể thay thế toàn bộ ảnh)
         /// </summary>
         public async Task<ProductDTO> UpdateAsync(string id, ProductUpdateDTO dto)
         {
-            var product = await _uow.Products.GetAsync(p => p.Id == id);
-            if (product == null)
-                throw new KeyNotFoundException("Product not found.");
+            var product = await _uow.Products.GetAsync(p => p.Id == id, includeProperties: "Images");
+            if (product == null) throw new KeyNotFoundException("Product not found.");
 
+            // ✅ Cập nhật dữ liệu cơ bản
             if (!string.IsNullOrEmpty(dto.Name))
             {
                 product.Name = dto.Name.Trim();
                 product.Slug = GenerateSlug(dto.Name);
             }
-            if (!string.IsNullOrEmpty(dto.Description))
-                product.Description = dto.Description;
+            if (!string.IsNullOrEmpty(dto.Description)) product.Description = dto.Description;
+            if (!string.IsNullOrEmpty(dto.CategoryId)) product.CategoryId = dto.CategoryId;
+            if (dto.Price.HasValue) product.Price = dto.Price.Value;
+            if (dto.Stock.HasValue) product.Stock = dto.Stock.Value;
+            if (dto.Status.HasValue) product.Status = dto.Status.Value;
 
-            if (!string.IsNullOrEmpty(dto.CategoryId))
-                product.CategoryId = dto.CategoryId;
+            product.LastUpdatedAt = DateTime.UtcNow;
 
-            if (dto.Price.HasValue)
-                product.Price = dto.Price.Value;
+            // ✅ Nếu có danh sách ảnh mới, xoá ảnh cũ trước
+            if (dto.Images != null)
+            {
+                await _uow.ProductImages.DeleteAllByProductIdAsync(product.Id);
+                await _uow.CompleteAsync(); // đảm bảo xoá thành công trước khi thêm mới
 
-            if (dto.Stock.HasValue)
-                product.Stock = dto.Stock.Value;
+                foreach (var img in dto.Images)
+                {
+                    await _uow.ProductImages.AddAsync(new ProductImage
+                    {
+                        ProductId = product.Id,
+                        Url = img.Url,
+                        OrderIndex = img.OrderIndex,
+                        IsPrimary = img.IsPrimary
+                    });
+                }
+            }
 
             await _uow.Products.UpdateAsync(product);
             await _uow.CompleteAsync();
 
-            product = await _uow.Products.GetAsync(p => p.Id == id, includeProperties: "Category");
-            return _mapper.Map<ProductDTO>(product);
+            var loaded = await _uow.Products.GetAsync(
+                p => p.Id == id,
+                includeProperties: "Category,Images"
+            );
+            return _mapper.Map<ProductDTO>(loaded);
         }
 
         /// <summary>
-        /// Xoá sản phẩm
+        /// Xoá sản phẩm và toàn bộ ảnh liên quan
         /// </summary>
         public async Task<bool> DeleteAsync(string id)
         {
-            var product = await _uow.Products.GetAsync(p => p.Id == id);
+            var product = await _uow.Products.GetAsync(p => p.Id == id, includeProperties: "Images");
             if (product == null) return false;
 
+            await _uow.ProductImages.DeleteAllByProductIdAsync(product.Id);
             await _uow.Products.DeleteAsync(product);
+
             await _uow.CompleteAsync();
             return true;
         }
 
-        // Helper: sinh slug
+        // Helper: sinh slug SEO-friendly
         private static string GenerateSlug(string input)
         {
             if (string.IsNullOrWhiteSpace(input)) return string.Empty;

@@ -70,6 +70,8 @@ namespace LECOMS.Common.Helper
             CreateMap<CourseCategory, CourseCategoryDTO>().ReverseMap();
             CreateMap<CourseCategoryCreateDTO, CourseCategory>()
                 .ForMember(d => d.Id, o => o.Ignore());
+            CreateMap<CreateCourseDto, Course>()
+                .ForMember(d => d.Id, o => o.Ignore());
 
             // ----------------- LESSON -----------------
             CreateMap<Lesson, LessonDto>();
@@ -77,17 +79,20 @@ namespace LECOMS.Common.Helper
                 .ForMember(d => d.Id, o => o.Ignore());
 
             // Entity → DTO
+            CreateMap<ProductImage, ProductImageDTO>().ReverseMap();
+
             CreateMap<Product, ProductDTO>()
-                .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
-                .ReverseMap();
+                .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Category.Name))
+                .ForMember(d => d.Images, o => o.MapFrom(s => s.Images));
 
-            // Create DTO → Entity
+
             CreateMap<ProductCreateDTO, Product>()
-                .ForMember(dest => dest.Id, opt => opt.Ignore()) // set trong service
-                .ForMember(dest => dest.Slug, opt => opt.Ignore()) // tạo slug tự động
-                .ForMember(dest => dest.Active, opt => opt.MapFrom(_ => (byte)1));
+                .ForMember(d => d.Id, o => o.Ignore())
+                .ForMember(d => d.Slug, o => o.Ignore())
+                .ForMember(d => d.Active, o => o.MapFrom(_ => (byte)1))
+                .ForMember(d => d.Status, o => o.MapFrom(s => s.Status ?? Data.Enum.ProductStatus.Draft))
+                .ForMember(d => d.Images, o => o.Ignore()); // xử lý tay
 
-            // Update DTO → Entity
             CreateMap<ProductUpdateDTO, Product>()
                 .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
 

@@ -11,17 +11,17 @@ namespace LECOMS.API.Controllers
 {
     [ApiController]
     [Route("api/seller/products")]
-    [Authorize] // Seller phải đăng nhập
+    [Authorize(Roles = "Seller, Admin")] // ✅ chỉ seller có quyền truy cập
     public class SellerProductController : ControllerBase
     {
         private readonly IProductService _productService;
         private readonly IShopService _shopService;
-        private readonly UserManager<User> _userManager; // ✅ Thêm dòng này
+        private readonly UserManager<User> _userManager;
 
         public SellerProductController(
             IProductService productService,
             IShopService shopService,
-            UserManager<User> userManager) // ✅ Inject UserManager
+            UserManager<User> userManager)
         {
             _productService = productService;
             _shopService = shopService;
@@ -29,7 +29,7 @@ namespace LECOMS.API.Controllers
         }
 
         /// <summary>
-        /// Seller xem tất cả sản phẩm trong shop của mình
+        /// Seller xem tất cả sản phẩm trong shop của mình (bao gồm hình ảnh)
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetMyProducts()
@@ -37,8 +37,9 @@ namespace LECOMS.API.Controllers
             var response = new APIResponse();
             try
             {
-                // ✅ Dùng UserManager để lấy đúng GUID userId
                 var sellerId = _userManager.GetUserId(User);
+                if (string.IsNullOrEmpty(sellerId))
+                    throw new UnauthorizedAccessException("Invalid user.");
 
                 var shop = await _shopService.GetShopBySellerIdAsync(sellerId);
                 if (shop == null)
@@ -48,6 +49,12 @@ namespace LECOMS.API.Controllers
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = list;
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.Unauthorized;
+                response.ErrorMessages.Add(ex.Message);
+            }
             catch (Exception ex)
             {
                 response.IsSuccess = false;
@@ -59,20 +66,54 @@ namespace LECOMS.API.Controllers
         }
 
         /// <summary>
-        /// Seller tạo sản phẩm mới
+        /// Seller xem chi tiết 1 sản phẩm (bao gồm hình ảnh)
+        /// </summary>
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var product = await _productService.GetByIdAsync(id);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = product;
+            }
+            catch (KeyNotFoundException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        /// <summary>
+        /// Seller tạo sản phẩm mới (có thể thêm nhiều ảnh)
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] ProductCreateDTO dto)
         {
             var response = new APIResponse();
+
             try
             {
-                var sellerId = _userManager.GetUserId(User); // ✅ sửa ở đây
+                var sellerId = _userManager.GetUserId(User);
+                if (string.IsNullOrEmpty(sellerId))
+                    throw new UnauthorizedAccessException("Invalid user.");
+
                 var shop = await _shopService.GetShopBySellerIdAsync(sellerId);
                 if (shop == null)
                     throw new InvalidOperationException("Shop not found.");
 
+                // ✅ gọi service có xử lý images, status, lastUpdatedAt
                 var product = await _productService.CreateAsync(shop.Id, dto);
+
                 response.StatusCode = HttpStatusCode.Created;
                 response.Result = product;
             }
@@ -82,18 +123,24 @@ namespace LECOMS.API.Controllers
                 response.StatusCode = HttpStatusCode.BadRequest;
                 response.ErrorMessages.Add(ex.Message);
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.Unauthorized;
+                response.ErrorMessages.Add(ex.Message);
+            }
             catch (Exception ex)
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.InternalServerError;
-                response.ErrorMessages.Add(ex.Message);
+                response.ErrorMessages.Add($"Internal Error: {ex.Message}");
             }
 
             return StatusCode((int)response.StatusCode, response);
         }
 
         /// <summary>
-        /// Seller cập nhật sản phẩm
+        /// Seller cập nhật sản phẩm (bao gồm trạng thái, nhiều hình ảnh)
         /// </summary>
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(string id, [FromBody] ProductUpdateDTO dto)
@@ -111,18 +158,24 @@ namespace LECOMS.API.Controllers
                 response.StatusCode = HttpStatusCode.NotFound;
                 response.ErrorMessages.Add(ex.Message);
             }
+            catch (InvalidOperationException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
             catch (Exception ex)
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.InternalServerError;
-                response.ErrorMessages.Add(ex.Message);
+                response.ErrorMessages.Add($"Internal Error: {ex.Message}");
             }
 
             return StatusCode((int)response.StatusCode, response);
         }
 
         /// <summary>
-        /// Seller xóa sản phẩm
+        /// Seller xóa sản phẩm (tự động xóa ảnh liên quan)
         /// </summary>
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(string id)
@@ -131,14 +184,57 @@ namespace LECOMS.API.Controllers
             try
             {
                 var deleted = await _productService.DeleteAsync(id);
-                response.StatusCode = deleted ? HttpStatusCode.OK : HttpStatusCode.NotFound;
-                response.Result = new { deleted };
+                if (!deleted)
+                {
+                    response.IsSuccess = false;
+                    response.StatusCode = HttpStatusCode.NotFound;
+                    response.ErrorMessages.Add("Product not found.");
+                }
+                else
+                {
+                    response.StatusCode = HttpStatusCode.OK;
+                    response.Result = new { message = "Product deleted successfully." };
+                }
             }
             catch (Exception ex)
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add($"Error deleting product: {ex.Message}");
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        /// <summary>
+        /// Seller cập nhật trạng thái sản phẩm (Draft / Published / OutOfStock / Archived)
+        /// </summary>
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> UpdateStatus(string id, [FromBody] ProductStatusUpdateDTO dto)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var updateDto = new ProductUpdateDTO
+                {
+                    Status = dto.Status
+                };
+                var updated = await _productService.UpdateAsync(id, updateDto);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = updated;
+            }
+            catch (KeyNotFoundException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.NotFound;
                 response.ErrorMessages.Add(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add($"Error updating status: {ex.Message}");
             }
 
             return StatusCode((int)response.StatusCode, response);

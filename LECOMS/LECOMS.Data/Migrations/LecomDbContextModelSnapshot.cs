@@ -240,6 +240,10 @@ namespace LECOMS.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<string>("CourseThumbnail")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
                     b.Property<int>("ShopId")
                         .HasColumnType("int");
 
@@ -490,6 +494,29 @@ namespace LECOMS.Data.Migrations
                     b.ToTable("Lessons");
                 });
 
+            modelBuilder.Entity("LECOMS.Data.Entities.LessonProduct", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("LessonId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("LessonId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("LessonProducts");
+                });
+
             modelBuilder.Entity("LECOMS.Data.Entities.Notification", b =>
                 {
                     b.Property<string>("Id")
@@ -733,6 +760,9 @@ namespace LECOMS.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<DateTime>("LastUpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -742,10 +772,16 @@ namespace LECOMS.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("ShopId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(220)
                         .HasColumnType("nvarchar(220)");
+
+                    b.Property<byte>("Status")
+                        .HasColumnType("tinyint");
 
                     b.Property<int>("Stock")
                         .HasColumnType("int");
@@ -753,6 +789,8 @@ namespace LECOMS.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("ShopId");
 
                     b.HasIndex("Slug")
                         .IsUnique();
@@ -788,6 +826,33 @@ namespace LECOMS.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("ProductCategories");
+                });
+
+            modelBuilder.Entity("LECOMS.Data.Entities.ProductImage", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductImages");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.RankTier", b =>
@@ -1656,6 +1721,25 @@ namespace LECOMS.Data.Migrations
                     b.Navigation("Section");
                 });
 
+            modelBuilder.Entity("LECOMS.Data.Entities.LessonProduct", b =>
+                {
+                    b.HasOne("LECOMS.Data.Entities.Lesson", "Lesson")
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LECOMS.Data.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("LECOMS.Data.Entities.Notification", b =>
                 {
                     b.HasOne("LECOMS.Data.Entities.User", "User")
@@ -1749,7 +1833,26 @@ namespace LECOMS.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("LECOMS.Data.Entities.Shop", "Shop")
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Category");
+
+                    b.Navigation("Shop");
+                });
+
+            modelBuilder.Entity("LECOMS.Data.Entities.ProductImage", b =>
+                {
+                    b.HasOne("LECOMS.Data.Entities.Product", "Product")
+                        .WithMany("Images")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.Refund", b =>
@@ -2019,6 +2122,8 @@ namespace LECOMS.Data.Migrations
             modelBuilder.Entity("LECOMS.Data.Entities.Product", b =>
                 {
                     b.Navigation("CourseProducts");
+
+                    b.Navigation("Images");
 
                     b.Navigation("Reviews");
                 });

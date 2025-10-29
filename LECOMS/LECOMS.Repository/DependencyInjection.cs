@@ -27,7 +27,8 @@ namespace LECOMS.Repository
             services.AddTransient<IProductCategoryRepository, ProductCategoryRepository>();
             services.AddTransient<IProductRepository, ProductRepository>();
             services.AddTransient<IEnrollmentRepository, EnrollmentRepository>();
-
+            services.AddTransient<ILessonProductRepository, LessonProductRepository>();
+            services.AddTransient<IProductImageRepository, ProductImageRepository>();
             //DI Unit Of Work
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             return services;

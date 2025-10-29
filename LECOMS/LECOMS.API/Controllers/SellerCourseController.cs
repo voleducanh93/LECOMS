@@ -1,5 +1,6 @@
 ﻿using LECOMS.Common.Helper;
 using LECOMS.Data.DTOs.Course;
+using LECOMS.Data.DTOs.Product;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,7 @@ namespace LECOMS.API.Controllers
 {
     [ApiController]
     [Route("api/seller/courses")]
-    [Authorize] // ✅ chỉ seller có thể tạo course
+    [Authorize(Roles = "Seller, Admin")] // ✅ chỉ seller có thể tạo và quản lý course
     public class SellerCourseController : ControllerBase
     {
         private readonly ISellerCourseService _service;
@@ -21,7 +22,7 @@ namespace LECOMS.API.Controllers
         }
 
         /// <summary>
-        /// Seller tạo khóa học mới
+        /// Seller tạo khóa học mới (có hình thumbnail)
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreateCourse([FromBody] CreateCourseDto dto)
@@ -86,23 +87,97 @@ namespace LECOMS.API.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
+        // ================================================================
+        // ✅ PHẦN MỚI: Liên kết sản phẩm với bài học (Lesson–Product)
+        // ================================================================
+
         /// <summary>
-        /// Seller liên kết khóa học với sản phẩm
+        /// Seller liên kết sản phẩm với bài học (Lesson)
         /// </summary>
-        [HttpPost("products")]
-        public async Task<IActionResult> LinkCourseProduct([FromBody] LinkCourseProductDto dto)
+        [HttpPost("lessons/products")]
+        public async Task<IActionResult> LinkLessonProduct([FromBody] LinkLessonProductDto dto)
         {
             var response = new APIResponse();
             try
             {
-                var cp = await _service.LinkCourseProductAsync(dto);
+                var link = await _service.LinkLessonProductAsync(dto);
                 response.StatusCode = HttpStatusCode.Created;
-                response.Result = cp;
+                response.Result = link;
             }
             catch (Exception ex)
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        /// <summary>
+        /// Seller hủy liên kết sản phẩm với bài học
+        /// </summary>
+        [HttpDelete("lessons/{lessonId}/products/{productId}")]
+        public async Task<IActionResult> UnlinkLessonProduct(string lessonId, string productId)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var ok = await _service.UnlinkLessonProductAsync(lessonId, productId);
+                response.StatusCode = ok ? HttpStatusCode.OK : HttpStatusCode.NotFound;
+                response.Result = new { deleted = ok };
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        // ================================================================
+        // ✅ PHẦN MỚI: Xóa bài học hoặc section
+        // ================================================================
+
+        /// <summary>
+        /// Seller xóa bài học (Lesson) và toàn bộ liên kết sản phẩm
+        /// </summary>
+        [HttpDelete("lessons/{lessonId}")]
+        public async Task<IActionResult> DeleteLesson(string lessonId)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var ok = await _service.DeleteLessonAsync(lessonId);
+                response.StatusCode = ok ? HttpStatusCode.OK : HttpStatusCode.NotFound;
+                response.Result = new { deleted = ok };
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        /// <summary>
+        /// Seller xóa Section (và toàn bộ bài học bên trong + liên kết sản phẩm)
+        /// </summary>
+        [HttpDelete("sections/{sectionId}")]
+        public async Task<IActionResult> DeleteSection(string sectionId)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var ok = await _service.DeleteSectionAsync(sectionId);
+                response.StatusCode = ok ? HttpStatusCode.OK : HttpStatusCode.NotFound;
+                response.Result = new { deleted = ok };
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
                 response.ErrorMessages.Add(ex.Message);
             }
             return StatusCode((int)response.StatusCode, response);

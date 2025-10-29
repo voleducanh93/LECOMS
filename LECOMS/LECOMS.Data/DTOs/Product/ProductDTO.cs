@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LECOMS.Data.Enum;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,11 +11,14 @@ namespace LECOMS.Data.DTOs.Product
     {
         public string Id { get; set; }
         public string Name { get; set; }
+        public string Slug { get; set; }
         public string? Description { get; set; }
-        public decimal Price { get; set; }
-        public int Stock { get; set; }
         public string CategoryId { get; set; }
         public string CategoryName { get; set; }
-        public byte Active { get; set; }
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public ProductStatus Status { get; set; }
+        public DateTime LastUpdatedAt { get; set; }
+        public List<ProductImageDTO> Images { get; set; } = new();
     }
 }

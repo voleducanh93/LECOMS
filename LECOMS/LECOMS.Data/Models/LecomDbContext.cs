@@ -1,8 +1,9 @@
-﻿using System.Linq;
-using LECOMS.Data.Entities;
+﻿using LECOMS.Data.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Reflection.Emit;
 
 namespace LECOMS.Data.Models
 {
@@ -50,6 +51,8 @@ namespace LECOMS.Data.Models
         public DbSet<WalletAccount> WalletAccounts => Set<WalletAccount>();
         public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
         public DbSet<Shop> Shops { get; set; }
+        public DbSet<ProductImage> ProductImages { get; set; }
+public DbSet<LessonProduct> LessonProducts { get; set; }
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -285,7 +288,16 @@ namespace LECOMS.Data.Models
              .WithOne(s => s.Seller)
              .HasForeignKey<Shop>(s => s.SellerId)
              .OnDelete(DeleteBehavior.Cascade);
+            // Cấu hình mối quan hệ giữa Product và ProductImage
+            b.Entity<ProductImage>()
+             .HasOne(pi => pi.Product)
+             .WithMany(p => p.Images)
+            .HasForeignKey(pi => pi.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
 
+            b.Entity<LessonProduct>()
+                .HasIndex(lp => new { lp.LessonId, lp.ProductId })
+                .IsUnique();
         }
     }
 }
