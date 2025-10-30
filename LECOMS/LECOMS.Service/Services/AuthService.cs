@@ -138,7 +138,7 @@ namespace LECOMS.Service.Services
 
             // Generate confirmation email token and send email
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var confirmLink = $"{_configuration["AppUrl"]}/api/auth/confirm-email?email={user.Email}&token={Uri.EscapeDataString(token)}";
+            var confirmLink = $"https://lecom-fe.vercel.app/auth/email-confirmed?email={user.Email}&token={Uri.EscapeDataString(token)}";
             _emailService.SendEmailConfirmation(user.Email, confirmLink);
 
             return user;
@@ -253,7 +253,7 @@ namespace LECOMS.Service.Services
 
             string decodedToken = Uri.UnescapeDataString(token).Replace(" ", "+");
 
-            var resetLink = $"{_configuration["AppSettings:FrontendUrl"]}/reset-password?email={email}&token={token}";
+            var resetLink = $"https://lecom-fe.vercel.app/auth/reset-password?email={email}&token={Uri.EscapeDataString(token)}";
 
             await _emailService.SendEmailForgotPassword(email, resetLink);
 

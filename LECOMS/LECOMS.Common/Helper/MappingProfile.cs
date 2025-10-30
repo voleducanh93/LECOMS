@@ -107,7 +107,18 @@ namespace LECOMS.Common.Helper
                 .ForMember(dest => dest.Id, opt => opt.Ignore()) // tạo Guid trong service
                 .ForMember(dest => dest.Slug, opt => opt.Ignore()) // tạo slug trong service
                 .ForMember(dest => dest.Active, opt => opt.MapFrom(_ => (byte)1));
+            // ==========================
+            // Product, Course cho homepage
+            CreateMap<Course, CourseDTO>()
+    .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
+    .ForMember(dest => dest.ShopName, opt => opt.MapFrom(src => src.Shop.Name))
+    .ReverseMap();
 
+            CreateMap<Product, ProductDTO>()
+                .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Category.Name))
+.ForMember(d => d.ThumbnailUrl,
+        o => o.MapFrom(s => s.Images.FirstOrDefault(i => i.IsPrimary).Url))
+    .ReverseMap();
         }
     }
 }

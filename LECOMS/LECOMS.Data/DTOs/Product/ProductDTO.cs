@@ -20,5 +20,7 @@ namespace LECOMS.Data.DTOs.Product
         public ProductStatus Status { get; set; }
         public DateTime LastUpdatedAt { get; set; }
         public List<ProductImageDTO> Images { get; set; } = new();
+        // 🔹 Thumbnail hiển thị nhanh ở homepage
+        public string? ThumbnailUrl { get; set; }
     }
 }

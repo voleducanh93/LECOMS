@@ -20,5 +20,8 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<bool> DeleteLessonAsync(string lessonId);
 
         Task<bool> DeleteSectionAsync(string sectionId);
+        Task<IEnumerable<CourseDTO>> GetPublicCoursesAsync(int limit = 10, string? category = null);
+
     }
 }
+    

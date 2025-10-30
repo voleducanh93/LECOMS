@@ -48,6 +48,12 @@ namespace LECOMS.API.Controllers
             try
             {
                 var result = await _shopService.CreateShopAsync(userId, dto);
+                // ✅ Gán role "Seller" cho user sau khi tạo shop
+                var user = await _userManager.FindByIdAsync(userId);
+                if (!await _userManager.IsInRoleAsync(user, "Seller"))
+                {
+                    await _userManager.AddToRoleAsync(user, "Seller");
+                }
                 response.StatusCode = HttpStatusCode.Created;
                 response.Result = result;
             }

@@ -232,5 +232,49 @@ namespace LECOMS.Service.Services
             s = System.Text.RegularExpressions.Regex.Replace(s, @"[^a-z0-9]+", "-").Trim('-');
             return s;
         }
+        public async Task<IEnumerable<CourseDTO>> GetPublicCoursesAsync(int limit = 10, string? category = null)
+        {
+            string? categoryId = null;
+
+            // Nếu có slug danh mục → tìm CategoryId tương ứng
+            if (!string.IsNullOrEmpty(category))
+            {
+                var categoryEntity = await _unitOfWork.CourseCategories.GetAsync(
+                    c => c.Slug == category && c.Active == 1
+                );
+
+                if (categoryEntity == null)
+                    return Enumerable.Empty<CourseDTO>();
+
+                categoryId = categoryEntity.Id;
+            }
+
+            // Lấy danh sách khóa học public
+            var courses = await _unitOfWork.Courses.GetAllAsync(
+                filter: c => c.Active == 1 &&
+                             (string.IsNullOrEmpty(categoryId) || c.CategoryId == categoryId),
+                includeProperties: "Category,Shop"
+            );
+
+            var result = courses
+                .OrderByDescending(c => c.Id)
+                .Take(limit)
+                .Select(c => new CourseDTO
+                {
+                    Id = c.Id,
+                    Title = c.Title,
+                    Slug = c.Slug,
+                    Summary = c.Summary,
+                    CategoryId = c.CategoryId,
+                    CategoryName = c.Category?.Name,
+                    ShopId = c.ShopId,
+                    ShopName = c.Shop?.Name,
+                    CourseThumbnail = c.CourseThumbnail,
+                    Active = c.Active
+                });
+
+            return result;
+        }
+
     }
 }

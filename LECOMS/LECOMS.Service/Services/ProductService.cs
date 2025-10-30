@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using LECOMS.Data.DTOs.Product;
 using LECOMS.Data.Entities;
+using LECOMS.Data.Enum;
 using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -186,6 +187,37 @@ namespace LECOMS.Service.Services
             var s = input.ToLowerInvariant();
             s = System.Text.RegularExpressions.Regex.Replace(s, @"[^a-z0-9]+", "-").Trim('-');
             return s;
+        }
+        public async Task<IEnumerable<ProductDTO>> GetPublicProductsAsync(int limit = 10, string? category = null)
+        {
+            string? categoryId = null;
+
+            // Nếu có slug danh mục → tìm CategoryId tương ứng
+            if (!string.IsNullOrEmpty(category))
+            {
+                var categoryEntity = await _uow.ProductCategories.GetAsync(
+                    c => c.Slug == category && c.Active == 1
+                );
+
+                if (categoryEntity == null)
+                    return Enumerable.Empty<ProductDTO>();
+
+                categoryId = categoryEntity.Id;
+            }
+
+            // Lấy danh sách sản phẩm public
+            var products = await _uow.Products.GetAllAsync(
+                filter: p => p.Active == 1 &&
+                             p.Status == ProductStatus.Published &&
+                             (string.IsNullOrEmpty(categoryId) || p.CategoryId == categoryId),
+                includeProperties: "Category,Images,Shop"
+            );
+
+            var result = products
+                .OrderByDescending(p => p.LastUpdatedAt)
+                .Take(limit);
+
+            return _mapper.Map<IEnumerable<ProductDTO>>(result);
         }
     }
 }
