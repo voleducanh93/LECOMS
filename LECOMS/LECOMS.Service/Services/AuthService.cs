@@ -138,7 +138,7 @@ namespace LECOMS.Service.Services
 
             // Generate confirmation email token and send email
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var confirmLink = $"{_configuration["AppSettings:FrontendUrl"]}/confirm-email?email={user.Email}&token={token}";
+            var confirmLink = $"https://lecom-fe.vercel.app/auth/email-confirmed?email={user.Email}&token={Uri.EscapeDataString(token)}";
             _emailService.SendEmailConfirmation(user.Email, confirmLink);
 
             return user;
