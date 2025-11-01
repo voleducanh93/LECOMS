@@ -131,7 +131,7 @@ namespace LECOMS.Service.Services
                     var roleErrors = string.Join("; ", roleResult.Errors.Select(e => e.Description));
                     throw new Exception($"Tạo vai trò không thành công: {roleErrors}");
                 }
-            }
+            }   
 
             // Assign role "Customer" to the user
             await _userManager.AddToRoleAsync(user, defaultRole);
@@ -254,9 +254,11 @@ namespace LECOMS.Service.Services
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
 
-            string decodedToken = Uri.UnescapeDataString(token).Replace(" ", "+");
+            var encodedToken = Uri.EscapeDataString(token);
 
-            var resetLink = $"{_configuration["AppSettings:FrontendUrl"]}/reset-password?email={email}&token={token}";
+            // ✅ Gửi link đến API confirm password reset (BE) → BE redirect sang FE
+            var resetLink = $"{_configuration["AppUrl"]}/api/auth/reset-password?email={user.Email}&token={encodedToken}";
+            await _emailService.SendEmailForgotPassword(user.Email, resetLink);
 
             await _emailService.SendEmailForgotPassword(email, resetLink);
 

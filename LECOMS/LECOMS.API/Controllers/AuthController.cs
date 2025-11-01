@@ -263,6 +263,24 @@ namespace LECOMS.API.Controllers
                 return Redirect("https://lecom-fe.vercel.app/auth/email-failed");
             }
         }
+        [AllowAnonymous]
+        [HttpGet("reset-password")]
+        public IActionResult RedirectToResetPassword([FromQuery] string email, [FromQuery] string token)
+        {
+            try
+            {
+                // ✅ Encode token lần nữa khi chuyển qua FE
+                var encodedToken = Uri.EscapeDataString(token);
+                var frontendUrl = $"https://lecom-fe.vercel.app/auth/reset-password?email={email}&token={encodedToken}";
+
+                // Redirect FE, tại FE sẽ có form nhập mật khẩu mới
+                return Redirect(frontendUrl);
+            }
+            catch (Exception ex)
+            {
+                return Content($"<h3 style='color:red'>❌ Lỗi redirect reset password: {ex.Message}</h3>", "text/html");
+            }
+        }
 
 
     }
