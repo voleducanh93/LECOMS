@@ -138,7 +138,6 @@ namespace LECOMS.Service.Services
 
             // Generate confirmation email token and send email
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var encodedToken = Uri.EscapeDataString(token); // ✅ encode token trước khi gửi
             var confirmLink = $"{_configuration["AppSettings:FrontendUrl"]}/confirm-email?email={user.Email}&token={token}";
             _emailService.SendEmailConfirmation(user.Email, confirmLink);
 
@@ -166,7 +165,7 @@ namespace LECOMS.Service.Services
                 throw new Exception("Email đã được xác nhận.");
             }
 
-            string decodedToken = Uri.UnescapeDataString(token); // ✅ chỉ cần decode 1 lần, không Replace
+            string decodedToken = Uri.UnescapeDataString(token).Replace(" ", "+");
 
             var result = await _userManager.ConfirmEmailAsync(user, decodedToken);
 
