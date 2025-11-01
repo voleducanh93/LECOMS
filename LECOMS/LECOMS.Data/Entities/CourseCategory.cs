@@ -2,13 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.Json.Serialization; // 👈 thêm namespace này
 
 namespace LECOMS.Data.Entities
 {
-    [Index(nameof(Slug), IsUnique = true)]  // 👈 tạo chỉ mục unique cho Slug
+    [Index(nameof(Slug), IsUnique = true)]
     public class CourseCategory
     {
         [Key]
@@ -18,12 +16,13 @@ namespace LECOMS.Data.Entities
         public string Name { get; set; } = null!;
 
         [Required, MaxLength(180)]
-        public string Slug { get; set; } = null!;  // 👈 BẮT BUỘC có giá trị (NOT NULL)
+        public string Slug { get; set; } = null!;
 
         public byte Active { get; set; } = 1;
 
+        [JsonIgnore] // 👈 thêm dòng này để chặn vòng lặp JSON
         public ICollection<Course> Courses { get; set; } = new List<Course>();
-        public string? Description { get; set; }   // ✅ thêm dòng này
 
+        public string? Description { get; set; }
     }
 }

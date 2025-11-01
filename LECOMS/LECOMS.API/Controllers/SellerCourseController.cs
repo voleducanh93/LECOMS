@@ -27,11 +27,22 @@ namespace LECOMS.API.Controllers
         /// Seller tạo khóa học mới (có hình thumbnail)
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> CreateCourse([FromBody] CreateCourseDto dto)
+        public async Task<IActionResult> CreateCourse(
+    [FromBody] CreateCourseDto dto,
+    [FromServices] IShopService shopService,
+    [FromServices] UserManager<User> userManager)
         {
             var response = new APIResponse();
             try
             {
+                var sellerId = userManager.GetUserId(User);
+                var shop = await shopService.GetShopBySellerIdAsync(sellerId);
+                if (shop == null)
+                    throw new InvalidOperationException("Shop not found.");
+
+                // ✅ Tự gán shopId cho DTO
+                dto.ShopId = shop.Id;
+
                 var course = await _service.CreateCourseAsync(dto);
                 response.StatusCode = HttpStatusCode.Created;
                 response.Result = course;

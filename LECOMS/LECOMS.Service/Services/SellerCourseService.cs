@@ -26,24 +26,31 @@ namespace LECOMS.Service.Services
         /// </summary>
         public async Task<Course> CreateCourseAsync(CreateCourseDto dto)
         {
-            // ✅ Kiểm tra shop tồn tại
-            var shop = await _unitOfWork.Shops.GetAsync(s => s.Id == dto.ShopId);
+            if (dto == null)
+                throw new ArgumentNullException(nameof(dto));
+
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                throw new InvalidOperationException("Course title is required.");
+
+            // ✅ BE đảm bảo ShopId được gán từ Controller
+            var shopId = dto.ShopId ?? throw new InvalidOperationException("ShopId is missing. Must be provided by system.");
+
+            var shop = await _unitOfWork.Shops.GetAsync(s => s.Id == shopId);
             if (shop == null)
                 throw new InvalidOperationException("Shop not found.");
 
-            // ✅ Sinh slug tự động nếu chưa có
-            var slug = string.IsNullOrWhiteSpace(dto.Slug)
-                ? GenerateSlug(dto.Title)
-                : dto.Slug;
+            // ✅ Sinh slug unique
+            var baseSlug = GenerateSlug(dto.Title);
+            var slug = await GenerateUniqueSlugAsync(baseSlug);
 
             var course = new Course
             {
                 Id = Guid.NewGuid().ToString(),
-                Title = dto.Title,
+                Title = dto.Title.Trim(),
                 Slug = slug,
                 Summary = dto.Summary,
                 CategoryId = dto.CategoryId,
-                ShopId = dto.ShopId,
+                ShopId = shopId,
                 CourseThumbnail = dto.CourseThumbnail,
                 Active = 1
             };
@@ -376,5 +383,18 @@ namespace LECOMS.Service.Services
             await _unitOfWork.CompleteAsync();
             return true;
         }
+        private async Task<string> GenerateUniqueSlugAsync(string baseSlug)
+        {
+            string slug = baseSlug;
+            int counter = 2;
+
+            while (await _unitOfWork.Courses.AnyAsync(c => c.Slug == slug))
+            {
+                slug = $"{baseSlug}-{counter++}";
+            }
+
+            return slug;
+        }
+
     }
 }
