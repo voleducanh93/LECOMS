@@ -166,7 +166,7 @@ namespace LECOMS.Service.Services
                 throw new Exception("Email đã được xác nhận.");
             }
 
-            string decodedToken = Uri.UnescapeDataString(token).Replace(" ", "+");
+            string decodedToken = Uri.UnescapeDataString(token); // ✅ chỉ cần decode 1 lần, không Replace
 
             var result = await _userManager.ConfirmEmailAsync(user, decodedToken);
 
