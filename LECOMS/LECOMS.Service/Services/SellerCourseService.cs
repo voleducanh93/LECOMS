@@ -275,6 +275,106 @@ namespace LECOMS.Service.Services
 
             return result;
         }
+        public async Task<IEnumerable<CourseDTO>> GetCoursesBySellerAsync(string sellerId)
+        {
+            // Lấy shop theo seller
+            var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == sellerId);
+            if (shop == null)
+                throw new InvalidOperationException("Shop not found.");
 
+            var courses = await _unitOfWork.Courses.GetAllAsync(
+                c => c.ShopId == shop.Id,
+                includeProperties: "Category,Shop"
+            );
+
+            return courses.Select(c => new CourseDTO
+            {
+                Id = c.Id,
+                Title = c.Title,
+                Slug = c.Slug,
+                Summary = c.Summary,
+                CategoryId = c.CategoryId,
+                CategoryName = c.Category.Name,
+                ShopId = c.ShopId,
+                ShopName = c.Shop.Name,
+                CourseThumbnail = c.CourseThumbnail,
+                Active = c.Active
+            });
+        }
+
+        public async Task<CourseDTO?> GetCourseByIdAsync(string courseId, string sellerId)
+        {
+            var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == sellerId);
+            if (shop == null) throw new InvalidOperationException("Shop not found.");
+
+            var course = await _unitOfWork.Courses.GetAsync(
+                c => c.Id == courseId && c.ShopId == shop.Id,
+                includeProperties: "Category,Shop,Sections.Lessons"
+            );
+
+            if (course == null) return null;
+
+            return new CourseDTO
+            {
+                Id = course.Id,
+                Title = course.Title,
+                Slug = course.Slug,
+                Summary = course.Summary,
+                CategoryId = course.CategoryId,
+                CategoryName = course.Category.Name,
+                ShopId = course.ShopId,
+                ShopName = course.Shop.Name,
+                CourseThumbnail = course.CourseThumbnail,
+                Active = course.Active
+            };
+        }
+
+        public async Task<CourseDTO> UpdateCourseAsync(string courseId, UpdateCourseDto dto, string sellerId)
+        {
+            var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == sellerId);
+            if (shop == null) throw new InvalidOperationException("Shop not found.");
+
+            var course = await _unitOfWork.Courses.GetAsync(c => c.Id == courseId && c.ShopId == shop.Id);
+            if (course == null) throw new KeyNotFoundException("Course not found.");
+
+            if (!string.IsNullOrEmpty(dto.Title)) course.Title = dto.Title.Trim();
+            if (!string.IsNullOrEmpty(dto.Summary)) course.Summary = dto.Summary.Trim();
+            if (!string.IsNullOrEmpty(dto.CategoryId)) course.CategoryId = dto.CategoryId;
+            if (!string.IsNullOrEmpty(dto.CourseThumbnail)) course.CourseThumbnail = dto.CourseThumbnail;
+            if (dto.Active.HasValue) course.Active = dto.Active.Value;
+
+            await _unitOfWork.Courses.UpdateAsync(course);
+            await _unitOfWork.CompleteAsync();
+
+            var updated = await _unitOfWork.Courses.GetAsync(c => c.Id == course.Id, includeProperties: "Category,Shop");
+            return new CourseDTO
+            {
+                Id = updated.Id,
+                Title = updated.Title,
+                Slug = updated.Slug,
+                Summary = updated.Summary,
+                CategoryId = updated.CategoryId,
+                CategoryName = updated.Category.Name,
+                ShopId = updated.ShopId,
+                ShopName = updated.Shop.Name,
+                CourseThumbnail = updated.CourseThumbnail,
+                Active = updated.Active
+            };
+        }
+
+        public async Task<bool> DeleteCourseAsync(string courseId, string sellerId)
+        {
+            var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == sellerId);
+            if (shop == null) throw new InvalidOperationException("Shop not found.");
+
+            var course = await _unitOfWork.Courses.GetAsync(c => c.Id == courseId && c.ShopId == shop.Id);
+            if (course == null) return false;
+
+            // Xóa mềm (disable)
+            course.Active = 0;
+            await _unitOfWork.Courses.UpdateAsync(course);
+            await _unitOfWork.CompleteAsync();
+            return true;
+        }
     }
 }

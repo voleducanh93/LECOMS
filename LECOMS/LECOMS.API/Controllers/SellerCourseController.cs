@@ -1,8 +1,10 @@
 ﻿using LECOMS.Common.Helper;
 using LECOMS.Data.DTOs.Course;
 using LECOMS.Data.DTOs.Product;
+using LECOMS.Data.Entities;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Threading.Tasks;
@@ -173,6 +175,100 @@ namespace LECOMS.API.Controllers
                 var ok = await _service.DeleteSectionAsync(sectionId);
                 response.StatusCode = ok ? HttpStatusCode.OK : HttpStatusCode.NotFound;
                 response.Result = new { deleted = ok };
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            return StatusCode((int)response.StatusCode, response);
+        }
+        [HttpGet("my")]
+        public async Task<IActionResult> GetMyCourses([FromServices] UserManager<User> userManager)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var sellerId = userManager.GetUserId(User);
+                var courses = await _service.GetCoursesBySellerAsync(sellerId);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = courses;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetCourseById(string id, [FromServices] UserManager<User> userManager)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var sellerId = userManager.GetUserId(User);
+                var course = await _service.GetCourseByIdAsync(id, sellerId);
+                if (course == null)
+                {
+                    response.StatusCode = HttpStatusCode.NotFound;
+                    response.IsSuccess = false;
+                    response.ErrorMessages.Add("Course not found");
+                }
+                else
+                {
+                    response.StatusCode = HttpStatusCode.OK;
+                    response.Result = course;
+                }
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateCourse(string id, [FromBody] UpdateCourseDto dto, [FromServices] UserManager<User> userManager)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var sellerId = userManager.GetUserId(User);
+                var result = await _service.UpdateCourseAsync(id, dto, sellerId);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
+            }
+            catch (KeyNotFoundException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteCourse(string id, [FromServices] UserManager<User> userManager)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var sellerId = userManager.GetUserId(User);
+                var deleted = await _service.DeleteCourseAsync(id, sellerId);
+                response.StatusCode = deleted ? HttpStatusCode.OK : HttpStatusCode.NotFound;
+                response.Result = new { deleted };
             }
             catch (Exception ex)
             {

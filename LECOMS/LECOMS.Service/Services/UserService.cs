@@ -74,7 +74,9 @@ namespace LECOMS.Service.Services
                 PhoneNumber = user.PhoneNumber,
                 Address = user.Address,
                 DateOfBirth = user.DateOfBirth,
-                ImageUrl = user.ImageUrl
+                ImageUrl = user.ImageUrl,
+                Email = user.Email // ✅ Thêm dòng này
+
             };
         }
 
