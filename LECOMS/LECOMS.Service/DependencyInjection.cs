@@ -31,7 +31,10 @@ namespace LECOMS.Service
             services.AddTransient<IProductService, ProductService>();
             services.AddTransient<IEnrollmentService, EnrollmentService>();
             services.AddScoped<IPhotoService, PhotoService>();
-            services.AddTransient<ILandingPageService, LandingPageService>();   
+            services.AddTransient<ILandingPageService, LandingPageService>();
+            services.AddTransient<ICartService, CartService>();
+            services.AddTransient<IOrderService, OrderService>();
+            services.AddTransient<IPaymentService, PaymentService>();
             return services;
         }
     }

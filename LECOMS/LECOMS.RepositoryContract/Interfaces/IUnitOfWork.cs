@@ -26,6 +26,11 @@ namespace LECOMS.RepositoryContract.Interfaces
         ILandingPageRepository LandingPage { get; }
         // Enrollment repository exposure
         IEnrollmentRepository Enrollments { get; }
+        ICartRepository Carts { get; }
+        IOrderRepository Orders { get; }
+        IPaymentRepository Payments { get; }
+        IOrderDetailRepository OrderDetails { get; }
+        ICartItemRepository CartItems { get; }
 
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();

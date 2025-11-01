@@ -26,11 +26,17 @@ namespace LECOMS.Repository.Repositories
         public IProductImageRepository ProductImages { get; }
         public ILessonProductRepository LessonProducts { get; }
         public ILandingPageRepository LandingPage { get; }
+        public ICartRepository Carts { get; }
+        public ICartItemRepository CartItems { get; }
+        public IOrderRepository Orders { get; }
+        public IOrderDetailRepository OrderDetails { get; }
+        public IPaymentRepository Payments { get; }
 
         public UnitOfWork(LecomDbContext context, IUserRepository userRepository, IShopRepository shopRepository, ICourseRepository courseRepo,
         ICourseSectionRepository sectionRepo,
         ILessonRepository lessonRepo,
-        ICourseProductRepository cpRepo, ICourseCategoryRepository courseCategories, IProductCategoryRepository productCategories, IProductRepository products, IEnrollmentRepository enrollmentRepository, IProductImageRepository productImageRepository, ILessonProductRepository lessonProductRepository, ILandingPageRepository landingPage)
+        ICourseProductRepository cpRepo, ICourseCategoryRepository courseCategories, IProductCategoryRepository productCategories, IProductRepository products, IEnrollmentRepository enrollmentRepository, IProductImageRepository productImageRepository, ILessonProductRepository lessonProductRepository, ILandingPageRepository landingPage, ICartRepository cartRepository, ICartItemRepository cartItemRepository, IOrderRepository orderRepository, IOrderDetailRepository orderDetailRepository,
+            IPaymentRepository paymentRepository)
         {
             _context = context;
             Users = userRepository;
@@ -47,6 +53,11 @@ namespace LECOMS.Repository.Repositories
             ProductImages = productImageRepository;
             LessonProducts = lessonProductRepository;
             LandingPage = landingPage;
+            Carts = cartRepository;
+            CartItems = cartItemRepository;
+            Orders = orderRepository;
+            OrderDetails = orderDetailRepository;
+            Payments = paymentRepository;
         }
         public async Task<int> CompleteAsync()
         {
