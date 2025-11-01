@@ -23,6 +23,7 @@ namespace LECOMS.RepositoryContract.Interfaces
         IProductRepository Products { get; }
         ILessonProductRepository LessonProducts { get; }
         IProductImageRepository ProductImages { get; }
+        ILandingPageRepository LandingPage { get; }
         // Enrollment repository exposure
         IEnrollmentRepository Enrollments { get; }
 

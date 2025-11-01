@@ -78,7 +78,8 @@ namespace LECOMS.Data.Migrations
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Name = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
                     Slug = table.Column<string>(type: "nvarchar(180)", maxLength: 180, nullable: false),
-                    Active = table.Column<byte>(type: "tinyint", nullable: false)
+                    Active = table.Column<byte>(type: "tinyint", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {

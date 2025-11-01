@@ -25,10 +25,12 @@ namespace LECOMS.Repository.Repositories
 
         public IProductImageRepository ProductImages { get; }
         public ILessonProductRepository LessonProducts { get; }
+        public ILandingPageRepository LandingPage { get; }
+
         public UnitOfWork(LecomDbContext context, IUserRepository userRepository, IShopRepository shopRepository, ICourseRepository courseRepo,
         ICourseSectionRepository sectionRepo,
         ILessonRepository lessonRepo,
-        ICourseProductRepository cpRepo, ICourseCategoryRepository courseCategories, IProductCategoryRepository productCategories, IProductRepository products, IEnrollmentRepository enrollmentRepository, IProductImageRepository productImageRepository, ILessonProductRepository lessonProductRepository)
+        ICourseProductRepository cpRepo, ICourseCategoryRepository courseCategories, IProductCategoryRepository productCategories, IProductRepository products, IEnrollmentRepository enrollmentRepository, IProductImageRepository productImageRepository, ILessonProductRepository lessonProductRepository, ILandingPageRepository landingPage)
         {
             _context = context;
             Users = userRepository;
@@ -44,6 +46,7 @@ namespace LECOMS.Repository.Repositories
             Enrollments = enrollmentRepository;
             ProductImages = productImageRepository;
             LessonProducts = lessonProductRepository;
+            LandingPage = landingPage;
         }
         public async Task<int> CompleteAsync()
         {

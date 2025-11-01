@@ -23,5 +23,7 @@ namespace LECOMS.Data.Entities
         public byte Active { get; set; } = 1;
 
         public ICollection<Course> Courses { get; set; } = new List<Course>();
+        public string? Description { get; set; }   // ✅ thêm dòng này
+
     }
 }

@@ -281,6 +281,9 @@ namespace LECOMS.Data.Migrations
                     b.Property<byte>("Active")
                         .HasColumnType("tinyint");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)

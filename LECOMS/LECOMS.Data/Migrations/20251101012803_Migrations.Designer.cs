@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LECOMS.Data.Migrations
 {
     [DbContext(typeof(LecomDbContext))]
-    [Migration("20251029014207_Migrations")]
+    [Migration("20251101012803_Migrations")]
     partial class Migrations
     {
         /// <inheritdoc />
@@ -283,6 +283,9 @@ namespace LECOMS.Data.Migrations
 
                     b.Property<byte>("Active")
                         .HasColumnType("tinyint");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
                         .IsRequired()
