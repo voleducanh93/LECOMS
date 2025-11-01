@@ -138,8 +138,11 @@ namespace LECOMS.Service.Services
 
             // Generate confirmation email token and send email
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var confirmLink = $"{_configuration["AppUrl"]}/api/auth/confirm-email?email={user.Email}&token={Uri.EscapeDataString(token)}";
+            var encodedToken = Uri.EscapeDataString(token);
+
+            var confirmLink = $"{_configuration["AppUrl"]}/api/auth/confirm-email?email={user.Email}&token={encodedToken}";
             _emailService.SendEmailConfirmation(user.Email, confirmLink);
+
 
             return user;
         }

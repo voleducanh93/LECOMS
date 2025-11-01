@@ -232,26 +232,38 @@ namespace LECOMS.API.Controllers
                 return BadRequest(_response);
             }
         }
+        [AllowAnonymous]
         [HttpGet("confirm-email")]
-        public async Task<IActionResult> ConfirmEmailGet(string email, string token)
+        public async Task<IActionResult> ConfirmEmailGet([FromQuery] string email, [FromQuery] string token)
         {
             try
             {
                 var result = await _authService.ConfirmEmailAsync(email, token);
 
-                if (!result)
-                    return Content("<h2 style='color:red'>❌ Token không hợp lệ hoặc đã hết hạn.</h2>", "text/html");
-
-                return Content("<h2 style='color:green'>✅ Email đã được xác nhận thành công!</h2>", "text/html");
+                if (result)
+                {
+                    // ✅ Confirm thành công → redirect về FE
+                    return Redirect("https://lecom-fe.vercel.app/auth/email-confirmed");
+                }
+                else
+                {
+                    // ❌ Token sai → redirect về trang lỗi
+                    return Redirect("https://lecom-fe.vercel.app/auth/email-failed");
+                }
             }
             catch (Exception ex)
             {
                 if (ex.Message == "Email đã được xác nhận.")
-                    return Content("<h2 style='color:orange'>⚠️ Email đã được xác nhận trước đó.</h2>", "text/html");
+                {
+                    // ⚠️ Đã confirm rồi → vẫn redirect về trang thành công
+                    return Redirect("https://lecom-fe.vercel.app/auth/email-confirmed");
+                }
 
-                return Content($"<h2 style='color:red'>❌ Lỗi: {ex.Message}</h2>", "text/html");
+                // Lỗi khác → redirect về trang lỗi
+                return Redirect("https://lecom-fe.vercel.app/auth/email-failed");
             }
         }
+
 
     }
 }
