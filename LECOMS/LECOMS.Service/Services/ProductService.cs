@@ -188,36 +188,83 @@ namespace LECOMS.Service.Services
             s = System.Text.RegularExpressions.Regex.Replace(s, @"[^a-z0-9]+", "-").Trim('-');
             return s;
         }
-        public async Task<IEnumerable<ProductDTO>> GetPublicProductsAsync(int limit = 10, string? category = null)
+        /// <summary>
+        /// Lấy danh sách sản phẩm public (cho trang search + homepage)
+        /// Hỗ trợ: search, filter, sort, pagination
+        /// </summary>
+        public async Task<object> GetPublicProductsAsync(
+            string? search = null,
+            string? category = null,
+            string? sort = null,
+            int page = 1,
+            int pageSize = 10,
+            decimal? minPrice = null,
+            decimal? maxPrice = null
+        )
         {
-            string? categoryId = null;
+            // Base query
+            IQueryable<Product> query = _uow.Products.Query()
+                .Include(p => p.Category)
+                .Include(p => p.Images)
+                .Include(p => p.Shop)
+                .Where(p => p.Active == 1 && p.Status == ProductStatus.Published);
 
-            // Nếu có slug danh mục → tìm CategoryId tương ứng
-            if (!string.IsNullOrEmpty(category))
+            // 🔍 Search theo tên sản phẩm, mô tả, hoặc shop name
+            if (!string.IsNullOrWhiteSpace(search))
             {
-                var categoryEntity = await _uow.ProductCategories.GetAsync(
-                    c => c.Slug == category && c.Active == 1
+                string lower = search.ToLower();
+                query = query.Where(p =>
+                    p.Name.ToLower().Contains(lower) ||
+                    (p.Description != null && p.Description.ToLower().Contains(lower)) ||
+                    (p.Shop != null && p.Shop.Name.ToLower().Contains(lower))
                 );
-
-                if (categoryEntity == null)
-                    return Enumerable.Empty<ProductDTO>();
-
-                categoryId = categoryEntity.Id;
             }
 
-            // Lấy danh sách sản phẩm public
-            var products = await _uow.Products.GetAllAsync(
-                filter: p => p.Active == 1 &&
-                             p.Status == ProductStatus.Published &&
-                             (string.IsNullOrEmpty(categoryId) || p.CategoryId == categoryId),
-                includeProperties: "Category,Images,Shop"
-            );
+            // 🏷️ Lọc theo category slug
+            if (!string.IsNullOrEmpty(category))
+            {
+                var cat = await _uow.ProductCategories.GetAsync(c => c.Slug == category && c.Active == 1);
+                if (cat != null)
+                    query = query.Where(p => p.CategoryId == cat.Id);
+            }
 
-            var result = products
-                .OrderByDescending(p => p.LastUpdatedAt)
-                .Take(limit);
+            // 💰 Lọc theo khoảng giá
+            if (minPrice.HasValue)
+                query = query.Where(p => p.Price >= minPrice.Value);
+            if (maxPrice.HasValue)
+                query = query.Where(p => p.Price <= maxPrice.Value);
 
-            return _mapper.Map<IEnumerable<ProductDTO>>(result);
+            // 🔽 Sort
+            query = sort?.ToLower() switch
+            {
+                "price_asc" => query.OrderBy(p => p.Price),
+                "price_desc" => query.OrderByDescending(p => p.Price),
+                "name_asc" => query.OrderBy(p => p.Name),
+                "name_desc" => query.OrderByDescending(p => p.Name),
+                "oldest" => query.OrderBy(p => p.LastUpdatedAt),
+                _ => query.OrderByDescending(p => p.LastUpdatedAt) // default newest
+            };
+
+            // 📄 Pagination
+            int totalItems = await query.CountAsync();
+            var products = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            // ✅ Map sang DTO
+            var items = _mapper.Map<IEnumerable<ProductDTO>>(products);
+
+            // ✅ Trả về object chứa meta-data
+            return new
+            {
+                totalItems,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling(totalItems / (double)pageSize),
+                items
+            };
         }
+
     }
 }

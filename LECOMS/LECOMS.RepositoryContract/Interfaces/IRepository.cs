@@ -16,7 +16,6 @@ namespace LECOMS.RepositoryContract.Interfaces
         Task<T> DeleteAsync(T entity);
         Task<bool> AnyAsync(Expression<Func<T, bool>> predicate);
         Task<int> CountAsync(Expression<Func<T, bool>> predicate);
-
-
+        IQueryable<T> Query();
     }
 }

@@ -84,5 +84,10 @@ namespace LECOMS.Repository.Repositories
         {
             return await dbSet.CountAsync(predicate);
         }
+        public IQueryable<T> Query()
+        {
+            return dbSet.AsQueryable();
+        }
+
     }
 }

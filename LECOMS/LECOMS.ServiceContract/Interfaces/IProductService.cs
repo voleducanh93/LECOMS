@@ -11,7 +11,15 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<ProductDTO> CreateAsync(int shopId, ProductCreateDTO dto);
         Task<ProductDTO> UpdateAsync(string id, ProductUpdateDTO dto);
         Task<bool> DeleteAsync(string id);
-        Task<IEnumerable<ProductDTO>> GetPublicProductsAsync(int limit = 10, string? category = null);
+        Task<object> GetPublicProductsAsync(
+    string? search = null,
+    string? category = null,
+    string? sort = null,
+    int page = 1,
+    int pageSize = 10,
+    decimal? minPrice = null,
+    decimal? maxPrice = null
+);
 
     }
 }

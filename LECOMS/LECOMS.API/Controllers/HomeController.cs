@@ -30,13 +30,23 @@ namespace LECOMS.API.Controllers
         /// </summary>
         [HttpGet("products")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetProducts([FromQuery] int limit = 10, [FromQuery] string? category = null)
+        public async Task<IActionResult> GetProducts(
+            [FromQuery] string? search = null,
+            [FromQuery] string? category = null,
+            [FromQuery] string? sort = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] decimal? minPrice = null,
+            [FromQuery] decimal? maxPrice = null
+        )
         {
             var response = new APIResponse();
 
             try
             {
-                var data = await _productService.GetPublicProductsAsync(limit, category);
+                var data = await _productService.GetPublicProductsAsync(
+                    search, category, sort, page, pageSize, minPrice, maxPrice
+                );
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = data;
             }
