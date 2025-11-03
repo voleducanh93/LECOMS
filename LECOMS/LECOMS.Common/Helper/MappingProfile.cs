@@ -133,9 +133,14 @@ namespace LECOMS.Common.Helper
 
             CreateMap<Product, ProductDTO>()
                 .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Category.Name))
+                .ForMember(d => d.Images, o => o.MapFrom(s => s.Images))
                 .ForMember(d => d.ThumbnailUrl,
-                o => o.MapFrom(s => s.Images.FirstOrDefault(i => i.IsPrimary).Url))
+                    o => o.MapFrom(s => s.Images.FirstOrDefault(i => i.IsPrimary).Url))
+                .ForMember(d => d.ShopName, o => o.MapFrom(s => s.Shop.Name))
+                .ForMember(d => d.ShopAvatar, o => o.MapFrom(s => s.Shop.ShopAvatar))
+                .ForMember(d => d.ShopDescription, o => o.MapFrom(s => s.Shop.Description))
                 .ReverseMap();
+
         }
     }
 }

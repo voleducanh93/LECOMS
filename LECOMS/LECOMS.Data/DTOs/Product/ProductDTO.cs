@@ -22,5 +22,9 @@ namespace LECOMS.Data.DTOs.Product
         public List<ProductImageDTO> Images { get; set; } = new();
         // 🔹 Thumbnail hiển thị nhanh ở homepage
         public string? ThumbnailUrl { get; set; }
+        public string ShopName { get; set; }
+        public string? ShopAvatar { get; set; }
+        public string? ShopDescription { get; set; }
+
     }
 }

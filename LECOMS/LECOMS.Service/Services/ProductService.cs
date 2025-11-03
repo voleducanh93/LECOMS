@@ -265,6 +265,18 @@ namespace LECOMS.Service.Services
                 items
             };
         }
+        public async Task<ProductDTO> GetBySlugAsync(string slug)
+        {
+            var product = await _uow.Products.GetAsync(
+                p => p.Slug == slug && p.Active == 1,
+                includeProperties: "Category,Images,Shop"
+            );
+
+            if (product == null)
+                throw new KeyNotFoundException("Product not found.");
+
+            return _mapper.Map<ProductDTO>(product);
+        }
 
     }
 }

@@ -20,6 +20,7 @@ namespace LECOMS.ServiceContract.Interfaces
     decimal? minPrice = null,
     decimal? maxPrice = null
 );
+        Task<ProductDTO> GetBySlugAsync(string slug);
 
     }
 }

@@ -239,5 +239,32 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+        /// <summary>
+        /// Lấy thông tin sản phẩm public theo slug
+        /// </summary>
+        [HttpGet("{slug}")]
+        public async Task<IActionResult> GetBySlug(string slug)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var product = await _productService.GetBySlugAsync(slug);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = product;
+            }
+            catch (KeyNotFoundException)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.ErrorMessages.Add("Product not found.");
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            return StatusCode((int)response.StatusCode, response);
+        }
     }
 }
