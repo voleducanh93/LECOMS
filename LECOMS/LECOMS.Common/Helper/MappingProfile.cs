@@ -77,6 +77,10 @@ namespace LECOMS.Common.Helper
             CreateMap<Lesson, LessonDto>();
             CreateMap<CreateLessonDto, Lesson>()
                 .ForMember(d => d.Id, o => o.Ignore());
+            // ----------------- SECTION -----------------
+            CreateMap<CourseSection, SectionDTO>()
+                .ForMember(dest => dest.Lessons, opt => opt.MapFrom(src => src.Lessons))
+                .ReverseMap();
 
             // Entity → DTO
             CreateMap<ProductImage, ProductImageDTO>().ReverseMap();

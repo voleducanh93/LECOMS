@@ -395,6 +395,53 @@ namespace LECOMS.Service.Services
 
             return slug;
         }
+        public async Task<IEnumerable<SectionDTO>> GetSectionsByCourseAsync(string courseId)
+        {
+            var sections = await _unitOfWork.Sections.GetAllAsync(
+                s => s.CourseId == courseId,
+                includeProperties: "Lessons"
+            );
+
+            return sections
+                .OrderBy(s => s.OrderIndex)
+                .Select(s => new SectionDTO
+                {
+                    Id = s.Id,
+                    Title = s.Title,
+                    OrderIndex = s.OrderIndex,
+                    Lessons = s.Lessons
+                        .OrderBy(l => l.OrderIndex)
+                        .Select(l => new LessonDto
+                        {
+                            Id = l.Id,
+                            CourseSectionId = l.CourseSectionId,
+                            Title = l.Title,
+                            Type = l.Type,
+                            DurationSeconds = l.DurationSeconds,
+                            ContentUrl = l.ContentUrl,
+                            OrderIndex = l.OrderIndex
+                        }).ToList()
+                });
+        }
+        public async Task<IEnumerable<LessonDto>> GetLessonsBySectionAsync(string sectionId)
+        {
+            var lessons = await _unitOfWork.Lessons.GetAllAsync(
+                l => l.CourseSectionId == sectionId
+            );
+
+            return lessons
+                .OrderBy(l => l.OrderIndex)
+                .Select(l => new LessonDto
+                {
+                    Id = l.Id,
+                    CourseSectionId = l.CourseSectionId,
+                    Title = l.Title,
+                    Type = l.Type,
+                    DurationSeconds = l.DurationSeconds,
+                    ContentUrl = l.ContentUrl,
+                    OrderIndex = l.OrderIndex
+                });
+        }
 
     }
 }

@@ -289,5 +289,47 @@ namespace LECOMS.API.Controllers
             }
             return StatusCode((int)response.StatusCode, response);
         }
+
+        [HttpGet("{courseId}/sections")]
+        public async Task<IActionResult> GetSectionsByCourse(string courseId)
+        {
+            var response = new APIResponse();
+            try
+            {
+                // Lấy danh sách section theo course
+                var sections = await _service.GetSectionsByCourseAsync(courseId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = sections;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+        [HttpGet("sections/{sectionId}/lessons")]
+        public async Task<IActionResult> GetLessonsBySection(string sectionId)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var lessons = await _service.GetLessonsBySectionAsync(sectionId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = lessons;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            return StatusCode((int)response.StatusCode, response);
+        }
+
     }
 }
