@@ -1,6 +1,9 @@
 ﻿using AutoMapper;
+using LECOMS.Data.DTOs.Course;
+using LECOMS.Data.DTOs.Product;
 using LECOMS.Data.DTOs.Seller;
 using LECOMS.Data.Entities;
+using LECOMS.Data.Enum;
 using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -145,5 +148,38 @@ namespace LECOMS.Service.Services
 
             return _mapper.Map<ShopDTO>(shop);
         }
+        public async Task<object> GetPublicShopDetailAsync(int shopId)
+        {
+            var shop = await _uow.Shops.GetAsync(
+                s => s.Id == shopId && s.Status.ToLower() == ShopStatus.Approved.ToString().ToLower(),
+                includeProperties: "Category"
+            ); 
+            if (shop == null)
+                throw new KeyNotFoundException("Shop not found.");
+
+            // Lấy sản phẩm của shop
+            var products = await _uow.Products.GetAllAsync(
+                p => p.ShopId == shopId && p.Active == 1,
+                includeProperties: "Category,Images"
+            );
+
+            // Lấy courses của shop
+            var courses = await _uow.Courses.GetAllAsync(
+                c => c.ShopId == shopId && c.Active == 1,
+                includeProperties: "Category"
+            );
+
+            var productDtos = _mapper.Map<IEnumerable<ProductDTO>>(products);
+            var courseDtos = _mapper.Map<IEnumerable<CourseDTO>>(courses);
+            var shopDto = _mapper.Map<ShopDTO>(shop);
+
+            return new
+            {
+                shop = shopDto,
+                products = productDtos,
+                courses = courseDtos
+            };
+        }
+
     }
 }

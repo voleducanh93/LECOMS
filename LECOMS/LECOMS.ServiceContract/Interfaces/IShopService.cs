@@ -15,6 +15,7 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<ShopDTO> ApproveShopAsync(int id, string adminId);
         Task<ShopDTO> RejectShopAsync(int id, string adminId, string reason);
         Task<bool> HasShopAsync(string sellerId);
+        Task<object> GetPublicShopDetailAsync(int shopId);
 
     }
 }

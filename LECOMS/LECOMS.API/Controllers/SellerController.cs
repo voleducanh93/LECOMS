@@ -319,5 +319,33 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+        /// <summary>
+        /// Lấy thông tin shop (public) kèm danh sách sản phẩm và khóa học
+        /// </summary>
+        [HttpGet("{shopId}")]
+        public async Task<IActionResult> GetShopDetail(int shopId)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var result = await _shopService.GetPublicShopDetailAsync(shopId);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
+            }
+            catch (KeyNotFoundException)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.ErrorMessages.Add("Shop not found.");
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
     }
 }
