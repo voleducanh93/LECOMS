@@ -16,6 +16,8 @@ namespace LECOMS.Data.DTOs.Course
         public string CategoryName { get; set; }
         public int ShopId { get; set; }
         public string ShopName { get; set; }
+        public string? ShopAvatar { get; set; }
+
         public string? CourseThumbnail { get; set; }
         public byte Active { get; set; }
     }

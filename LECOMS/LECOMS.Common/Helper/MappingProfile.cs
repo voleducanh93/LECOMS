@@ -87,8 +87,12 @@ namespace LECOMS.Common.Helper
 
             CreateMap<Product, ProductDTO>()
                 .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Category.Name))
-                .ForMember(d => d.Images, o => o.MapFrom(s => s.Images));
-
+                .ForMember(d => d.Images, o => o.MapFrom(s => s.Images))
+                .ForMember(d => d.ThumbnailUrl, o => o.MapFrom(s => s.Images.FirstOrDefault(i => i.IsPrimary).Url))
+                .ForMember(d => d.ShopId, o => o.MapFrom(s => s.ShopId))
+                .ForMember(d => d.ShopName, o => o.MapFrom(s => s.Shop.Name))
+                .ForMember(d => d.ShopAvatar, o => o.MapFrom(s => s.Shop.ShopAvatar))
+                .ReverseMap();
 
             CreateMap<ProductCreateDTO, Product>()
                 .ForMember(d => d.Id, o => o.Ignore())
@@ -116,7 +120,9 @@ namespace LECOMS.Common.Helper
             // Entity → DTO
             CreateMap<Course, CourseDTO>()
                 .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
+                .ForMember(d => d.ShopId, o => o.MapFrom(s => s.ShopId))
                 .ForMember(dest => dest.ShopName, opt => opt.MapFrom(src => src.Shop.Name))
+                .ForMember(d => d.ShopAvatar, o => o.MapFrom(s => s.Shop.ShopAvatar))
                 .ReverseMap();
 
             // Create DTO → Entity
