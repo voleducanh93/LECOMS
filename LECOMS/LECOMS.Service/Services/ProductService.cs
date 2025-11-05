@@ -43,7 +43,7 @@ namespace LECOMS.Service.Services
         {
             var product = await _uow.Products.GetAsync(
                 p => p.Id == id,
-                includeProperties: "Category,Images"
+                    includeProperties: "Category,Images,Shop"
             );
 
             if (product == null)
@@ -103,7 +103,8 @@ namespace LECOMS.Service.Services
 
                 var loaded = await _uow.Products.GetAsync(
                     p => p.Id == product.Id,
-                    includeProperties: "Category,Images"
+                    includeProperties: "Category,Images,Shop"
+
                 );
 
                 return _mapper.Map<ProductDTO>(loaded);

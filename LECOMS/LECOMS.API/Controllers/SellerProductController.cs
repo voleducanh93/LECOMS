@@ -68,7 +68,8 @@ namespace LECOMS.API.Controllers
         /// <summary>
         /// Seller xem chi tiết 1 sản phẩm (bao gồm hình ảnh)
         /// </summary>
-        [HttpGet("{id}")]
+        // Lấy theo ID
+        [HttpGet("by-id/{id}")]
         public async Task<IActionResult> GetById(string id)
         {
             var response = new APIResponse();
@@ -242,7 +243,9 @@ namespace LECOMS.API.Controllers
         /// <summary>
         /// Lấy thông tin sản phẩm public theo slug
         /// </summary>
-        [HttpGet("{slug}")]
+        // Lấy theo Slug (public view)
+        [AllowAnonymous]
+        [HttpGet("by-slug/{slug}")]
         public async Task<IActionResult> GetBySlug(string slug)
         {
             var response = new APIResponse();
