@@ -51,6 +51,7 @@ namespace LECOMS.Service.Services
                 Id = Guid.NewGuid().ToString(),
                 Name = name,
                 Slug = slug,
+                Description = dto.Description,
                 Active = 1
             };
 
