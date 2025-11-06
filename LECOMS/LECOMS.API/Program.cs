@@ -1,13 +1,16 @@
 ﻿using LECOMS.Common.Helper;
 using LECOMS.Data.Entities;
 using LECOMS.Service;
+using LECOMS.Service.Jobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Azure.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Quartz;
+using Recombee.ApiClient;
 using System.Reflection;
 using System.Text;
 
@@ -57,6 +60,30 @@ builder.Services.Configure<EmailSetting>(builder.Configuration.GetSection("Email
 
 // Add AddServices
 builder.Services.AddServices(builder.Configuration);
+builder.Services.Configure<RecombeeSettings>(builder.Configuration.GetSection("Recombee"));
+
+// ===============================
+// 🧠 Recommbee Client Integration
+// ===============================
+builder.Services.AddSingleton(sp =>
+{
+    var settings = sp.GetRequiredService<IOptions<RecombeeSettings>>().Value;
+    return new RecombeeClient(settings.DatabaseId, settings.PrivateToken);
+});
+
+builder.Services.AddQuartz(q =>
+{
+    var jobKey = new JobKey("RecombeeSyncJob");
+    q.AddJob<RecombeeSyncJob>(opts => opts.WithIdentity(jobKey));
+
+    // Chạy mỗi ngày 3h sáng
+    q.AddTrigger(opts => opts
+        .ForJob(jobKey)
+        .WithIdentity("RecombeeSyncJob-trigger")
+        .WithCronSchedule("0 0 3 * * ?"));
+});
+
+builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 // Add UserManager and SignInManager for dependency injection
 builder.Services.AddScoped<UserManager<User>>();

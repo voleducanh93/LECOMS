@@ -35,6 +35,10 @@ namespace LECOMS.Service
             services.AddTransient<ICartService, CartService>();
             services.AddTransient<IOrderService, OrderService>();
             services.AddTransient<IPaymentService, PaymentService>();
+            services.AddScoped<RecombeeService>(); // Service chính để sync & recommend
+            services.AddSingleton<LECOMS.Common.Helper.RecombeeBootstrap>(); // Khởi tạo schema
+            services.AddScoped<RecombeeTrackingService>();
+
             return services;
         }
     }
