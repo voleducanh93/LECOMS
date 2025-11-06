@@ -289,10 +289,14 @@ namespace LECOMS.Service.Services
             if (shop == null)
                 throw new InvalidOperationException("Shop not found.");
 
-            var courses = await _unitOfWork.Courses.GetAllAsync(
-                c => c.ShopId == shop.Id,
-                includeProperties: "Category,Shop"
-            );
+            var courses = await _unitOfWork.Courses.Query()
+                .Include(c => c.Category)
+                .Include(c => c.Shop)
+                .Where(c => c.ShopId == shop.Id)
+                .ToListAsync();
+
+
+
 
             return courses.Select(c => new CourseDTO
             {
@@ -304,6 +308,7 @@ namespace LECOMS.Service.Services
                 CategoryName = c.Category.Name,
                 ShopId = c.ShopId,
                 ShopName = c.Shop.Name,
+                ShopAvatar = c.Shop.ShopAvatar,
                 CourseThumbnail = c.CourseThumbnail,
                 Active = c.Active
             });
