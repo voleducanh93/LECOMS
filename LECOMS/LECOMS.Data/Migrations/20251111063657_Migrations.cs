@@ -117,6 +117,32 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "PlatformConfigs",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    DefaultCommissionRate = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    OrderHoldingDays = table.Column<int>(type: "int", nullable: false),
+                    MinWithdrawalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    MaxWithdrawalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    AutoApproveWithdrawal = table.Column<bool>(type: "bit", nullable: false),
+                    MaxRefundDays = table.Column<int>(type: "int", nullable: false),
+                    AutoApproveRefund = table.Column<bool>(type: "bit", nullable: false),
+                    PayOSEnvironment = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    PayOSClientId = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    PayOSApiKey = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    PayOSChecksumKey = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    EnableEmailNotification = table.Column<bool>(type: "bit", nullable: false),
+                    EnableSMSNotification = table.Column<bool>(type: "bit", nullable: false),
+                    LastUpdated = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastUpdatedBy = table.Column<string>(type: "nvarchar(450)", maxLength: 450, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PlatformConfigs", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ProductCategories",
                 columns: table => new
                 {
@@ -160,6 +186,31 @@ namespace LECOMS.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_RedeemRules", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Transactions",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    OrderId = table.Column<string>(type: "nvarchar(4000)", maxLength: 4000, nullable: false),
+                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    PlatformFeePercent = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
+                    PlatformFeeAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    ShopAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    PaymentMethod = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    PayOSOrderCode = table.Column<long>(type: "bigint", nullable: true),
+                    PayOSTransactionId = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    PayOSPaymentUrl = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    PayOSMetadata = table.Column<string>(type: "nvarchar(4000)", maxLength: 4000, nullable: true),
+                    Note = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Transactions", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -352,6 +403,30 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "CustomerWallets",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    CustomerId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Balance = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TotalRefunded = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TotalSpent = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TotalWithdrawn = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    LastUpdated = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CustomerWallets", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CustomerWallets_AspNetUsers_CustomerId",
+                        column: x => x.CustomerId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Notifications",
                 columns: table => new
                 {
@@ -375,33 +450,6 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Orders",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    ShipToName = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    ShipToPhone = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    ShipToAddress = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
-                    Subtotal = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    ShippingFee = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Discount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Total = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Orders", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Orders_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "PointWallets",
                 columns: table => new
                 {
@@ -414,26 +462,6 @@ namespace LECOMS.Data.Migrations
                     table.PrimaryKey("PK_PointWallets", x => x.Id);
                     table.ForeignKey(
                         name: "FK_PointWallets_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "WalletAccounts",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Balance = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Currency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_WalletAccounts", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_WalletAccounts_AspNetUsers_UserId",
                         column: x => x.UserId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
@@ -622,69 +650,78 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Payments",
+                name: "CustomerWalletTransactions",
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    OrderId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    CustomerWalletId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Provider = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    BalanceBefore = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    BalanceAfter = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    ReferenceId = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    ReferenceType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    PerformedBy = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    Note = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Payments", x => x.Id);
+                    table.PrimaryKey("PK_CustomerWalletTransactions", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Payments_Orders_OrderId",
-                        column: x => x.OrderId,
-                        principalTable: "Orders",
+                        name: "FK_CustomerWalletTransactions_CustomerWallets_CustomerWalletId",
+                        column: x => x.CustomerWalletId,
+                        principalTable: "CustomerWallets",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Refunds",
+                name: "CustomerWithdrawalRequests",
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    OrderId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    CustomerWalletId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    CustomerId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    BankName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    BankAccountNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    BankAccountName = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    BankBranch = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
                     Status = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Reason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                    ApprovedBy = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    ApprovedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    RejectionReason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    ProcessedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    TransactionReference = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    FailureReason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    RequestedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Note = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    AdminNote = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Refunds", x => x.Id);
+                    table.PrimaryKey("PK_CustomerWithdrawalRequests", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Refunds_Orders_OrderId",
-                        column: x => x.OrderId,
-                        principalTable: "Orders",
+                        name: "FK_CustomerWithdrawalRequests_AspNetUsers_ApprovedBy",
+                        column: x => x.ApprovedBy,
+                        principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Shipments",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    OrderId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Carrier = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    TrackingNumber = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Shipments", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Shipments_Orders_OrderId",
-                        column: x => x.OrderId,
-                        principalTable: "Orders",
+                        name: "FK_CustomerWithdrawalRequests_AspNetUsers_CustomerId",
+                        column: x => x.CustomerId,
+                        principalTable: "AspNetUsers",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CustomerWithdrawalRequests_CustomerWallets_CustomerWalletId",
+                        column: x => x.CustomerWalletId,
+                        principalTable: "CustomerWallets",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -707,30 +744,6 @@ namespace LECOMS.Data.Migrations
                         principalTable: "PointWallets",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "WalletTransactions",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    WalletAccountId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Type = table.Column<int>(type: "int", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    BalanceAfter = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    OrderId = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Note = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_WalletTransactions", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_WalletTransactions_WalletAccounts_WalletAccountId",
-                        column: x => x.WalletAccountId,
-                        principalTable: "WalletAccounts",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -757,6 +770,44 @@ namespace LECOMS.Data.Migrations
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Courses_Shops_ShopId",
+                        column: x => x.ShopId,
+                        principalTable: "Shops",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Orders",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    OrderCode = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ShopId = table.Column<int>(type: "int", nullable: false),
+                    ShipToName = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    ShipToPhone = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    ShipToAddress = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    Subtotal = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    ShippingFee = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Discount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Total = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    PaymentStatus = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    BalanceReleased = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Orders", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Orders_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Orders_Shops_ShopId",
                         column: x => x.ShopId,
                         principalTable: "Shops",
                         principalColumn: "Id",
@@ -797,23 +848,26 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "PaymentAttempts",
+                name: "ShopWallets",
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    PaymentId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Result = table.Column<int>(type: "int", nullable: false),
-                    GatewayTxnId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    RawResponse = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
-                    AttemptedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    ShopId = table.Column<int>(type: "int", nullable: false),
+                    AvailableBalance = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    PendingBalance = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TotalEarned = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TotalWithdrawn = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TotalRefunded = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    LastUpdated = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PaymentAttempts", x => x.Id);
+                    table.PrimaryKey("PK_ShopWallets", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_PaymentAttempts_Payments_PaymentId",
-                        column: x => x.PaymentId,
-                        principalTable: "Payments",
+                        name: "FK_ShopWallets_Shops_ShopId",
+                        column: x => x.ShopId,
+                        principalTable: "Shops",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -891,6 +945,92 @@ namespace LECOMS.Data.Migrations
                         principalTable: "Courses",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Payments",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    OrderId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Provider = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Payments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Payments_Orders_OrderId",
+                        column: x => x.OrderId,
+                        principalTable: "Orders",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "RefundRequests",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    OrderId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    RequestedBy = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Recipient = table.Column<int>(type: "int", nullable: false),
+                    ReasonType = table.Column<int>(type: "int", nullable: false),
+                    ReasonDescription = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    RefundAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    ProcessedBy = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    ProcessNote = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    RequestedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ProcessedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    AttachmentUrls = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RefundRequests", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RefundRequests_AspNetUsers_ProcessedBy",
+                        column: x => x.ProcessedBy,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_RefundRequests_AspNetUsers_RequestedBy",
+                        column: x => x.RequestedBy,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_RefundRequests_Orders_OrderId",
+                        column: x => x.OrderId,
+                        principalTable: "Orders",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Shipments",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    OrderId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Carrier = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    TrackingNumber = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Shipments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Shipments_Orders_OrderId",
+                        column: x => x.OrderId,
+                        principalTable: "Orders",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -1021,6 +1161,82 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ShopWalletTransactions",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ShopWalletId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    BalanceBefore = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    BalanceAfter = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    BalanceType = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    ReferenceId = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    ReferenceType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    PerformedBy = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    Note = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ShopWalletTransactions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ShopWalletTransactions_ShopWallets_ShopWalletId",
+                        column: x => x.ShopWalletId,
+                        principalTable: "ShopWallets",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "WithdrawalRequests",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ShopWalletId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ShopId = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    BankName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    BankAccountNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    BankAccountName = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    BankBranch = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    ApprovedBy = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    ApprovedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    RejectionReason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    ProcessedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    TransactionReference = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    FailureReason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    RequestedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Note = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    AdminNote = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WithdrawalRequests", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WithdrawalRequests_AspNetUsers_ApprovedBy",
+                        column: x => x.ApprovedBy,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_WithdrawalRequests_ShopWallets_ShopWalletId",
+                        column: x => x.ShopWalletId,
+                        principalTable: "ShopWallets",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_WithdrawalRequests_Shops_ShopId",
+                        column: x => x.ShopId,
+                        principalTable: "Shops",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Lessons",
                 columns: table => new
                 {
@@ -1041,6 +1257,28 @@ namespace LECOMS.Data.Migrations
                         principalTable: "CourseSections",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PaymentAttempts",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    PaymentId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Result = table.Column<int>(type: "int", nullable: false),
+                    GatewayTxnId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    RawResponse = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    AttemptedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PaymentAttempts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PaymentAttempts_Payments_PaymentId",
+                        column: x => x.PaymentId,
+                        principalTable: "Payments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1093,6 +1331,11 @@ namespace LECOMS.Data.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
+
+            migrationBuilder.InsertData(
+                table: "PlatformConfigs",
+                columns: new[] { "Id", "AutoApproveRefund", "AutoApproveWithdrawal", "DefaultCommissionRate", "EnableEmailNotification", "EnableSMSNotification", "LastUpdated", "LastUpdatedBy", "MaxRefundDays", "MaxWithdrawalAmount", "MinWithdrawalAmount", "OrderHoldingDays", "PayOSApiKey", "PayOSChecksumKey", "PayOSClientId", "PayOSEnvironment" },
+                values: new object[] { "PLATFORM_CONFIG_SINGLETON", false, false, 5.00m, true, false, new DateTime(2025, 11, 11, 4, 5, 30, 0, DateTimeKind.Utc), "haupdse170479", 30, 50000000m, 100000m, 7, null, null, null, "sandbox" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Addresses_UserId_IsDefault",
@@ -1232,6 +1475,52 @@ namespace LECOMS.Data.Migrations
                 column: "CourseId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_CustomerWallets_CustomerId",
+                table: "CustomerWallets",
+                column: "CustomerId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomerWalletTransactions_CustomerWalletId_CreatedAt",
+                table: "CustomerWalletTransactions",
+                columns: new[] { "CustomerWalletId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomerWalletTransactions_ReferenceId",
+                table: "CustomerWalletTransactions",
+                column: "ReferenceId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomerWalletTransactions_Type",
+                table: "CustomerWalletTransactions",
+                column: "Type");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomerWithdrawalRequests_ApprovedBy",
+                table: "CustomerWithdrawalRequests",
+                column: "ApprovedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomerWithdrawalRequests_CustomerId",
+                table: "CustomerWithdrawalRequests",
+                column: "CustomerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomerWithdrawalRequests_CustomerWalletId",
+                table: "CustomerWithdrawalRequests",
+                column: "CustomerWalletId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomerWithdrawalRequests_RequestedAt",
+                table: "CustomerWithdrawalRequests",
+                column: "RequestedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomerWithdrawalRequests_Status",
+                table: "CustomerWithdrawalRequests",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Enrollments_CourseId",
                 table: "Enrollments",
                 column: "CourseId");
@@ -1292,6 +1581,27 @@ namespace LECOMS.Data.Migrations
                 column: "ProductId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Orders_OrderCode",
+                table: "Orders",
+                column: "OrderCode",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Orders_PaymentStatus",
+                table: "Orders",
+                column: "PaymentStatus");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Orders_ShopId_CreatedAt",
+                table: "Orders",
+                columns: new[] { "ShopId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Orders_Status",
+                table: "Orders",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Orders_UserId_CreatedAt",
                 table: "Orders",
                 columns: new[] { "UserId", "CreatedAt" });
@@ -1344,9 +1654,29 @@ namespace LECOMS.Data.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Refunds_OrderId",
-                table: "Refunds",
+                name: "IX_RefundRequests_OrderId",
+                table: "RefundRequests",
                 column: "OrderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundRequests_ProcessedBy",
+                table: "RefundRequests",
+                column: "ProcessedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundRequests_RequestedAt",
+                table: "RefundRequests",
+                column: "RequestedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundRequests_RequestedBy",
+                table: "RefundRequests",
+                column: "RequestedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundRequests_Status",
+                table: "RefundRequests",
+                column: "Status");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Reviews_ProductId",
@@ -1384,6 +1714,51 @@ namespace LECOMS.Data.Migrations
                 table: "Shops",
                 column: "SellerId",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShopWallets_ShopId",
+                table: "ShopWallets",
+                column: "ShopId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShopWalletTransactions_ReferenceId",
+                table: "ShopWalletTransactions",
+                column: "ReferenceId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShopWalletTransactions_ShopWalletId_CreatedAt",
+                table: "ShopWalletTransactions",
+                columns: new[] { "ShopWalletId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShopWalletTransactions_Type",
+                table: "ShopWalletTransactions",
+                column: "Type");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Transactions_CreatedAt",
+                table: "Transactions",
+                column: "CreatedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Transactions_PayOSOrderCode",
+                table: "Transactions",
+                column: "PayOSOrderCode",
+                unique: true,
+                filter: "[PayOSOrderCode] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Transactions_PayOSTransactionId",
+                table: "Transactions",
+                column: "PayOSTransactionId",
+                unique: true,
+                filter: "[PayOSTransactionId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Transactions_Status",
+                table: "Transactions",
+                column: "Status");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserBadges_BadgeId",
@@ -1424,14 +1799,29 @@ namespace LECOMS.Data.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_WalletAccounts_UserId",
-                table: "WalletAccounts",
-                column: "UserId");
+                name: "IX_WithdrawalRequests_ApprovedBy",
+                table: "WithdrawalRequests",
+                column: "ApprovedBy");
 
             migrationBuilder.CreateIndex(
-                name: "IX_WalletTransactions_WalletAccountId_CreatedAt",
-                table: "WalletTransactions",
-                columns: new[] { "WalletAccountId", "CreatedAt" });
+                name: "IX_WithdrawalRequests_RequestedAt",
+                table: "WithdrawalRequests",
+                column: "RequestedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequests_ShopId",
+                table: "WithdrawalRequests",
+                column: "ShopId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequests_ShopWalletId",
+                table: "WithdrawalRequests",
+                column: "ShopWalletId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequests_Status",
+                table: "WithdrawalRequests",
+                column: "Status");
         }
 
         /// <inheritdoc />
@@ -1468,6 +1858,12 @@ namespace LECOMS.Data.Migrations
                 name: "CourseProducts");
 
             migrationBuilder.DropTable(
+                name: "CustomerWalletTransactions");
+
+            migrationBuilder.DropTable(
+                name: "CustomerWithdrawalRequests");
+
+            migrationBuilder.DropTable(
                 name: "EarnRules");
 
             migrationBuilder.DropTable(
@@ -1486,6 +1882,9 @@ namespace LECOMS.Data.Migrations
                 name: "PaymentAttempts");
 
             migrationBuilder.DropTable(
+                name: "PlatformConfigs");
+
+            migrationBuilder.DropTable(
                 name: "PointLedgers");
 
             migrationBuilder.DropTable(
@@ -1495,13 +1894,19 @@ namespace LECOMS.Data.Migrations
                 name: "RedeemRules");
 
             migrationBuilder.DropTable(
-                name: "Refunds");
+                name: "RefundRequests");
 
             migrationBuilder.DropTable(
                 name: "Reviews");
 
             migrationBuilder.DropTable(
                 name: "ShipmentItems");
+
+            migrationBuilder.DropTable(
+                name: "ShopWalletTransactions");
+
+            migrationBuilder.DropTable(
+                name: "Transactions");
 
             migrationBuilder.DropTable(
                 name: "UserBadges");
@@ -1513,7 +1918,7 @@ namespace LECOMS.Data.Migrations
                 name: "UserVouchers");
 
             migrationBuilder.DropTable(
-                name: "WalletTransactions");
+                name: "WithdrawalRequests");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
@@ -1523,6 +1928,9 @@ namespace LECOMS.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "CommunityPosts");
+
+            migrationBuilder.DropTable(
+                name: "CustomerWallets");
 
             migrationBuilder.DropTable(
                 name: "Leaderboards");
@@ -1552,7 +1960,7 @@ namespace LECOMS.Data.Migrations
                 name: "Vouchers");
 
             migrationBuilder.DropTable(
-                name: "WalletAccounts");
+                name: "ShopWallets");
 
             migrationBuilder.DropTable(
                 name: "CourseSections");
