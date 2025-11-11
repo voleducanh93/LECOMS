@@ -239,49 +239,85 @@ namespace LECOMS.Service.Services
             s = System.Text.RegularExpressions.Regex.Replace(s, @"[^a-z0-9]+", "-").Trim('-');
             return s;
         }
-        public async Task<IEnumerable<CourseDTO>> GetPublicCoursesAsync(int limit = 10, string? category = null)
+        public async Task<object> GetPublicCoursesAsync(
+    string? search = null,
+    string? category = null,
+    string? sort = null,
+    int page = 1,
+    int pageSize = 10
+)
         {
-            string? categoryId = null;
+            // Base query
+            IQueryable<Course> query = _unitOfWork.Courses.Query()
+                .Include(c => c.Category)
+                .Include(c => c.Shop)
+                .Where(c => c.Active == 1);
 
-            // Nếu có slug danh mục → tìm CategoryId tương ứng
-            if (!string.IsNullOrEmpty(category))
+            // 🔍 Search theo tiêu đề, mô tả, hoặc tên shop
+            if (!string.IsNullOrWhiteSpace(search))
             {
-                var categoryEntity = await _unitOfWork.CourseCategories.GetAsync(
-                    c => c.Slug == category && c.Active == 1
+                string lower = search.ToLower();
+                query = query.Where(c =>
+                    c.Title.ToLower().Contains(lower) ||
+                    (c.Summary != null && c.Summary.ToLower().Contains(lower)) ||
+                    (c.Shop != null && c.Shop.Name.ToLower().Contains(lower))
                 );
-
-                if (categoryEntity == null)
-                    return Enumerable.Empty<CourseDTO>();
-
-                categoryId = categoryEntity.Id;
             }
 
-            // Lấy danh sách khóa học public
-            var courses = await _unitOfWork.Courses.GetAllAsync(
-                filter: c => c.Active == 1 &&
-                             (string.IsNullOrEmpty(categoryId) || c.CategoryId == categoryId),
-                includeProperties: "Category,Shop"
-            );
+            // 🏷️ Lọc theo category slug
+            if (!string.IsNullOrEmpty(category))
+            {
+                var cat = await _unitOfWork.CourseCategories.GetAsync(
+                    c => c.Slug == category && c.Active == 1
+                );
+                if (cat != null)
+                    query = query.Where(c => c.CategoryId == cat.Id);
+            }
 
-            var result = courses
-                .OrderByDescending(c => c.Id)
-                .Take(limit)
-                .Select(c => new CourseDTO
-                {
-                    Id = c.Id,
-                    Title = c.Title,
-                    Slug = c.Slug,
-                    Summary = c.Summary,
-                    CategoryId = c.CategoryId,
-                    CategoryName = c.Category?.Name,
-                    ShopId = c.ShopId,
-                    ShopName = c.Shop?.Name,
-                    CourseThumbnail = c.CourseThumbnail,
-                    Active = c.Active
-                });
+            // 🔽 Sort (ưu tiên title, category, newest)
+            query = sort?.ToLower() switch
+            {
+                "name_asc" => query.OrderBy(c => c.Title),
+                "name_desc" => query.OrderByDescending(c => c.Title),
+                "oldest" => query.OrderBy(c => c.Id), // giả sử Id sinh tuần tự
+                _ => query.OrderByDescending(c => c.Id) // default: newest
+            };
 
-            return result;
+            // 📄 Pagination
+            int totalItems = await query.CountAsync();
+            var courses = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .AsNoTracking()
+                .ToListAsync();
+
+            // ✅ Map sang DTO
+            var items = courses.Select(c => new CourseDTO
+            {
+                Id = c.Id,
+                Title = c.Title,
+                Slug = c.Slug,
+                Summary = c.Summary,
+                CategoryId = c.CategoryId,
+                CategoryName = c.Category?.Name,
+                ShopId = c.ShopId,
+                ShopName = c.Shop?.Name,
+                ShopAvatar = c.Shop?.ShopAvatar,
+                CourseThumbnail = c.CourseThumbnail,
+                Active = c.Active
+            });
+
+            // ✅ Trả về object chứa meta-data
+            return new
+            {
+                totalItems,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling(totalItems / (double)pageSize),
+                items
+            };
         }
+
         public async Task<IEnumerable<CourseDTO>> GetCoursesBySellerAsync(string sellerId)
         {
             // Lấy shop theo seller

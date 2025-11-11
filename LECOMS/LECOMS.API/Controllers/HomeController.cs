@@ -68,13 +68,21 @@ namespace LECOMS.API.Controllers
         /// </summary>
         [HttpGet("courses")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetCourses([FromQuery] int limit = 10, [FromQuery] string? category = null)
+        public async Task<IActionResult> GetCourses(
+            [FromQuery] string? search = null,
+            [FromQuery] string? category = null,
+            [FromQuery] string? sort = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10
+        )
         {
             var response = new APIResponse();
 
             try
             {
-                var data = await _courseService.GetPublicCoursesAsync(limit, category);
+                var data = await _courseService.GetPublicCoursesAsync(
+                    search, category, sort, page, pageSize
+                );
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = data;
             }
@@ -87,6 +95,7 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+
         /// <summary>
         /// 🔹 Lấy thông tin sản phẩm public theo slug (trang chi tiết sản phẩm)
         /// </summary>
