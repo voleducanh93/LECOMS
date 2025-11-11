@@ -1,5 +1,6 @@
 ﻿using LECOMS.Common.Helper;
 using LECOMS.RepositoryContract.Interfaces;
+using LECOMS.Service.Services;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,15 +15,17 @@ namespace LECOMS.API.Controllers
         private readonly IProductService _productService;
         private readonly ISellerCourseService _courseService;
         private readonly IUnitOfWork _uow;
-
+        private readonly IShopService _shopService;
         public HomeController(
             IProductService productService,
             ISellerCourseService courseService,
-            IUnitOfWork uow)
+            IUnitOfWork uow,
+            IShopService shopService)
         {
             _productService = productService;
             _courseService = courseService;
             _uow = uow;
+            _shopService = shopService;
         }
 
         /// <summary>
@@ -114,7 +117,34 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+        /// <summary>
+        /// Lấy thông tin shop (public) kèm danh sách sản phẩm và khóa học
+        /// </summary>
+        [HttpGet("{shopId}")]
+        public async Task<IActionResult> GetShopDetail(int shopId)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var result = await _shopService.GetPublicShopDetailAsync(shopId);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
+            }
+            catch (KeyNotFoundException)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.ErrorMessages.Add("Shop not found.");
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
 
+            return StatusCode((int)response.StatusCode, response);
+        }
 
     }
 }
