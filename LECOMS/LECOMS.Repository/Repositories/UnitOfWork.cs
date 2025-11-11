@@ -32,11 +32,18 @@ namespace LECOMS.Repository.Repositories
         public IOrderDetailRepository OrderDetails { get; }
         public IPaymentRepository Payments { get; }
 
-        public UnitOfWork(LecomDbContext context, IUserRepository userRepository, IShopRepository shopRepository, ICourseRepository courseRepo,
-        ICourseSectionRepository sectionRepo,
-        ILessonRepository lessonRepo,
-        ICourseProductRepository cpRepo, ICourseCategoryRepository courseCategories, IProductCategoryRepository productCategories, IProductRepository products, IEnrollmentRepository enrollmentRepository, IProductImageRepository productImageRepository, ILessonProductRepository lessonProductRepository, ILandingPageRepository landingPage, ICartRepository cartRepository, ICartItemRepository cartItemRepository, IOrderRepository orderRepository, IOrderDetailRepository orderDetailRepository,
-            IPaymentRepository paymentRepository)
+        public ITransactionRepository Transactions { get; }
+        public IShopWalletRepository ShopWallets { get; }
+        public ICustomerWalletRepository CustomerWallets { get; }
+        public IWalletTransactionRepository WalletTransactions { get; }
+        public ICustomerWalletTransactionRepository CustomerWalletTransactions { get; }
+        public IRefundRequestRepository RefundRequests { get; }
+        public IWithdrawalRequestRepository WithdrawalRequests { get; }
+        public ICustomerWithdrawalRequestRepository CustomerWithdrawalRequests { get; }
+        public IPlatformConfigRepository PlatformConfigs { get; }
+
+        public UnitOfWork(LecomDbContext context, IUserRepository userRepository, IShopRepository shopRepository, ICourseRepository courseRepo, ICourseSectionRepository sectionRepo,
+        ILessonRepository lessonRepo, ICourseProductRepository cpRepo, ICourseCategoryRepository courseCategories, IProductCategoryRepository productCategories, IProductRepository products, IEnrollmentRepository enrollmentRepository, IProductImageRepository productImageRepository, ILessonProductRepository lessonProductRepository, ILandingPageRepository landingPage, ICartRepository cartRepository, ICartItemRepository cartItemRepository, IOrderRepository orderRepository, IOrderDetailRepository orderDetailRepository, IPaymentRepository paymentRepository, ITransactionRepository transactionRepository, IShopWalletRepository shopWalletRepository, ICustomerWalletRepository customerWalletRepository, IWalletTransactionRepository walletTransactionRepository, ICustomerWalletTransactionRepository customerWalletTransactionRepository, IRefundRequestRepository refundRequestRepository, IWithdrawalRequestRepository withdrawalRequestRepository, ICustomerWithdrawalRequestRepository customerWithdrawalRequestRepository, IPlatformConfigRepository platformConfigRepository)
         {
             _context = context;
             Users = userRepository;
@@ -58,6 +65,15 @@ namespace LECOMS.Repository.Repositories
             Orders = orderRepository;
             OrderDetails = orderDetailRepository;
             Payments = paymentRepository;
+            Transactions = transactionRepository;
+            ShopWallets = shopWalletRepository;
+            CustomerWallets = customerWalletRepository;
+            WalletTransactions = walletTransactionRepository;
+            CustomerWalletTransactions = customerWalletTransactionRepository;
+            RefundRequests = refundRequestRepository;
+            WithdrawalRequests = withdrawalRequestRepository;
+            CustomerWithdrawalRequests = customerWithdrawalRequestRepository;
+            PlatformConfigs = platformConfigRepository;
         }
         public async Task<int> CompleteAsync()
         {

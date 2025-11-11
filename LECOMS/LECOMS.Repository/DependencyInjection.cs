@@ -35,6 +35,15 @@ namespace LECOMS.Repository
             services.AddTransient<IOrderRepository, OrderRepository>();
             services.AddTransient<IOrderDetailRepository, OrderDetailRepository>();
             services.AddTransient<IPaymentRepository, PaymentRepository>();
+            services.AddTransient<ITransactionRepository, TransactionRepository>();
+            services.AddTransient<IShopWalletRepository, ShopWalletRepository>();
+            services.AddTransient<ICustomerWalletRepository, CustomerWalletRepository>();
+            services.AddTransient<IWalletTransactionRepository, WalletTransactionRepository>();
+            services.AddTransient<ICustomerWalletTransactionRepository, CustomerWalletTransactionRepository>();
+            services.AddTransient<IRefundRequestRepository, RefundRequestRepository>();
+            services.AddTransient<IWithdrawalRequestRepository, WithdrawalRequestRepository>();
+            services.AddTransient<ICustomerWithdrawalRequestRepository, CustomerWithdrawalRequestRepository>();
+            services.AddTransient<IPlatformConfigRepository, PlatformConfigRepository>();
             //DI Unit Of Work
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             return services;

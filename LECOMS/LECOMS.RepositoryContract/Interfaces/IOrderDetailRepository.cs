@@ -1,14 +1,27 @@
 ﻿using LECOMS.Data.Entities;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace LECOMS.RepositoryContract.Interfaces
 {
+    /// <summary>
+    /// Repository interface cho OrderDetail
+    /// </summary>
     public interface IOrderDetailRepository : IRepository<OrderDetail>
     {
-        // additional helpers later if needed
+        /// <summary>
+        /// Lấy order details theo OrderId ⭐ NEW
+        /// </summary>
+        Task<IEnumerable<OrderDetail>> GetByOrderIdAsync(string orderId);
+
+        /// <summary>
+        /// Lấy order detail theo OrderId và ProductId ⭐ NEW
+        /// </summary>
+        Task<OrderDetail?> GetByOrderAndProductAsync(string orderId, string productId);
+
+        /// <summary>
+        /// Tính tổng quantity của product đã bán ⭐ NEW
+        /// </summary>
+        Task<int> GetTotalQuantitySoldAsync(string productId);
     }
 }

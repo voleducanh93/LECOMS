@@ -2,17 +2,22 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Linq;
-using System.Reflection.Emit;
 
 namespace LECOMS.Data.Models
 {
+    /// <summary>
+    /// Database Context cho LECOMS E-Commerce Platform
+    /// Updated: 2025-11-11 - Marketplace Payment Model
+    /// </summary>
     public class LecomDbContext : IdentityDbContext<User, IdentityRole, string>
-
     {
         public LecomDbContext(DbContextOptions<LecomDbContext> options) : base(options) { }
 
-        // ==== DbSet ====
+        // =====================================================================
+        // ==== EXISTING DbSets ====
+        // =====================================================================
         public DbSet<Address> Addresses => Set<Address>();
         public DbSet<Badge> Badges => Set<Badge>();
         public DbSet<Cart> Carts => Set<Cart>();
@@ -40,7 +45,6 @@ namespace LECOMS.Data.Models
         public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>();
         public DbSet<RankTier> RankTiers => Set<RankTier>();
         public DbSet<RedeemRule> RedeemRules => Set<RedeemRule>();
-        public DbSet<Refund> Refunds => Set<Refund>();
         public DbSet<Review> Reviews => Set<Review>();
         public DbSet<Shipment> Shipments => Set<Shipment>();
         public DbSet<ShipmentItem> ShipmentItems => Set<ShipmentItem>();
@@ -48,23 +52,37 @@ namespace LECOMS.Data.Models
         public DbSet<UserTierHistory> UserTierHistories => Set<UserTierHistory>();
         public DbSet<UserVoucher> UserVouchers => Set<UserVoucher>();
         public DbSet<Voucher> Vouchers => Set<Voucher>();
-        public DbSet<WalletAccount> WalletAccounts => Set<WalletAccount>();
-        public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
         public DbSet<Shop> Shops { get; set; }
         public DbSet<ProductImage> ProductImages { get; set; }
-public DbSet<LessonProduct> LessonProducts { get; set; }
+        public DbSet<LessonProduct> LessonProducts { get; set; }
 
+        // =====================================================================
+        // ==== NEW PAYMENT SYSTEM DbSets ⭐ ====
+        // =====================================================================
+
+        public DbSet<Transaction> Transactions => Set<Transaction>();
+        public DbSet<ShopWallet> ShopWallets => Set<ShopWallet>();
+        public DbSet<CustomerWallet> CustomerWallets => Set<CustomerWallet>();
+        public DbSet<Entities.WalletTransaction> ShopWalletTransactions => Set<Entities.WalletTransaction>();
+        public DbSet<CustomerWalletTransaction> CustomerWalletTransactions => Set<CustomerWalletTransaction>();
+        public DbSet<RefundRequest> RefundRequests => Set<RefundRequest>();
+        public DbSet<WithdrawalRequest> WithdrawalRequests => Set<WithdrawalRequest>();
+        public DbSet<CustomerWithdrawalRequest> CustomerWithdrawalRequests => Set<CustomerWithdrawalRequest>();
+        public DbSet<PlatformConfig> PlatformConfigs => Set<PlatformConfig>();
+
+        // =====================================================================
+        // ==== MODEL CONFIGURATION ====
+        // =====================================================================
         protected override void OnModelCreating(ModelBuilder b)
         {
             base.OnModelCreating(b);
 
             // =====================================================================
-            // 0) CHẶN multiple cascade paths: mặc định Restrict cho mọi FK,
-            //    rồi bật Cascade có chọn lọc cho các aggregate nội bộ.
+            // 0) CHẶN multiple cascade paths: mặc định Restrict cho mọi FK
             // =====================================================================
             foreach (var fk in b.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
             {
-                fk.DeleteBehavior = DeleteBehavior.Restrict; // tương đương NO ACTION
+                fk.DeleteBehavior = DeleteBehavior.Restrict;
             }
 
             // =====================================================================
@@ -72,7 +90,7 @@ public DbSet<LessonProduct> LessonProducts { get; set; }
             // =====================================================================
             b.Entity<User>(e =>
             {
-                e.HasIndex(x => x.Email).IsUnique(false); // Email có thể null
+                e.HasIndex(x => x.Email).IsUnique(false);
                 e.HasIndex(x => x.UserName).IsUnique(true);
             });
 
@@ -87,7 +105,6 @@ public DbSet<LessonProduct> LessonProducts { get; set; }
                 e.HasOne(x => x.Category)
                  .WithMany(c => c.Products)
                  .HasForeignKey(x => x.CategoryId);
-                // DeleteBehavior đã là Restrict từ bước 0
             });
 
             // =====================================================================
@@ -103,7 +120,6 @@ public DbSet<LessonProduct> LessonProducts { get; set; }
                  .HasForeignKey(x => x.CategoryId);
             });
 
-            // BẬT CASCADE cho aggregate Course -> Section -> Lesson
             b.Entity<CourseSection>()
                 .HasOne(s => s.Course)
                 .WithMany(c => c.Sections)
@@ -116,22 +132,17 @@ public DbSet<LessonProduct> LessonProducts { get; set; }
                 .HasForeignKey(l => l.CourseSectionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Link Course-Product: unique
             b.Entity<CourseProduct>()
                 .HasIndex(x => new { x.CourseId, x.ProductId })
                 .IsUnique();
 
-            // Enrollment: 1 user chỉ 1 enrollment / course
             b.Entity<Enrollment>()
                 .HasIndex(x => new { x.UserId, x.CourseId })
                 .IsUnique();
 
-            // Certificate: 1 user/course 1 certificate
             b.Entity<Certificate>()
                 .HasIndex(x => new { x.UserId, x.CourseId })
                 .IsUnique();
-
-            // User quan hệ xuống Enrollment/Certificate: giữ Restrict (đã từ bước 0)
 
             // =====================================================================
             // 4) Cart / Order / Payment / Shipment
@@ -140,7 +151,6 @@ public DbSet<LessonProduct> LessonProducts { get; set; }
                 .HasIndex(x => new { x.CartId, x.ProductId })
                 .IsUnique();
 
-            // BẬT CASCADE cho Order aggregate
             b.Entity<OrderDetail>()
                 .HasIndex(x => new { x.OrderId, x.ProductId })
                 .IsUnique();
@@ -148,7 +158,18 @@ public DbSet<LessonProduct> LessonProducts { get; set; }
             b.Entity<Order>(e =>
             {
                 e.HasIndex(x => new { x.UserId, x.CreatedAt });
+                e.HasIndex(x => new { x.ShopId, x.CreatedAt });
+                e.HasIndex(x => x.OrderCode).IsUnique();
+                e.HasIndex(x => x.Status);
+                e.HasIndex(x => x.PaymentStatus);
+
                 e.Property(x => x.Status).HasConversion<int>();
+                e.Property(x => x.PaymentStatus).HasConversion<int>();
+
+                e.HasOne(o => o.Shop)
+                 .WithMany(s => s.Orders)
+                 .HasForeignKey(o => o.ShopId)
+                 .OnDelete(DeleteBehavior.Restrict);
             });
 
             b.Entity<OrderDetail>()
@@ -213,36 +234,29 @@ public DbSet<LessonProduct> LessonProducts { get; set; }
                 .HasIndex(x => new { x.LeaderboardId, x.UserId })
                 .IsUnique();
 
-            // Enum conversions
             b.Entity<Shipment>().Property(x => x.Status).HasConversion<int>();
             b.Entity<PointLedger>().Property(x => x.Type).HasConversion<int>();
-            b.Entity<WalletTransaction>().Property(x => x.Type).HasConversion<int>();
 
-            // Rank / Tier history
             b.Entity<UserTierHistory>()
                 .HasOne(h => h.Tier)
                 .WithMany()
                 .HasForeignKey(h => h.TierID);
 
             // =====================================================================
-            // 8) Community & Notification (FIX multiple cascade paths)
+            // 8) Community & Notification
             // =====================================================================
-            // Không cascade từ User -> Post để tránh đường trùng tới Comment
             b.Entity<CommunityPost>()
                 .HasOne(p => p.User)
                 .WithMany(u => u.Posts)
                 .HasForeignKey(p => p.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Xóa Post sẽ xóa Comment cùng Post (cascade NỘI BỘ)
             b.Entity<Comment>()
-             .HasOne(c => c.Post)
-             .WithMany(p => p.Comments)
-             .HasForeignKey(c => c.CommunityPostId)
-             .OnDelete(DeleteBehavior.Restrict);   // đổi từ Cascade -> Restrict
+                .HasOne(c => c.Post)
+                .WithMany(p => p.Comments)
+                .HasForeignKey(c => c.CommunityPostId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-
-            // Không cascade từ User -> Comment
             b.Entity<Comment>()
                 .HasOne(c => c.User)
                 .WithMany(u => u.Comments)
@@ -253,24 +267,207 @@ public DbSet<LessonProduct> LessonProducts { get; set; }
                 .HasIndex(x => new { x.UserId, x.IsRead });
 
             // =====================================================================
-            // 9) Wallet
+            // 10) Shop & Product
             // =====================================================================
-            // Không cascade từ User -> WalletAccount (tránh lan truyền lớn)
-            b.Entity<WalletAccount>()
-                .HasOne(w => w.User)
-                .WithMany()
-                .HasForeignKey(w => w.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            // Giao dịch thuộc về ví: cascade trong aggregate
-            b.Entity<WalletTransaction>()
-                .HasOne(t => t.Wallet)
-                .WithMany(w => w.Transactions)
-                .HasForeignKey(t => t.WalletAccountId)
+            b.Entity<User>()
+                .HasOne(u => u.Shop)
+                .WithOne(s => s.Seller)
+                .HasForeignKey<Shop>(s => s.SellerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            b.Entity<ProductImage>()
+                .HasOne(pi => pi.Product)
+                .WithMany(p => p.Images)
+                .HasForeignKey(pi => pi.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.Entity<LessonProduct>()
+                .HasIndex(lp => new { lp.LessonId, lp.ProductId })
+                .IsUnique();
+
             // =====================================================================
-            // 10) Decimal precision tiền tệ (áp cho mọi decimal chưa set)
+            // ⭐ 11) NEW PAYMENT SYSTEM CONFIGURATION - MARKETPLACE MODEL
+            // =====================================================================
+
+            // --- Transaction ---
+            b.Entity<Transaction>(e =>
+            {
+                e.ToTable("Transactions");
+                e.HasIndex(x => x.PayOSTransactionId).IsUnique();
+                e.HasIndex(x => x.PayOSOrderCode).IsUnique();
+                e.HasIndex(x => x.Status);
+                e.HasIndex(x => x.CreatedAt);
+                e.Property(x => x.Status).HasConversion<int>();
+
+            });
+
+            // --- ShopWallet ---
+            b.Entity<ShopWallet>(e =>
+            {
+                e.ToTable("ShopWallets");
+                e.HasIndex(x => x.ShopId).IsUnique();
+
+                e.HasOne(w => w.Shop)
+                 .WithOne()
+                 .HasForeignKey<ShopWallet>(w => w.ShopId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // --- CustomerWallet ---
+            b.Entity<CustomerWallet>(e =>
+            {
+                e.ToTable("CustomerWallets");
+                e.HasIndex(x => x.CustomerId).IsUnique();
+
+                e.HasOne(w => w.Customer)
+                 .WithOne()
+                 .HasForeignKey<CustomerWallet>(w => w.CustomerId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // --- ShopWalletTransaction ---
+            b.Entity<Entities.WalletTransaction>(e =>
+            {
+                e.ToTable("ShopWalletTransactions");
+                e.HasIndex(x => new { x.ShopWalletId, x.CreatedAt });
+                e.HasIndex(x => x.Type);
+                e.HasIndex(x => x.ReferenceId);
+
+                e.Property(x => x.Type).HasConversion<int>();
+
+                e.HasOne(t => t.ShopWallet)
+                 .WithMany(w => w.Transactions)
+                 .HasForeignKey(t => t.ShopWalletId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // --- CustomerWalletTransaction ---
+            b.Entity<CustomerWalletTransaction>(e =>
+            {
+                e.ToTable("CustomerWalletTransactions");
+                e.HasIndex(x => new { x.CustomerWalletId, x.CreatedAt });
+                e.HasIndex(x => x.Type);
+                e.HasIndex(x => x.ReferenceId);
+
+                e.Property(x => x.Type).HasConversion<int>();
+
+                e.HasOne(t => t.CustomerWallet)
+                 .WithMany(w => w.Transactions)
+                 .HasForeignKey(t => t.CustomerWalletId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // --- RefundRequest ---
+            b.Entity<RefundRequest>(e =>
+            {
+                e.ToTable("RefundRequests");
+                e.HasIndex(x => x.OrderId);
+                e.HasIndex(x => x.Status);
+                e.HasIndex(x => x.RequestedBy);
+                e.HasIndex(x => x.RequestedAt);
+
+                e.Property(x => x.Recipient).HasConversion<int>();
+                e.Property(x => x.ReasonType).HasConversion<int>();
+                e.Property(x => x.Type).HasConversion<int>();
+                e.Property(x => x.Status).HasConversion<int>();
+
+                e.HasOne(r => r.Order)
+                 .WithMany(o => o.RefundRequests)
+                 .HasForeignKey(r => r.OrderId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(r => r.RequestedByUser)
+                 .WithMany()
+                 .HasForeignKey(r => r.RequestedBy)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(r => r.ProcessedByUser)
+                 .WithMany()
+                 .HasForeignKey(r => r.ProcessedBy)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // --- WithdrawalRequest (Shop) ---
+            b.Entity<WithdrawalRequest>(e =>
+            {
+                e.ToTable("WithdrawalRequests");
+                e.HasIndex(x => x.ShopWalletId);
+                e.HasIndex(x => x.Status);
+                e.HasIndex(x => x.RequestedAt);
+
+                e.Property(x => x.Status).HasConversion<int>();
+
+                e.HasOne(w => w.ShopWallet)
+                 .WithMany(sw => sw.WithdrawalRequests)
+                 .HasForeignKey(w => w.ShopWalletId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(w => w.Shop)
+                 .WithMany()
+                 .HasForeignKey(w => w.ShopId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(w => w.ApprovedByUser)
+                 .WithMany()
+                 .HasForeignKey(w => w.ApprovedBy)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // --- CustomerWithdrawalRequest ---
+            b.Entity<CustomerWithdrawalRequest>(e =>
+            {
+                e.ToTable("CustomerWithdrawalRequests");
+                e.HasIndex(x => x.CustomerWalletId);
+                e.HasIndex(x => x.Status);
+                e.HasIndex(x => x.RequestedAt);
+
+                e.Property(x => x.Status).HasConversion<int>();
+
+                e.HasOne(w => w.CustomerWallet)
+                 .WithMany(cw => cw.WithdrawalRequests)
+                 .HasForeignKey(w => w.CustomerWalletId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(w => w.Customer)
+                 .WithMany()
+                 .HasForeignKey(w => w.CustomerId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(w => w.ApprovedByUser)
+                 .WithMany()
+                 .HasForeignKey(w => w.ApprovedBy)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // --- PlatformConfig ---
+            b.Entity<PlatformConfig>(e =>
+            {
+                e.ToTable("PlatformConfigs");
+
+                // Seed data
+                e.HasData(new PlatformConfig
+                {
+                    Id = "PLATFORM_CONFIG_SINGLETON",
+                    DefaultCommissionRate = 5.00m,
+                    OrderHoldingDays = 7,
+                    MinWithdrawalAmount = 100000m,
+                    MaxWithdrawalAmount = 50000000m,
+                    AutoApproveWithdrawal = false,
+                    MaxRefundDays = 30,
+                    AutoApproveRefund = false,
+                    PayOSEnvironment = "sandbox",
+                    PayOSClientId = null,
+                    PayOSApiKey = null,
+                    PayOSChecksumKey = null,
+                    EnableEmailNotification = true,
+                    EnableSMSNotification = false,
+                    LastUpdated = new DateTime(2025, 11, 11, 4, 5, 30, DateTimeKind.Utc),
+                    LastUpdatedBy = "haupdse170479"
+                });
+            });
+
+            // =====================================================================
+            // 12) Decimal precision
             // =====================================================================
             foreach (var prop in b.Model.GetEntityTypes()
                      .SelectMany(t => t.GetProperties())
@@ -282,22 +479,6 @@ public DbSet<LessonProduct> LessonProducts { get; set; }
                     prop.SetScale(2);
                 }
             }
-            // Thêm cấu hình mối quan hệ 1-1 giữa User và Shop
-            b.Entity<User>()
-             .HasOne(u => u.Shop)
-             .WithOne(s => s.Seller)
-             .HasForeignKey<Shop>(s => s.SellerId)
-             .OnDelete(DeleteBehavior.Cascade);
-            // Cấu hình mối quan hệ giữa Product và ProductImage
-            b.Entity<ProductImage>()
-             .HasOne(pi => pi.Product)
-             .WithMany(p => p.Images)
-            .HasForeignKey(pi => pi.ProductId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-            b.Entity<LessonProduct>()
-                .HasIndex(lp => new { lp.LessonId, lp.ProductId })
-                .IsUnique();
         }
     }
 }

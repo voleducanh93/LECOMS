@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -10,16 +11,16 @@ namespace LECOMS.Data.Entities
         public int Id { get; set; }
 
         [MaxLength(200)]
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
 
         [MaxLength(500)]
         public string? Description { get; set; }
 
         [Phone]
-        public string PhoneNumber { get; set; }
+        public string PhoneNumber { get; set; } = null!;
 
         [MaxLength(500)]
-        public string Address { get; set; }
+        public string Address { get; set; } = null!;
 
         public string? BusinessType { get; set; }
         public string? OwnershipDocumentUrl { get; set; }
@@ -39,16 +40,14 @@ namespace LECOMS.Data.Entities
         [MaxLength(1000)]
         public string? ShopInstagram { get; set; }
 
-        // ✅ Liên kết category (Admin tạo)
         [Required]
-        public string CategoryId { get; set; }
+        public string CategoryId { get; set; } = null!;
 
         [ForeignKey(nameof(CategoryId))]
-        public CourseCategory Category { get; set; }
+        public CourseCategory Category { get; set; } = null!;
 
         public bool AcceptedTerms { get; set; } = false;
 
-        // Chủ sở hữu
         public string? OwnerFullName { get; set; }
         public DateTime? OwnerDateOfBirth { get; set; }
         public string? OwnerPersonalIdNumber { get; set; }
@@ -60,8 +59,22 @@ namespace LECOMS.Data.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ApprovedAt { get; set; }
 
-        public string SellerId { get; set; }
-        [ForeignKey("SellerId")]
-        public virtual User Seller { get; set; }
+        [Required]
+        public string SellerId { get; set; } = null!;
+
+        [ForeignKey(nameof(SellerId))]
+        public virtual User Seller { get; set; } = null!;
+
+        // ============ NAVIGATION PROPERTIES ⭐ MỚI ============
+
+        /// <summary>
+        /// Sản phẩm của shop
+        /// </summary>
+        public virtual ICollection<Product> Products { get; set; } = new List<Product>();
+
+        /// <summary>
+        /// Đơn hàng của shop
+        /// </summary>
+        public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
     }
 }

@@ -11,7 +11,7 @@ namespace LECOMS.Data.DTOs.Order
         public string ShipToName { get; set; } = null!;
         public string ShipToPhone { get; set; } = null!;
         public string ShipToAddress { get; set; } = null!;
-
-        // optional fields (coupon, shipping method) can be added later
+        public decimal? ShippingFee { get; set; }
+        public decimal? Discount { get; set; }
     }
 }

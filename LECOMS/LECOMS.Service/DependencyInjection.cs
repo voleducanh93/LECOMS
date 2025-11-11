@@ -38,6 +38,12 @@ namespace LECOMS.Service
             services.AddScoped<RecombeeService>(); // Service chính để sync & recommend
             services.AddSingleton<LECOMS.Common.Helper.RecombeeBootstrap>(); // Khởi tạo schema
             services.AddScoped<RecombeeTrackingService>();
+            services.AddScoped<IPaymentService, PaymentService>();
+            services.AddScoped<IShopWalletService, ShopWalletService>();
+            services.AddScoped<ICustomerWalletService, CustomerWalletService>();
+            services.AddScoped<IRefundService, RefundService>();
+            services.AddScoped<IWithdrawalService, WithdrawalService>();
+            services.AddScoped<ICustomerWithdrawalService, CustomerWithdrawalService>();
 
             return services;
         }

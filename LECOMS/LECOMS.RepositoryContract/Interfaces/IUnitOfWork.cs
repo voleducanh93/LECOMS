@@ -32,6 +32,16 @@ namespace LECOMS.RepositoryContract.Interfaces
         IOrderDetailRepository OrderDetails { get; }
         ICartItemRepository CartItems { get; }
 
+        ITransactionRepository Transactions { get; }
+        IShopWalletRepository ShopWallets { get; }
+        ICustomerWalletRepository CustomerWallets { get; }
+        IWalletTransactionRepository WalletTransactions { get; }
+        ICustomerWalletTransactionRepository CustomerWalletTransactions { get; }
+        IRefundRequestRepository RefundRequests { get; }
+        IWithdrawalRequestRepository WithdrawalRequests { get; }
+        ICustomerWithdrawalRequestRepository CustomerWithdrawalRequests { get; }
+        IPlatformConfigRepository PlatformConfigs { get; }
+
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
     }
