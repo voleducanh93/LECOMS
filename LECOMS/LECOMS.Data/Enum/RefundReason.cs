@@ -1,48 +1,20 @@
 ﻿namespace LECOMS.Data.Enum
 {
     /// <summary>
-    /// Lý do hoàn tiền - đơn giản hóa, chi tiết ghi vào ReasonDescription
-    /// Enum này giúp: Filter, Report, Auto-determine Recipient
+    /// Lý do Customer yêu cầu hoàn tiền
+    /// Simple enum - chi tiết trong ReasonDescription
     /// </summary>
     public enum RefundReason
     {
-        // ============ HOÀN TIỀN CHO CUSTOMER ============
-
         /// <summary>
-        /// Vấn đề từ Shop
-        /// VD: Hàng lỗi, sai hàng, giao trễ, không đúng mô tả
-        /// → Hoàn vào CustomerWallet
-        /// → Shop chịu trách nhiệm
+        /// Vấn đề về sản phẩm
+        /// Bao gồm: lỗi, sai hàng, không đúng mô tả, giao trễ, thiếu phụ kiện
         /// </summary>
-        ShopIssue = 1,
+        ProductIssue = 0,
 
         /// <summary>
-        /// Shop hủy đơn hàng
-        /// → Hoàn vào CustomerWallet
-        /// </summary>
-        ShopCancelled = 2,
-
-        // ============ HOÀN TIỀN CHO SHOP ============
-
-        /// <summary>
-        /// Customer hủy đơn hoặc từ chối nhận hàng
-        /// → Hoàn vào ShopWallet
-        /// → Customer chịu trách nhiệm
-        /// </summary>
-        CustomerCancelled = 10,
-
-        /// <summary>
-        /// Đơn hàng gian lận/spam
-        /// → Hoàn vào ShopWallet
-        /// </summary>
-        FraudulentOrder = 11,
-
-        // ============ KHÁC ============
-
-        /// <summary>
-        /// Lý do đặc biệt khác
-        /// Admin tự quyết định Recipient
-        /// BẮT BUỘC phải có mô tả chi tiết
+        /// Lý do khác
+        /// BẮT BUỘC mô tả chi tiết ≥20 ký tự
         /// </summary>
         Other = 99
     }
