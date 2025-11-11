@@ -154,6 +154,78 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+        /// <summary>
+        /// Lấy thông tin course (public) kèm sessions và lessons theo slug (trang chi tiết khóa học)
+        /// </summary>
+        [HttpGet("courses/{slug}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetCourseDetailBySlug(string slug)
+        {
+            var response = new APIResponse();
+            try
+            {
+                // 1️⃣ Lấy course theo slug (active)
+                var course = await _uow.Courses.GetAsync(
+                    c => c.Slug == slug && c.Active == 1,
+                    includeProperties: "Category,Shop,Sections.Lessons"
+                );
+
+                if (course == null)
+                {
+                    response.IsSuccess = false;
+                    response.StatusCode = HttpStatusCode.NotFound;
+                    response.ErrorMessages.Add("Course not found.");
+                    return StatusCode((int)response.StatusCode, response);
+                }
+
+                // 2️⃣ Map dữ liệu trả về cho FE
+                var result = new
+                {
+                    id = course.Id,
+                    title = course.Title,
+                    slug = course.Slug,
+                    summary = course.Summary,
+                    categoryName = course.Category?.Name,
+                    courseThumbnail = course.CourseThumbnail,
+                    shop = new
+                    {
+                        id = course.Shop.Id,
+                        name = course.Shop.Name,
+                        avatar = course.Shop.ShopAvatar,
+                        description = course.Shop.Description
+                    },
+                    sections = course.Sections
+                        .OrderBy(s => s.OrderIndex)
+                        .Select(s => new
+                        {
+                            id = s.Id,
+                            title = s.Title,
+                            orderIndex = s.OrderIndex,
+                            lessons = s.Lessons
+                                .OrderBy(l => l.OrderIndex)
+                                .Select(l => new
+                                {
+                                    id = l.Id,
+                                    title = l.Title,
+                                    type = l.Type.ToString(),
+                                    durationSeconds = l.DurationSeconds,
+                                    contentUrl = l.ContentUrl
+                                })
+                        })
+                };
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
 
     }
 }
