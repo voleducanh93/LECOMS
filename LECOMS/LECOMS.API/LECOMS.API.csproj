@@ -13,6 +13,7 @@
 	  <PackageReference Include="AutoMapper" Version="13.0.1" />
 	  <PackageReference Include="Azure.Identity" Version="1.13.0" />
 	  <PackageReference Include="CloudinaryDotNet" Version="1.27.8" />
+	  <PackageReference Include="Hangfire.Core" Version="1.8.22" />
 	  <PackageReference Include="MailKit" Version="4.10.0" />
 	  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.12" />
 	  <PackageReference Include="Microsoft.Azure.SignalR" Version="1.28.0" />

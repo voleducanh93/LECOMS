@@ -272,15 +272,14 @@ namespace LECOMS.Common.Helper
                 .ForMember(d => d.OrderId, o => o.MapFrom(s => s.OrderId))
                 .ForMember(d => d.OrderCode, o => o.MapFrom(s => s.Order.OrderCode))
                 .ForMember(d => d.RefundAmount, o => o.MapFrom(s => s.RefundAmount))
-                .ForMember(d => d.Recipient, o => o.MapFrom(s => s.Recipient.ToString()))
                 .ForMember(d => d.ReasonType, o => o.MapFrom(s => s.ReasonType.ToString()))
                 .ForMember(d => d.ReasonDescription, o => o.MapFrom(s => s.ReasonDescription))
                 .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()))
                 .ForMember(d => d.RequestedBy, o => o.MapFrom(s => s.RequestedBy))
                 .ForMember(d => d.RequestedByName, o => o.MapFrom(s => s.RequestedByUser.UserName))
                 .ForMember(d => d.RequestedAt, o => o.MapFrom(s => s.RequestedAt))
-                .ForMember(d => d.ProcessedBy, o => o.MapFrom(s => s.ProcessedBy))
-                .ForMember(d => d.ProcessedByName, o => o.MapFrom(s => s.ProcessedByUser.UserName))
+                .ForMember(d => d.ProcessedBy, o => o.MapFrom(s => s.ShopResponseBy))
+                .ForMember(d => d.ProcessedByName, o => o.MapFrom(s => s.ShopResponseByUser != null ? s.ShopResponseByUser.UserName : null))
                 .ForMember(d => d.ProcessedAt, o => o.MapFrom(s => s.ProcessedAt));
 
             // ============================================================

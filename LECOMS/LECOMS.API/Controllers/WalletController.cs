@@ -1,4 +1,5 @@
-﻿using LECOMS.RepositoryContract.Interfaces;
+﻿using LECOMS.Data.Enum;
+using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -296,7 +297,7 @@ namespace LECOMS.API.Controllers
                 var pendingCustomerWithdrawals = await _unitOfWork.CustomerWithdrawalRequests.GetPendingRequestsAsync();
 
                 // 7. Tổng số pending refunds
-                var pendingRefunds = await _unitOfWork.RefundRequests.GetPendingRequestsAsync();
+                var pendingRefunds = await _unitOfWork.RefundRequests.GetByStatusAsync(RefundStatus.PendingShopApproval);
 
                 // 8. Platform balance (available cash)
                 // Platform balance = Total platform fee - (Shop available + Shop pending + Customer balance)

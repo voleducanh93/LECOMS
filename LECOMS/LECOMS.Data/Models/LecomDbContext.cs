@@ -358,6 +358,7 @@ namespace LECOMS.Data.Models
             });
 
             // --- RefundRequest ---
+            // --- RefundRequest ---
             b.Entity<RefundRequest>(e =>
             {
                 e.ToTable("RefundRequests");
@@ -366,7 +367,6 @@ namespace LECOMS.Data.Models
                 e.HasIndex(x => x.RequestedBy);
                 e.HasIndex(x => x.RequestedAt);
 
-                e.Property(x => x.Recipient).HasConversion<int>();
                 e.Property(x => x.ReasonType).HasConversion<int>();
                 e.Property(x => x.Type).HasConversion<int>();
                 e.Property(x => x.Status).HasConversion<int>();
@@ -381,9 +381,10 @@ namespace LECOMS.Data.Models
                  .HasForeignKey(r => r.RequestedBy)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                e.HasOne(r => r.ProcessedByUser)
+                // FIX: Use ShopResponseByUser instead of ProcessedByUser
+                e.HasOne(r => r.ShopResponseByUser)
                  .WithMany()
-                 .HasForeignKey(r => r.ProcessedBy)
+                 .HasForeignKey(r => r.ShopResponseBy)
                  .OnDelete(DeleteBehavior.Restrict);
             });
 

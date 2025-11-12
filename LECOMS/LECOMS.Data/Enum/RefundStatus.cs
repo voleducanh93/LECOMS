@@ -1,40 +1,39 @@
 ﻿namespace LECOMS.Data.Enum
 {
     /// <summary>
-    /// Trạng thái của yêu cầu hoàn tiền
-    /// Flow: Pending → Approved → Processing → Completed
-    ///    hoặc: Pending → Rejected
+    /// Trạng thái refund request
+    /// Simple flow: Shop decides, no admin needed
     /// </summary>
     public enum RefundStatus
     {
         /// <summary>
-        /// Chờ admin duyệt
+        /// Chờ shop xem xét (3 days)
         /// </summary>
-        Pending = 0,
+        PendingShopApproval = 0,
 
         /// <summary>
-        /// Admin đã approve, chờ xử lý
+        /// Đang xử lý refund (chuyển tiền)
         /// </summary>
-        Approved = 1,
+        Processing = 1,
 
         /// <summary>
-        /// Admin từ chối
+        /// Hoàn tất - tiền đã vào CustomerWallet
         /// </summary>
-        Rejected = 2,
+        Completed = 2,
 
         /// <summary>
-        /// Đang xử lý (cộng/trừ tiền ví)
+        /// Shop từ chối - Customer có thể review
         /// </summary>
-        Processing = 3,
+        ShopRejected = 3,
 
         /// <summary>
-        /// Hoàn tất - tiền đã vào ví
+        /// Thất bại (technical error)
         /// </summary>
-        Completed = 4,
+        Failed = 4,
 
         /// <summary>
-        /// Thất bại - có lỗi khi xử lý
+        /// Customer tự hủy
         /// </summary>
-        Failed = 5
+        Cancelled = 5
     }
 }
