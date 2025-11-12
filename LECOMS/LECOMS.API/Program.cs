@@ -7,10 +7,12 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Azure.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Quartz;
 using Recombee.ApiClient;
+using Recombee.ApiClient.Util;
 using System.Reflection;
 using System.Text;
 
@@ -69,7 +71,7 @@ builder.Services.Configure<RecombeeSettings>(builder.Configuration.GetSection("R
 builder.Services.AddSingleton(sp =>
 {
     var settings = sp.GetRequiredService<IOptions<RecombeeSettings>>().Value;
-    return new RecombeeClient(settings.DatabaseId, settings.PrivateToken);
+    return new RecombeeClient(settings.DatabaseId, settings.PrivateToken, region: Region.ApSe);
 });
 
 builder.Services.AddQuartz(q =>

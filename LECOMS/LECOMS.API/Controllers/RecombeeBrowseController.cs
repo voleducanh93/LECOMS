@@ -17,11 +17,11 @@ namespace LECOMS.API.Controllers
         private readonly RecombeeService _recombeeService;
         private readonly RecombeeBootstrap _bootstrap;
         private readonly UserManager<User> _userManager;
-        private readonly ProductService _productService;
+        private readonly IProductService _productService;
         public RecombeeBrowseController(
             RecombeeService recombeeService,
             RecombeeBootstrap bootstrap,
-            UserManager<User> userManager, ProductService productService)
+            UserManager<User> userManager, IProductService productService)
         {
             _recombeeService = recombeeService;
             _bootstrap = bootstrap;
