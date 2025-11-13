@@ -226,6 +226,72 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+        [HttpGet("products/{id}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetProductDetailById(string id)
+        {
+            var response = new APIResponse();
+            try
+            {
+                // 1️⃣ Lấy sản phẩm theo id (active & published)
+                var product = await _uow.Products.GetAsync(
+                    p => p.Id == id && p.Active == 1 && p.Status == Data.Enum.ProductStatus.Published,
+                    includeProperties: "Category,Images,Shop"
+                );
+
+                if (product == null)
+                {
+                    response.IsSuccess = false;
+                    response.StatusCode = HttpStatusCode.NotFound;
+                    response.ErrorMessages.Add("Product not found.");
+                    return StatusCode((int)response.StatusCode, response);
+                }
+
+                // 2️⃣ Map dữ liệu trả về cho FE
+                var result = new
+                {
+                    id = product.Id,
+                    name = product.Name,
+                    slug = product.Slug,
+                    description = product.Description,
+                    price = product.Price,
+                    stock = product.Stock,
+                    status = product.Status.ToString(),
+                    category = new
+                    {
+                        id = product.Category.Id,
+                        name = product.Category.Name
+                    },
+                    shop = new
+                    {
+                        id = product.Shop.Id,
+                        name = product.Shop.Name,
+                        avatar = product.Shop.ShopAvatar,
+                        description = product.Shop.Description
+                    },
+                    images = product.Images
+                        .OrderBy(i => i.OrderIndex)
+                        .Select(i => new
+                        {
+                            url = i.Url,
+                            orderIndex = i.OrderIndex,
+                            isPrimary = i.IsPrimary
+                        }),
+                    thumbnailUrl = product.Images.FirstOrDefault(i => i.IsPrimary)?.Url
+                };
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
 
     }
 }
