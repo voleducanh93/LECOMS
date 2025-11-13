@@ -13,5 +13,6 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<CartDTO> AddItemAsync(string userId, string productId, int quantity);
         Task<CartDTO> RemoveItemAsync(string userId, string productId);
         Task<bool> ClearCartAsync(string userId);
+        Task<CartDTO> UpdateItemQuantityAsync(string userId, string productId, int? absoluteQuantity, int? quantityChange);
     }
 }

@@ -64,6 +64,43 @@ namespace LECOMS.API.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
+        [HttpPatch("items/{productId}")]
+        public async Task<IActionResult> UpdateItemQuantity(string productId, [FromBody] UpdateCartItemRequest req)
+        {
+            var response = new APIResponse();
+            var userId = _userManager.GetUserId(User);
+            try
+            {
+                var cart = await _cartService.UpdateItemQuantityAsync(
+                    userId,
+                    productId,
+                    req.AbsoluteQuantity,
+                    req.QuantityChange
+                );
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = cart;
+            }
+            catch (ArgumentException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            return StatusCode((int)response.StatusCode, response);
+        }
+
         // small DTO for request
         public class AddCartItemRequest
         {

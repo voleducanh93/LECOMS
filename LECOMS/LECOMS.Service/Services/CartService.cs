@@ -106,5 +106,74 @@ namespace LECOMS.Service.Services
             await _uow.CompleteAsync();
             return true;
         }
+
+        public async Task<CartDTO> UpdateItemQuantityAsync(string userId, string productId, int? absoluteQuantity, int? quantityChange)
+        {
+            // Validation: Phải cung cấp 1 trong 2 tham số
+            if (!absoluteQuantity.HasValue && !quantityChange.HasValue)
+            {
+                throw new ArgumentException("Either absoluteQuantity or quantityChange must be provided.");
+            }
+
+            // Validation: Không được cung cấp cả 2 tham số
+            if (absoluteQuantity.HasValue && quantityChange.HasValue)
+            {
+                throw new ArgumentException("Cannot provide both absoluteQuantity and quantityChange.");
+            }
+
+            // Lấy cart với items
+            var cart = await _uow.Carts.GetByUserIdAsync(userId, includeProperties: "Items");
+            if (cart == null)
+            {
+                throw new InvalidOperationException("Cart not found.");
+            }
+
+            // Tìm item trong cart
+            var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
+            if (item == null)
+            {
+                throw new InvalidOperationException("Product not found in cart.");
+            }
+
+            // Tính toán số lượng mới
+            int newQuantity;
+            if (absoluteQuantity.HasValue)
+            {
+                // Set giá trị tuyệt đối
+                newQuantity = absoluteQuantity.Value;
+            }
+            else
+            {
+                // Tăng/giảm số lượng
+                newQuantity = item.Quantity + quantityChange.Value;
+            }
+
+            // ⭐ Nếu số lượng <= 0, tự động xóa sản phẩm khỏi cart
+            if (newQuantity <= 0)
+            {
+                await _uow.CartItems.DeleteAsync(item);
+                await _uow.CompleteAsync();
+                return await GetCartAsync(userId);
+            }
+
+            // Kiểm tra product tồn tại và stock
+            var product = await _uow.Products.GetAsync(p => p.Id == productId);
+            if (product == null)
+            {
+                throw new InvalidOperationException("Product not found.");
+            }
+
+            if (product.Stock < newQuantity)
+            {
+                throw new InvalidOperationException($"Not enough stock. Available: {product.Stock}, Requested: {newQuantity}");
+            }
+
+            // ✅ Update số lượng mới
+            item.Quantity = newQuantity;
+            await _uow.CartItems.UpdateAsync(item);
+            await _uow.CompleteAsync();
+
+            return await GetCartAsync(userId);
+        }
     }
 }
