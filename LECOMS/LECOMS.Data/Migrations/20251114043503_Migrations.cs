@@ -976,30 +976,33 @@ namespace LECOMS.Data.Migrations
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     OrderId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     RequestedBy = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Recipient = table.Column<int>(type: "int", nullable: false),
+                    RequestedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ReasonType = table.Column<int>(type: "int", nullable: false),
                     ReasonDescription = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
                     Type = table.Column<int>(type: "int", nullable: false),
                     RefundAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    AttachmentUrls = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     Status = table.Column<int>(type: "int", nullable: false),
-                    ProcessedBy = table.Column<string>(type: "nvarchar(450)", nullable: true),
-                    ProcessNote = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    RequestedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ShopResponseBy = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    ShopRespondedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ShopRejectReason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     ProcessedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    AttachmentUrls = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true)
+                    ProcessNote = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    IsFlagged = table.Column<bool>(type: "bit", nullable: false),
+                    FlagReason = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_RefundRequests", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_RefundRequests_AspNetUsers_ProcessedBy",
-                        column: x => x.ProcessedBy,
+                        name: "FK_RefundRequests_AspNetUsers_RequestedBy",
+                        column: x => x.RequestedBy,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_RefundRequests_AspNetUsers_RequestedBy",
-                        column: x => x.RequestedBy,
+                        name: "FK_RefundRequests_AspNetUsers_ShopResponseBy",
+                        column: x => x.ShopResponseBy,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -1053,6 +1056,41 @@ namespace LECOMS.Data.Migrations
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_CartItems_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Conversations",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    BuyerId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    SellerId = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    ProductId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    IsAIChat = table.Column<bool>(type: "bit", nullable: false),
+                    LastMessage = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    LastMessageAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Conversations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Conversations_AspNetUsers_BuyerId",
+                        column: x => x.BuyerId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Conversations_AspNetUsers_SellerId",
+                        column: x => x.SellerId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Conversations_Products_ProductId",
                         column: x => x.ProductId,
                         principalTable: "Products",
                         principalColumn: "Id",
@@ -1282,6 +1320,28 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Messages",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ConversationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SenderId = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Content = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    IsRead = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Messages", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Messages_Conversations_ConversationId",
+                        column: x => x.ConversationId,
+                        principalTable: "Conversations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ShipmentItems",
                 columns: table => new
                 {
@@ -1437,6 +1497,21 @@ namespace LECOMS.Data.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Conversations_BuyerId",
+                table: "Conversations",
+                column: "BuyerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Conversations_ProductId",
+                table: "Conversations",
+                column: "ProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Conversations_SellerId",
+                table: "Conversations",
+                column: "SellerId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CourseCategories_Slug",
                 table: "CourseCategories",
                 column: "Slug",
@@ -1565,6 +1640,11 @@ namespace LECOMS.Data.Migrations
                 column: "CourseSectionId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Messages_ConversationId",
+                table: "Messages",
+                column: "ConversationId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Notifications_UserId_IsRead",
                 table: "Notifications",
                 columns: new[] { "UserId", "IsRead" });
@@ -1659,11 +1739,6 @@ namespace LECOMS.Data.Migrations
                 column: "OrderId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_RefundRequests_ProcessedBy",
-                table: "RefundRequests",
-                column: "ProcessedBy");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_RefundRequests_RequestedAt",
                 table: "RefundRequests",
                 column: "RequestedAt");
@@ -1672,6 +1747,11 @@ namespace LECOMS.Data.Migrations
                 name: "IX_RefundRequests_RequestedBy",
                 table: "RefundRequests",
                 column: "RequestedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundRequests_ShopResponseBy",
+                table: "RefundRequests",
+                column: "ShopResponseBy");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RefundRequests_Status",
@@ -1876,6 +1956,9 @@ namespace LECOMS.Data.Migrations
                 name: "LessonProducts");
 
             migrationBuilder.DropTable(
+                name: "Messages");
+
+            migrationBuilder.DropTable(
                 name: "Notifications");
 
             migrationBuilder.DropTable(
@@ -1937,6 +2020,9 @@ namespace LECOMS.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "Lessons");
+
+            migrationBuilder.DropTable(
+                name: "Conversations");
 
             migrationBuilder.DropTable(
                 name: "Payments");

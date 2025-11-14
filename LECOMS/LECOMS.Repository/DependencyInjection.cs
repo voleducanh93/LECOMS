@@ -44,6 +44,8 @@ namespace LECOMS.Repository
             services.AddTransient<IWithdrawalRequestRepository, WithdrawalRequestRepository>();
             services.AddTransient<ICustomerWithdrawalRequestRepository, CustomerWithdrawalRequestRepository>();
             services.AddTransient<IPlatformConfigRepository, PlatformConfigRepository>();
+            services.AddTransient<IConversationRepository, ConversationRepository>();
+            services.AddTransient<IMessageRepository, MessageRepository>();
             //DI Unit Of Work
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             return services;

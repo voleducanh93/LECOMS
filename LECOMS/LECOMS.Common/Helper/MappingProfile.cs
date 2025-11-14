@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using LECOMS.Data.DTOs.Auth;
 using LECOMS.Data.DTOs.Cart;
+using LECOMS.Data.DTOs.Chat;
 using LECOMS.Data.DTOs.Course;
 using LECOMS.Data.DTOs.Order;
 using LECOMS.Data.DTOs.Product;
@@ -310,6 +311,15 @@ namespace LECOMS.Common.Helper
                 .ForMember(d => d.RequestedAt, o => o.MapFrom(s => s.RequestedAt))
                 .ForMember(d => d.ApprovedAt, o => o.MapFrom(s => s.ApprovedAt))
                 .ForMember(d => d.CompletedAt, o => o.MapFrom(s => s.CompletedAt));
+
+            CreateMap<Message, MessageDTO>();
+
+            CreateMap<Product, ProductMiniDTO>()
+                .ForMember(d => d.Thumbnail,
+                opt => opt.MapFrom(src => src.Images.FirstOrDefault().Url));
+
+            CreateMap<Conversation, ConversationDTO>();
+
         }
     }
 }

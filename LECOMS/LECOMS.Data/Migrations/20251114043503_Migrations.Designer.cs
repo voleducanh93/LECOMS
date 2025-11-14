@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LECOMS.Data.Migrations
 {
     [DbContext(typeof(LecomDbContext))]
-    [Migration("20251111063657_Migrations")]
+    [Migration("20251114043503_Migrations")]
     partial class Migrations
     {
         /// <inheritdoc />
@@ -229,6 +229,43 @@ namespace LECOMS.Data.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("CommunityPosts");
+                });
+
+            modelBuilder.Entity("LECOMS.Data.Entities.Conversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BuyerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsAIChat")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("LastMessageAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("SellerId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuyerId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("SellerId");
+
+                    b.ToTable("Conversations");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.Course", b =>
@@ -708,6 +745,36 @@ namespace LECOMS.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("LessonProducts");
+                });
+
+            modelBuilder.Entity("LECOMS.Data.Entities.Message", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SenderId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
+
+                    b.ToTable("Messages");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.Notification", b =>
@@ -1218,6 +1285,13 @@ namespace LECOMS.Data.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<string>("FlagReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsFlagged")
+                        .HasColumnType("bit");
+
                     b.Property<string>("OrderId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -1229,18 +1303,12 @@ namespace LECOMS.Data.Migrations
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("ProcessedBy")
-                        .HasColumnType("nvarchar(450)");
-
                     b.Property<string>("ReasonDescription")
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
                     b.Property<int>("ReasonType")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Recipient")
                         .HasColumnType("int");
 
                     b.Property<decimal>("RefundAmount")
@@ -1254,6 +1322,16 @@ namespace LECOMS.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<string>("ShopRejectReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ShopRespondedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ShopResponseBy")
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
@@ -1264,11 +1342,11 @@ namespace LECOMS.Data.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.HasIndex("ProcessedBy");
-
                     b.HasIndex("RequestedAt");
 
                     b.HasIndex("RequestedBy");
+
+                    b.HasIndex("ShopResponseBy");
 
                     b.HasIndex("Status");
 
@@ -2169,6 +2247,32 @@ namespace LECOMS.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("LECOMS.Data.Entities.Conversation", b =>
+                {
+                    b.HasOne("LECOMS.Data.Entities.User", "Buyer")
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LECOMS.Data.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LECOMS.Data.Entities.User", "Seller")
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Buyer");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Seller");
+                });
+
             modelBuilder.Entity("LECOMS.Data.Entities.Course", b =>
                 {
                     b.HasOne("LECOMS.Data.Entities.CourseCategory", "Category")
@@ -2334,6 +2438,17 @@ namespace LECOMS.Data.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("LECOMS.Data.Entities.Message", b =>
+                {
+                    b.HasOne("LECOMS.Data.Entities.Conversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
             modelBuilder.Entity("LECOMS.Data.Entities.Notification", b =>
                 {
                     b.HasOne("LECOMS.Data.Entities.User", "User")
@@ -2465,22 +2580,22 @@ namespace LECOMS.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("LECOMS.Data.Entities.User", "ProcessedByUser")
-                        .WithMany()
-                        .HasForeignKey("ProcessedBy")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("LECOMS.Data.Entities.User", "RequestedByUser")
                         .WithMany()
                         .HasForeignKey("RequestedBy")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("LECOMS.Data.Entities.User", "ShopResponseByUser")
+                        .WithMany()
+                        .HasForeignKey("ShopResponseBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Order");
 
-                    b.Navigation("ProcessedByUser");
-
                     b.Navigation("RequestedByUser");
+
+                    b.Navigation("ShopResponseByUser");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.Review", b =>
@@ -2715,6 +2830,11 @@ namespace LECOMS.Data.Migrations
             modelBuilder.Entity("LECOMS.Data.Entities.CommunityPost", b =>
                 {
                     b.Navigation("Comments");
+                });
+
+            modelBuilder.Entity("LECOMS.Data.Entities.Conversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.Course", b =>

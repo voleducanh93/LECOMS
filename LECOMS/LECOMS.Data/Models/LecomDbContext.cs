@@ -55,6 +55,8 @@ namespace LECOMS.Data.Models
         public DbSet<Shop> Shops { get; set; }
         public DbSet<ProductImage> ProductImages { get; set; }
         public DbSet<LessonProduct> LessonProducts { get; set; }
+        public DbSet<Conversation> Conversations { get; set; }
+        public DbSet<Message> Messages { get; set; }
 
         // =====================================================================
         // ==== NEW PAYMENT SYSTEM DbSets ⭐ ====
@@ -480,6 +482,21 @@ namespace LECOMS.Data.Models
                     prop.SetScale(2);
                 }
             }
+            // =====================================================================
+            // ⭐ CHAT SYSTEM CONFIGURATION — REMOVE FK Sender → User
+            // =====================================================================
+            b.Entity<Message>(e =>
+            {
+                // Nếu entity Message vẫn có navigation Sender -> ignore nó
+                // (bạn có thể bỏ nếu đã xóa Sender property)
+                // e.Ignore(m => m.Sender);
+
+                e.HasOne(m => m.Conversation)
+                    .WithMany(c => c.Messages)
+                    .HasForeignKey(m => m.ConversationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
         }
     }
 }

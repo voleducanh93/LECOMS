@@ -2,6 +2,7 @@
 using LECOMS.Repository;
 using LECOMS.Repository.Repositories;
 using LECOMS.RepositoryContract.Interfaces;
+using LECOMS.Service.Jobs;
 using LECOMS.Service.Services;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -44,6 +45,13 @@ namespace LECOMS.Service
             services.AddScoped<IRefundService, RefundService>();
             services.AddScoped<IWithdrawalService, WithdrawalService>();
             services.AddScoped<ICustomerWithdrawalService, CustomerWithdrawalService>();
+            // Chat System
+            services.AddScoped<IChatService, ChatService>();
+
+            // AI Chat (Groq Llama3)
+            services.AddTransient<GroqAuthHandler>();
+            services.AddHttpClient<IAIProductChatService, AIProductChatService>()
+                    .AddHttpMessageHandler<GroqAuthHandler>();
 
             return services;
         }

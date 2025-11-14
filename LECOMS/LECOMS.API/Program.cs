@@ -87,6 +87,7 @@ builder.Services.AddQuartz(q =>
 });
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+builder.Services.AddSignalR();
 
 // Add UserManager and SignInManager for dependency injection
 builder.Services.AddScoped<UserManager<User>>();

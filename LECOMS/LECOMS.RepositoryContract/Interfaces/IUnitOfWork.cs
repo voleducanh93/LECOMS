@@ -41,7 +41,8 @@ namespace LECOMS.RepositoryContract.Interfaces
         IWithdrawalRequestRepository WithdrawalRequests { get; }
         ICustomerWithdrawalRequestRepository CustomerWithdrawalRequests { get; }
         IPlatformConfigRepository PlatformConfigs { get; }
-
+        IMessageRepository Messages { get; }
+        IConversationRepository Conversations { get; }  
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
     }
