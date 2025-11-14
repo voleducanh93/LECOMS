@@ -21,29 +21,60 @@ namespace LECOMS.Service.Services
 
         public async Task<CartDTO> GetCartAsync(string userId)
         {
-            var cart = await _uow.Carts.GetByUserIdAsync(userId, includeProperties: "Items,Items.Product,Items.Product.Images");
-            if (cart == null) return new CartDTO { UserId = userId };
-            var dto = new CartDTO
+            var cart = await _uow.Carts.GetByUserIdAsync(
+                userId,
+                includeProperties: "Items,Items.Product,Items.Product.Images,Items.Product.Shop");
+
+            if (cart == null || !cart.Items.Any())
+            {
+                return new CartDTO
+                {
+                    UserId = userId,
+                    Items = new List<ShopGroupedItems>(),
+                    Subtotal = 0
+                };
+            }
+
+            // Group items theo Shop
+            var groupedItems = cart.Items
+                .Where(i => i.Product != null && i.Product.Shop != null)
+                .GroupBy(i => new
+                {
+                    ShopId = i.Product.ShopId,
+                    ShopName = i.Product.Shop.Name,
+                    ShopAvatar = i.Product.Shop.ShopAvatar
+                })
+                .Select(g => new ShopGroupedItems
+                {
+                    ShopId = g.Key.ShopId,
+                    ShopName = g.Key.ShopName,
+                    ShopAvatar = g.Key.ShopAvatar,
+                    Items = g.Select(i => new CartItemDTO
+                    {
+                        ProductId = i.ProductId,
+                        ProductName = i.Product.Name,
+                        ProductSlug = i.Product.Slug,
+                        UnitPrice = i.Product.Price,
+                        Quantity = i.Quantity,
+                        ProductImage = i.Product.Images
+                            .FirstOrDefault(pi => pi.IsPrimary)?.Url
+                    }).ToList()
+                })
+                .OrderBy(g => g.ShopId)
+                .ToList();
+
+            return new CartDTO
             {
                 UserId = userId,
-                Items = cart.Items.Select(i => new CartItemDTO
-                {
-                    ProductId = i.ProductId,
-                    ProductName = i.Product.Name,
-                    UnitPrice = i.Product.Price,
-                    Quantity = i.Quantity,
-                    ProductImage = i.Product.Images.FirstOrDefault(pi => pi.IsPrimary)?.Url
-                }).ToList()
+                Items = groupedItems,
+                Subtotal = groupedItems.Sum(g => g.Subtotal)
             };
-            dto.Subtotal = dto.Items.Sum(x => x.LineTotal);
-            return dto;
         }
 
         public async Task<CartDTO> AddItemAsync(string userId, string productId, int quantity)
         {
             if (quantity <= 0) throw new ArgumentException("Quantity must be > 0", nameof(quantity));
 
-            // ensure product exists and has stock
             var product = await _uow.Products.GetAsync(p => p.Id == productId);
             if (product == null) throw new InvalidOperationException("Product not found.");
             if (product.Stock < quantity) throw new InvalidOperationException("Not enough stock.");
@@ -51,7 +82,7 @@ namespace LECOMS.Service.Services
             var cart = await _uow.Carts.GetByUserIdAsync(userId, includeProperties: "Items");
             if (cart == null)
             {
-                cart = new Cart
+                cart = new LECOMS.Data.Entities.Cart
                 {
                     Id = Guid.NewGuid().ToString(),
                     UserId = userId
@@ -69,7 +100,7 @@ namespace LECOMS.Service.Services
                     ProductId = productId,
                     Quantity = quantity
                 };
-                await _uow.CartItems.AddAsync(item); // assume repository for CartItem exposed through generic repository
+                await _uow.CartItems.AddAsync(item);
             }
             else
             {
@@ -109,46 +140,38 @@ namespace LECOMS.Service.Services
 
         public async Task<CartDTO> UpdateItemQuantityAsync(string userId, string productId, int? absoluteQuantity, int? quantityChange)
         {
-            // Validation: Phải cung cấp 1 trong 2 tham số
             if (!absoluteQuantity.HasValue && !quantityChange.HasValue)
             {
                 throw new ArgumentException("Either absoluteQuantity or quantityChange must be provided.");
             }
 
-            // Validation: Không được cung cấp cả 2 tham số
             if (absoluteQuantity.HasValue && quantityChange.HasValue)
             {
                 throw new ArgumentException("Cannot provide both absoluteQuantity and quantityChange.");
             }
 
-            // Lấy cart với items
             var cart = await _uow.Carts.GetByUserIdAsync(userId, includeProperties: "Items");
             if (cart == null)
             {
                 throw new InvalidOperationException("Cart not found.");
             }
 
-            // Tìm item trong cart
             var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
             if (item == null)
             {
                 throw new InvalidOperationException("Product not found in cart.");
             }
 
-            // Tính toán số lượng mới
             int newQuantity;
             if (absoluteQuantity.HasValue)
             {
-                // Set giá trị tuyệt đối
                 newQuantity = absoluteQuantity.Value;
             }
             else
             {
-                // Tăng/giảm số lượng
                 newQuantity = item.Quantity + quantityChange.Value;
             }
 
-            // ⭐ Nếu số lượng <= 0, tự động xóa sản phẩm khỏi cart
             if (newQuantity <= 0)
             {
                 await _uow.CartItems.DeleteAsync(item);
@@ -156,7 +179,6 @@ namespace LECOMS.Service.Services
                 return await GetCartAsync(userId);
             }
 
-            // Kiểm tra product tồn tại và stock
             var product = await _uow.Products.GetAsync(p => p.Id == productId);
             if (product == null)
             {
@@ -168,7 +190,6 @@ namespace LECOMS.Service.Services
                 throw new InvalidOperationException($"Not enough stock. Available: {product.Stock}, Requested: {newQuantity}");
             }
 
-            // ✅ Update số lượng mới
             item.Quantity = newQuantity;
             await _uow.CartItems.UpdateAsync(item);
             await _uow.CompleteAsync();
