@@ -443,27 +443,58 @@ namespace LECOMS.Service.Services
                 includeProperties: "Lessons"
             );
 
-            return sections
-                .OrderBy(s => s.OrderIndex)
-                .Select(s => new SectionDTO
+            var result = new List<SectionDTO>();
+
+            foreach (var section in sections.OrderBy(s => s.OrderIndex))
+            {
+                var sectionDto = new SectionDTO
                 {
-                    Id = s.Id,
-                    Title = s.Title,
-                    OrderIndex = s.OrderIndex,
-                    Lessons = s.Lessons
-                        .OrderBy(l => l.OrderIndex)
-                        .Select(l => new LessonDto
-                        {
-                            Id = l.Id,
-                            CourseSectionId = l.CourseSectionId,
-                            Title = l.Title,
-                            Type = l.Type,
-                            DurationSeconds = l.DurationSeconds,
-                            ContentUrl = l.ContentUrl,
-                            OrderIndex = l.OrderIndex
-                        }).ToList()
-                });
+                    Id = section.Id,
+                    Title = section.Title,
+                    OrderIndex = section.OrderIndex,
+                    Lessons = new List<LessonDto>()
+                };
+
+                foreach (var lesson in section.Lessons.OrderBy(l => l.OrderIndex))
+                {
+                    // 🔹 Lấy danh sách sản phẩm liên kết
+                    var linkedList = await _unitOfWork.LessonProducts.GetAllAsync(
+                        lp => lp.LessonId == lesson.Id,
+                        includeProperties: "Product,Product.Images,Product.Shop"
+                    );
+
+                    // 🔹 Map sang DTO
+                    var linkedProducts = linkedList.Select(lp => new LessonLinkedProductDTO
+                    {
+                        Id = lp.Product.Id,
+                        Name = lp.Product.Name,
+                        Price = lp.Product.Price,
+                        ThumbnailUrl = lp.Product.Images.FirstOrDefault(i => i.IsPrimary)?.Url,
+                        ShopName = lp.Product.Shop?.Name
+                    }).ToList();
+
+
+                    sectionDto.Lessons.Add(new LessonDto
+                    {
+                        Id = lesson.Id,
+                        CourseSectionId = lesson.CourseSectionId,
+                        Title = lesson.Title,
+                        Type = lesson.Type,
+                        DurationSeconds = lesson.DurationSeconds,
+                        ContentUrl = lesson.ContentUrl,
+                        OrderIndex = lesson.OrderIndex,
+
+                        // 🔹 Gán vào DTO — nếu không có thì trả null
+                        LinkedProducts = linkedProducts.Any() ? linkedProducts : null
+                    });
+                }
+
+                result.Add(sectionDto);
+            }
+
+            return result;
         }
+
         public async Task<IEnumerable<LessonDto>> GetLessonsBySectionAsync(string sectionId)
         {
             var lessons = await _unitOfWork.Lessons.GetAllAsync(
