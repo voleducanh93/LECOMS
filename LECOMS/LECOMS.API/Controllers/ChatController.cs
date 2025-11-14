@@ -93,5 +93,22 @@ namespace LECOMS.API.Controllers
             var msgs = await _chatService.GetMessages(conversationId);
             return Ok(msgs);
         }
+
+        [HttpGet("user")]
+        public async Task<IActionResult> GetUserConversations()
+        {
+            var userId = User.FindFirst("uid")?.Value;
+            var data = await _chatService.GetUserConversationsAsync(userId);
+            return Ok(data);
+        }
+
+        [HttpGet("seller")]
+        public async Task<IActionResult> GetSellerConversations()
+        {
+            var sellerId = User.FindFirst("uid")?.Value;
+            var data = await _chatService.GetSellerConversationsAsync(sellerId);
+            return Ok(data);
+        }
+
     }
 }

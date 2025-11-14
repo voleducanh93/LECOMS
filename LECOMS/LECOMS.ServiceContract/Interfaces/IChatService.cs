@@ -1,4 +1,5 @@
 ﻿using LECOMS.Data.DTOs.Chat;
+using LECOMS.Data.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,5 +17,8 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<MessageDTO> SendAIMessage(Guid conversationId, string senderId, string content);
 
         Task<IEnumerable<MessageDTO>> GetMessages(Guid conversationId);
+        Task<IEnumerable<Conversation>> GetUserConversationsAsync(string userId);
+        Task<IEnumerable<Conversation>> GetSellerConversationsAsync(string sellerId);
+
     }
 }

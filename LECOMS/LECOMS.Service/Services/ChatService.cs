@@ -213,5 +213,22 @@ namespace LECOMS.Service.Services
             var messages = await _uow.Messages.GetByConversationAsync(conversationId);
             return _mapper.Map<IEnumerable<MessageDTO>>(messages);
         }
+        public async Task<IEnumerable<Conversation>> GetUserConversationsAsync(string userId)
+        {
+            return await _uow.Conversations.GetAllAsync(
+                c => c.BuyerId == userId || c.SellerId == userId,
+                includeProperties: "Product,Buyer,Seller"
+            );
+        }
+
+
+        public async Task<IEnumerable<Conversation>> GetSellerConversationsAsync(string sellerId)
+        {
+            return await _uow.Conversations.GetAllAsync(
+                c => c.SellerId == sellerId && c.IsAIChat == false,
+                includeProperties: "Product,Buyer,Seller"
+            );
+        }
+
     }
 }
