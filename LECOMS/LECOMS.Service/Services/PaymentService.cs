@@ -40,69 +40,105 @@ namespace LECOMS.Service.Services
             _httpClient = httpClient;
         }
 
+        // ============================================================
+        // PUBLIC METHODS
+        // ============================================================
+
         /// <summary>
-        /// Tạo payment link cho 1 order đơn lẻ
+        /// ⭐ Tạo payment link cho 1 order đơn lẻ - WITH RETRY SUPPORT
         /// Use case: Retry payment, admin manual generation
         /// </summary>
         public async Task<string> CreatePaymentLinkAsync(string orderId)
         {
-            _logger.LogInformation("=== START CreatePaymentLinkAsync for Order: {OrderId} ===", orderId);
+            _logger.LogInformation("=== START CreatePaymentLink for Order: {OrderId} ===", orderId);
 
             try
             {
-                // 1. Lấy order với Details
+                // 1. Load order with full details
                 var order = await _unitOfWork.Orders.GetAsync(
                     o => o.Id == orderId,
-                    includeProperties: "Shop,User,Details.Product");
+                    includeProperties: "Details.Product,Shop,User");
 
                 if (order == null)
                 {
-                    _logger.LogError("❌ Order not found: {OrderId}", orderId);
                     throw new InvalidOperationException($"Order {orderId} not found");
                 }
 
-                _logger.LogInformation("✅ Order found: {OrderCode}, Total: {Total}, Details: {Count}",
-                    order.OrderCode, order.Total, order.Details?.Count ?? 0);
+                _logger.LogInformation("Order {OrderCode}: Subtotal={Subtotal:N0}, Shipping={Shipping:N0}, Discount={Discount:N0}, Total={Total:N0}",
+                    order.OrderCode, order.Subtotal, order.ShippingFee, order.Discount, order.Total);
 
-                if (order.PaymentStatus != PaymentStatus.Pending)
-                {
-                    _logger.LogError("❌ Order payment status is not Pending: {Status}", order.PaymentStatus);
-                    throw new InvalidOperationException($"Order {orderId} payment status is {order.PaymentStatus}");
-                }
-
-                // 2. Lấy platform config
+                // 2. Get platform config
                 var config = await _unitOfWork.PlatformConfigs.GetConfigAsync();
-
                 if (config == null)
                 {
-                    _logger.LogError("❌ PlatformConfig not found");
                     throw new InvalidOperationException("Platform configuration not found");
                 }
 
-                // 3. Tính platform fee
-                decimal platformFeeAmount = order.Total * config.DefaultCommissionRate / 100;
-                decimal shopAmount = order.Total - platformFeeAmount;
+                // ⭐⭐⭐ 3. CALCULATE FEES BASED ON THIS ORDER ONLY ⭐⭐⭐
+                decimal orderTotal = order.Total; // ✅ CHỈ order này
+                decimal platformFeeAmount = orderTotal * config.DefaultCommissionRate / 100;
+                decimal shopAmount = orderTotal - platformFeeAmount;
 
-                // 4. Tạo Transaction
-                var transaction = new Transaction
+                // 4. Check existing transaction
+                var transaction = await _unitOfWork.Transactions.GetByOrderIdAsync(orderId);
+
+                if (transaction != null)
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    OrderId = orderId,
-                    TotalAmount = order.Total,
-                    PlatformFeePercent = config.DefaultCommissionRate,
-                    PlatformFeeAmount = platformFeeAmount,
-                    ShopAmount = shopAmount,
-                    Status = TransactionStatus.Pending,
-                    PaymentMethod = "PayOS",
-                    CreatedAt = DateTime.UtcNow
-                };
+                    _logger.LogInformation("Found existing transaction: {TxId}, Status: {Status}, OldOrderCode: {Code}",
+                        transaction.Id, transaction.Status, transaction.PayOSOrderCode);
 
-                await _unitOfWork.Transactions.AddAsync(transaction);
-                await _unitOfWork.CompleteAsync();
+                    // ❌ Nếu đã Completed, không cho retry
+                    if (transaction.Status == TransactionStatus.Completed)
+                    {
+                        throw new InvalidOperationException("This order has already been paid successfully");
+                    }
 
-                _logger.LogInformation("✅ Transaction created: {TransactionId}", transaction.Id);
+                    // ✅ Nếu Pending/Failed, reset và UPDATE AMOUNT
+                    if (transaction.Status == TransactionStatus.Pending ||
+                        transaction.Status == TransactionStatus.Failed)
+                    {
+                        _logger.LogInformation("🔄 RETRY MODE: Resetting transaction");
 
-                // 5. Call PayOS API
+                        // ⭐ UPDATE transaction amounts to match THIS ORDER ONLY
+                        transaction.OrderId = orderId; // ✅ CHỈ order này
+                        transaction.TotalAmount = orderTotal;
+                        transaction.PlatformFeeAmount = platformFeeAmount;
+                        transaction.ShopAmount = shopAmount;
+                        transaction.PayOSOrderCode = null;
+                        transaction.PayOSPaymentUrl = null;
+                        transaction.PayOSTransactionId = null;
+                        transaction.Status = TransactionStatus.Pending;
+                        transaction.Note += $" | Retry at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC";
+
+                        await _unitOfWork.Transactions.UpdateAsync(transaction);
+                        await _unitOfWork.CompleteAsync();
+                    }
+                }
+                else
+                {
+                    // ⭐ Tạo transaction MỚI cho order này
+                    transaction = new Transaction
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        OrderId = orderId, // ✅ CHỈ order này
+                        TotalAmount = orderTotal,
+                        PlatformFeePercent = config.DefaultCommissionRate,
+                        PlatformFeeAmount = platformFeeAmount,
+                        ShopAmount = shopAmount,
+                        Status = TransactionStatus.Pending,
+                        PaymentMethod = "PayOS",
+                        CreatedAt = DateTime.UtcNow,
+                        Note = $"Payment for order {order.OrderCode}"
+                    };
+
+                    await _unitOfWork.Transactions.AddAsync(transaction);
+                    await _unitOfWork.CompleteAsync();
+                }
+
+                // 5. Create PayOS payment link - CHỈ CHO ORDER NÀY
+                _logger.LogInformation("Creating payment link for SINGLE order: {OrderCode}, Amount: {Amount:N0}",
+                    order.OrderCode, orderTotal);
+
                 string paymentUrl = await CreatePayOSPaymentAsync(transaction, new List<Order> { order });
 
                 // 6. Update transaction
@@ -110,7 +146,8 @@ namespace LECOMS.Service.Services
                 await _unitOfWork.Transactions.UpdateAsync(transaction);
                 await _unitOfWork.CompleteAsync();
 
-                _logger.LogInformation("=== ✅ SUCCESS: Payment link created: {Url} ===", paymentUrl);
+                _logger.LogInformation("=== ✅ SUCCESS: Payment link for order {OrderCode}: {Url} ===",
+                    order.OrderCode, paymentUrl);
 
                 return paymentUrl;
             }
@@ -122,8 +159,8 @@ namespace LECOMS.Service.Services
         }
 
         /// <summary>
-        /// ⭐ Tạo payment link cho NHIỀU orders (sàn thu hộ)
-        /// Use case: Normal checkout flow
+        /// ⭐ Tạo payment link cho NHIỀU orders (checkout flow)
+        /// Use case: Normal checkout from cart
         /// </summary>
         public async Task<string> CreatePaymentLinkForMultipleOrdersAsync(string transactionId, List<Order> orders)
         {
@@ -157,8 +194,8 @@ namespace LECOMS.Service.Services
                     if (order != null)
                     {
                         allOrders.Add(order);
-                        _logger.LogInformation("  - Order {OrderCode}: {Total:N0} VND, Shop {ShopId}, Items: {Count}",
-                            order.OrderCode, order.Total, order.ShopId, order.Details?.Count ?? 0);
+                        _logger.LogInformation("  - Order {OrderCode}: Subtotal={Sub:N0}, Shipping={Ship:N0}, Discount={Disc:N0}, Total={Total:N0}",
+                            order.OrderCode, order.Subtotal, order.ShippingFee, order.Discount, order.Total);
                     }
                     else
                     {
@@ -187,194 +224,6 @@ namespace LECOMS.Service.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "=== ❌ ERROR creating payment link for Transaction {TransactionId} ===", transactionId);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// ⭐ Core method: Call PayOS API để tạo payment link
-        /// Hỗ trợ cả single order và multiple orders
-        /// </summary>
-        private async Task<string> CreatePayOSPaymentAsync(Transaction transaction, List<Order> orders)
-        {
-            try
-            {
-                _logger.LogInformation("=== START CreatePayOSPaymentAsync ===");
-
-                // Get PayOS config
-                var clientId = _configuration["PayOS:ClientId"];
-                var apiKey = _configuration["PayOS:ApiKey"];
-                var checksumKey = _configuration["PayOS:ChecksumKey"];
-                var returnUrl = _configuration["PayOS:ReturnUrl"];
-                var cancelUrl = _configuration["PayOS:CancelUrl"];
-
-                _logger.LogInformation("PayOS Config: ClientId={ClientId}..., ApiKey exists={HasKey}, ReturnUrl={ReturnUrl}",
-                    clientId?.Substring(0, Math.Min(8, clientId.Length)),
-                    !string.IsNullOrEmpty(apiKey),
-                    returnUrl);
-
-                if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(apiKey))
-                {
-                    _logger.LogError("❌ PayOS credentials missing!");
-                    throw new InvalidOperationException("PayOS credentials not configured");
-                }
-
-                // Generate unique order code
-                long orderCode = GenerateOrderCode(transaction.Id);
-                _logger.LogInformation("Generated PayOS OrderCode: {OrderCode}", orderCode);
-
-                // Save orderCode to transaction
-                transaction.PayOSOrderCode = orderCode;
-                await _unitOfWork.Transactions.UpdateAsync(transaction);
-                await _unitOfWork.CompleteAsync();
-
-                // ⭐ Prepare items từ TẤT CẢ orders
-                var items = new List<object>();
-                int itemCount = 0;
-
-                foreach (var order in orders)
-                {
-                    if (order.Details?.Any() == true)
-                    {
-                        foreach (var od in order.Details)
-                        {
-                            var itemName = od.Product?.Name ?? "Product";
-
-                            // Limit name length (PayOS có giới hạn)
-                            if (itemName.Length > 50)
-                            {
-                                itemName = itemName.Substring(0, 47) + "...";
-                            }
-
-                            items.Add(new
-                            {
-                                name = itemName,
-                                quantity = od.Quantity,
-                                price = (int)od.UnitPrice
-                            });
-
-                            itemCount++;
-                        }
-                    }
-                }
-
-                _logger.LogInformation("✅ Prepared {Count} items from {OrderCount} order(s)", itemCount, orders.Count);
-
-                // Fallback nếu không có items
-                if (!items.Any())
-                {
-                    _logger.LogWarning("⚠️ No order details found, using fallback item");
-                    items.Add(new
-                    {
-                        name = "Cart Items",
-                        quantity = 1,
-                        price = (int)transaction.TotalAmount
-                    });
-                }
-
-                // ✅ Create SHORT description (max 25 chars)
-                var description = orders.Count == 1
-                    ? $"DH {orders[0].OrderCode.Substring(3, Math.Min(14, orders[0].OrderCode.Length - 3))}"
-                    : $"Cart {DateTime.UtcNow:yyMMddHHmm}";
-
-                if (description.Length > 25)
-                {
-                    description = description.Substring(0, 25);
-                }
-
-                _logger.LogInformation("Description: '{Description}' ({Length} chars)", description, description.Length);
-
-                // Create payment request
-                var paymentRequest = new
-                {
-                    orderCode = orderCode,
-                    amount = (int)transaction.TotalAmount,
-                    description = description,
-                    items = items,
-                    returnUrl = returnUrl,
-                    cancelUrl = cancelUrl
-                };
-
-                _logger.LogInformation("Payment Request: OrderCode={OrderCode}, Amount={Amount:N0}, Desc='{Desc}', Items={ItemCount}",
-                    paymentRequest.orderCode, paymentRequest.amount, paymentRequest.description, items.Count);
-
-                // Calculate signature
-                var dataToSign = $"amount={paymentRequest.amount}&cancelUrl={cancelUrl}&description={paymentRequest.description}&orderCode={orderCode}&returnUrl={returnUrl}";
-
-                _logger.LogDebug("Data to sign: {Data}", dataToSign);
-
-                var signature = ComputeHmacSha256(dataToSign, checksumKey);
-
-                _logger.LogDebug("Signature: {Signature}...", signature.Substring(0, Math.Min(20, signature.Length)));
-
-                var requestWithSignature = new
-                {
-                    paymentRequest.orderCode,
-                    paymentRequest.amount,
-                    paymentRequest.description,
-                    paymentRequest.items,
-                    paymentRequest.returnUrl,
-                    paymentRequest.cancelUrl,
-                    signature = signature
-                };
-
-                // Call PayOS API
-                var apiUrl = "https://api-merchant.payos.vn/v2/payment-requests";
-
-                _httpClient.DefaultRequestHeaders.Clear();
-                _httpClient.DefaultRequestHeaders.Add("x-client-id", clientId);
-                _httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
-
-                var json = JsonSerializer.Serialize(requestWithSignature, new JsonSerializerOptions
-                {
-                    WriteIndented = false
-                });
-
-                _logger.LogInformation("Calling PayOS API: {Url}", apiUrl);
-                _logger.LogDebug("Request JSON: {Json}", json);
-
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync(apiUrl, content);
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                _logger.LogInformation("PayOS Response Status: {Status} ({StatusCode})",
-                    response.StatusCode, (int)response.StatusCode);
-                _logger.LogInformation("PayOS Response: {Response}", responseContent);
-
-                // Parse response
-                var responseObj = JsonSerializer.Deserialize<PayOSCreateResponse>(
-                    responseContent,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                // Check response code (PayOS returns "00" for success)
-                if (responseObj?.Code != "00")
-                {
-                    var errorMsg = responseObj?.Desc ?? "Unknown error";
-                    _logger.LogError("❌ PayOS error: Code={Code}, Desc={Desc}", responseObj?.Code, errorMsg);
-                    throw new Exception($"PayOS error (code {responseObj?.Code}): {errorMsg}");
-                }
-
-                if (responseObj.Data == null)
-                {
-                    _logger.LogError("❌ Invalid PayOS response: Data is null");
-                    throw new Exception("Invalid PayOS response: Data is null");
-                }
-
-                // Update transaction với PayOS info
-                transaction.PayOSTransactionId = responseObj.Data.PaymentLinkId;
-                await _unitOfWork.Transactions.UpdateAsync(transaction);
-                await _unitOfWork.CompleteAsync();
-
-                _logger.LogInformation("✅ PayOS Payment Link ID: {PaymentLinkId}", responseObj.Data.PaymentLinkId);
-                _logger.LogInformation("✅ Checkout URL: {CheckoutUrl}", responseObj.Data.CheckoutUrl);
-
-                return responseObj.Data.CheckoutUrl;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "=== ❌ ERROR in CreatePayOSPaymentAsync ===");
-                _logger.LogError("Exception Type: {Type}", ex.GetType().Name);
-                _logger.LogError("Exception Message: {Message}", ex.Message);
                 throw;
             }
         }
@@ -469,85 +318,6 @@ namespace LECOMS.Service.Services
             }
         }
 
-        /// <summary>
-        /// ⭐ Xử lý khi thanh toán thành công (SÀN THU HỘ)
-        /// </summary>
-        private async Task HandlePaymentSuccessAsync(Transaction transaction, List<Order> orders, PayOSWebhookData webhook)
-        {
-            _logger.LogInformation("Processing payment SUCCESS for {Count} order(s)", orders.Count);
-
-            // 1. Update Transaction
-            transaction.Status = TransactionStatus.Completed;
-            transaction.PayOSTransactionId = webhook.Data.Reference ?? webhook.Data.PaymentLinkId;
-            transaction.CompletedAt = DateTime.UtcNow;
-            transaction.PayOSMetadata = JsonSerializer.Serialize(webhook);
-
-            await _unitOfWork.Transactions.UpdateAsync(transaction);
-
-            // 2. ⭐ Update TẤT CẢ Orders & Chia tiền cho các shops
-            var config = await _unitOfWork.PlatformConfigs.GetConfigAsync();
-
-            foreach (var order in orders)
-            {
-                // Update order status
-                order.PaymentStatus = PaymentStatus.Paid;
-                order.Status = OrderStatus.Processing;
-
-                await _unitOfWork.Orders.UpdateAsync(order);
-
-                // Tính tiền shop nhận được cho order này
-                decimal orderPlatformFee = order.Total * config.DefaultCommissionRate / 100;
-                decimal shopAmount = order.Total - orderPlatformFee;
-
-                // Cộng tiền vào ShopWallet.PendingBalance
-                await _shopWalletService.AddPendingBalanceAsync(
-                    order.ShopId,
-                    shopAmount,
-                    order.Id,
-                    $"Doanh thu don hang {order.OrderCode}");
-
-                _logger.LogInformation("  ✅ Order {OrderCode}: Shop {ShopId} receives {Amount:N0} VND (Pending), Fee: {Fee:N0}",
-                    order.OrderCode, order.ShopId, shopAmount, orderPlatformFee);
-            }
-
-            _logger.LogInformation("✅ Payment SUCCESS: Transaction {TxId}, Total: {Total:N0}, Platform fee: {Fee:N0}",
-                transaction.Id, transaction.TotalAmount, transaction.PlatformFeeAmount);
-
-            // TODO: Send email notifications
-            // TODO: Send push notifications
-        }
-
-        /// <summary>
-        /// Xử lý khi thanh toán thất bại
-        /// </summary>
-        private async Task HandlePaymentFailedAsync(Transaction transaction, List<Order> orders, PayOSWebhookData webhook)
-        {
-            _logger.LogInformation("Processing payment FAILED for {Count} order(s)", orders.Count);
-
-            // 1. Update Transaction
-            transaction.Status = TransactionStatus.Failed;
-            transaction.PayOSMetadata = JsonSerializer.Serialize(webhook);
-
-            await _unitOfWork.Transactions.UpdateAsync(transaction);
-
-            // 2. Update tất cả Orders
-            foreach (var order in orders)
-            {
-                order.PaymentStatus = PaymentStatus.Failed;
-                order.Status = OrderStatus.Cancelled;
-
-                await _unitOfWork.Orders.UpdateAsync(order);
-
-                _logger.LogInformation("  ❌ Order {OrderCode} cancelled", order.OrderCode);
-            }
-
-            _logger.LogInformation("❌ Payment FAILED: Transaction {TxId}, Reason: {Reason}",
-                transaction.Id, webhook.Desc);
-
-            // TODO: Restore product stock
-            // TODO: Send email notifications
-        }
-
         public async Task<bool> VerifyPayOSSignatureAsync(string webhookData, string signature)
         {
             try
@@ -597,13 +367,360 @@ namespace LECOMS.Service.Services
             return true;
         }
 
-        // Helper Methods
-        private long GenerateOrderCode(string transactionId)
+        // ============================================================
+        // PRIVATE METHODS
+        // ============================================================
+
+        /// <summary>
+        /// ⭐⭐⭐ Core method: Call PayOS API - WITH SHIPPING & DISCOUNT ⭐⭐⭐
+        /// </summary>
+        private async Task<string> CreatePayOSPaymentAsync(Transaction transaction, List<Order> orders)
         {
-            var guidPart = transactionId.Replace("-", "");
-            var substring = guidPart.Substring(Math.Max(0, guidPart.Length - 10));
-            var hash = substring.GetHashCode();
-            return Math.Abs(hash) % 9999999999;
+            try
+            {
+                _logger.LogInformation("=== START CreatePayOSPaymentAsync ===");
+
+                // Get PayOS config
+                var clientId = _configuration["PayOS:ClientId"];
+                var apiKey = _configuration["PayOS:ApiKey"];
+                var checksumKey = _configuration["PayOS:ChecksumKey"];
+
+                if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(checksumKey))
+                {
+                    throw new InvalidOperationException("PayOS configuration is missing");
+                }
+
+                // ⭐ Generate UNIQUE OrderCode with timestamp to avoid error 231
+                long orderCode = GenerateUniqueOrderCode();
+                transaction.PayOSOrderCode = orderCode;
+
+                _logger.LogInformation("🔢 Generated PayOS OrderCode: {OrderCode}", orderCode);
+
+                // ⭐⭐⭐ BUILD ITEMS ARRAY - INCLUDING SHIPPING & DISCOUNT ⭐⭐⭐
+                var items = new List<object>();
+                decimal totalShippingFee = 0m;
+                decimal totalDiscount = 0m;
+                decimal totalProductAmount = 0m;
+
+                // 1. Add all product items from all orders
+                foreach (var order in orders)
+                {
+                    // Ensure details are loaded
+                    if (order.Details == null || !order.Details.Any())
+                    {
+                        var fullOrder = await _unitOfWork.Orders.GetAsync(
+                            o => o.Id == order.Id,
+                            includeProperties: "Details.Product");
+
+                        if (fullOrder?.Details != null)
+                        {
+                            order.Details = fullOrder.Details;
+                        }
+                    }
+
+                    // Add product items
+                    if (order.Details != null)
+                    {
+                        foreach (var detail in order.Details)
+                        {
+                            var productName = detail.Product?.Name ?? "Product";
+                            var productPrice = (int)detail.UnitPrice;
+
+                            items.Add(new
+                            {
+                                name = productName,
+                                quantity = detail.Quantity,
+                                price = productPrice
+                            });
+
+                            totalProductAmount += detail.UnitPrice * detail.Quantity;
+
+                            _logger.LogInformation("  📦 Product: {Name} x{Qty} = {Price:N0} VND",
+                                productName, detail.Quantity, productPrice * detail.Quantity);
+                        }
+                    }
+
+                    // Accumulate shipping & discount from each order
+                    totalShippingFee += order.ShippingFee;
+                    totalDiscount += order.Discount;
+                }
+
+                // ⭐ 2. ADD SHIPPING FEE AS SEPARATE ITEM (nếu > 0)
+                if (totalShippingFee > 0)
+                {
+                    items.Add(new
+                    {
+                        name = "Phí vận chuyển",
+                        quantity = 1,
+                        price = (int)totalShippingFee
+                    });
+
+                    _logger.LogInformation("  🚚 Shipping Fee: +{Fee:N0} VND", totalShippingFee);
+                }
+
+                // ⭐ 3. ADD DISCOUNT AS NEGATIVE ITEM (nếu > 0)
+                if (totalDiscount > 0)
+                {
+                    items.Add(new
+                    {
+                        name = "Giảm giá",
+                        quantity = 1,
+                        price = -(int)totalDiscount  // ⭐ NEGATIVE = discount
+                    });
+
+                    _logger.LogInformation("  🎁 Discount: -{Discount:N0} VND", totalDiscount);
+                }
+
+                // Fallback if no items (should not happen)
+                if (!items.Any())
+                {
+                    _logger.LogWarning("⚠️ No items found, using fallback");
+                    items.Add(new
+                    {
+                        name = "Đơn hàng",
+                        quantity = 1,
+                        price = (int)transaction.TotalAmount
+                    });
+                }
+
+                // Verify total calculation
+                var calculatedTotal = totalProductAmount + totalShippingFee - totalDiscount;
+                _logger.LogInformation("💰 Total Breakdown:");
+                _logger.LogInformation("   Products:  {Prod:N0} VND", totalProductAmount);
+                _logger.LogInformation("   Shipping: +{Ship:N0} VND", totalShippingFee);
+                _logger.LogInformation("   Discount: -{Disc:N0} VND", totalDiscount);
+                _logger.LogInformation("   ─────────────────────────");
+                _logger.LogInformation("   Total:     {Total:N0} VND", calculatedTotal);
+
+                if (Math.Abs(calculatedTotal - transaction.TotalAmount) > 1)
+                {
+                    _logger.LogWarning("⚠️ Total mismatch: Calculated={Calc:N0} vs Transaction={Tx:N0}",
+                        calculatedTotal, transaction.TotalAmount);
+                }
+
+                // Create description (max 25 chars for PayOS)
+                var description = orders.Count == 1
+                    ? $"Order {orders[0].OrderCode}"
+                    : $"Orders ({orders.Count})";
+
+                if (description.Length > 25)
+                {
+                    description = description.Substring(0, 25);
+                }
+
+                _logger.LogInformation("📝 Description: '{Desc}', Items count: {Count}", description, items.Count);
+
+                // Build payment request payload
+                var paymentData = new
+                {
+                    orderCode = orderCode,
+                    amount = (int)transaction.TotalAmount,
+                    description = description,
+                    returnUrl = _configuration["PayOS:ReturnUrl"],
+                    cancelUrl = _configuration["PayOS:CancelUrl"],
+                    items = items
+                };
+
+                _logger.LogInformation("PayOS Request: OrderCode={OrderCode}, Amount={Amount:N0}, Items={ItemCount}",
+                    orderCode, transaction.TotalAmount, items.Count);
+
+                // Calculate signature
+                string dataToSign = $"amount={paymentData.amount}&cancelUrl={paymentData.cancelUrl}&description={paymentData.description}&orderCode={paymentData.orderCode}&returnUrl={paymentData.returnUrl}";
+                string signature = ComputeHmacSha256(dataToSign, checksumKey);
+
+                var requestPayload = new
+                {
+                    paymentData.orderCode,
+                    paymentData.amount,
+                    paymentData.description,
+                    paymentData.returnUrl,
+                    paymentData.cancelUrl,
+                    signature = signature,
+                    items = paymentData.items
+                };
+
+                var jsonPayload = JsonSerializer.Serialize(requestPayload, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+
+                _logger.LogInformation("🚀 Calling PayOS API: {Url}", "https://api-merchant.payos.vn/v2/payment-requests");
+                _logger.LogDebug("Request payload: {Payload}", jsonPayload);
+
+                // Call PayOS API
+                using var httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.Add("x-client-id", clientId);
+                httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
+
+                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+                var response = await httpClient.PostAsync("https://api-merchant.payos.vn/v2/payment-requests", content);
+
+                var responseBody = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("PayOS Response Status: {Status}", response.StatusCode);
+                _logger.LogDebug("Response body: {Body}", responseBody);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError("❌ PayOS API Error: {Status} - {Body}", response.StatusCode, responseBody);
+                    throw new Exception($"PayOS API returned {response.StatusCode}: {responseBody}");
+                }
+
+                // Deserialize response with proper options
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                };
+
+                PayOSCreateResponse payosResponse;
+                try
+                {
+                    payosResponse = JsonSerializer.Deserialize<PayOSCreateResponse>(responseBody, options);
+                    _logger.LogInformation("Deserialize result: {Success}", payosResponse != null ? "Success" : "Null");
+                }
+                catch (JsonException jsonEx)
+                {
+                    _logger.LogError(jsonEx, "❌ Failed to deserialize PayOS response");
+                    _logger.LogError("Raw response: {Body}", responseBody);
+                    throw new Exception($"Invalid PayOS response format: {jsonEx.Message}");
+                }
+
+                if (payosResponse == null)
+                {
+                    _logger.LogError("❌ PayOS response deserialized to null");
+                    throw new Exception("PayOS response is null");
+                }
+
+                // Check response code
+                if (payosResponse.Code != "00")
+                {
+                    _logger.LogError("❌ PayOS Error: Code={Code}, Desc={Desc}",
+                        payosResponse.Code, payosResponse.Desc);
+                    throw new Exception($"PayOS error {payosResponse.Code}: {payosResponse.Desc}");
+                }
+
+                if (payosResponse.Data == null || string.IsNullOrEmpty(payosResponse.Data.CheckoutUrl))
+                {
+                    _logger.LogError("❌ PayOS did not return checkout URL");
+                    throw new Exception("CheckoutUrl is null or empty");
+                }
+
+                string paymentUrl = payosResponse.Data.CheckoutUrl;
+
+                _logger.LogInformation("✅ PayOS payment URL created: {Url}", paymentUrl);
+
+                return paymentUrl;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error in CreatePayOSPaymentAsync");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// ⭐ Xử lý khi thanh toán thành công (SÀN THU HỘ)
+        /// </summary>
+        private async Task HandlePaymentSuccessAsync(Transaction transaction, List<Order> orders, PayOSWebhookData webhook)
+        {
+            _logger.LogInformation("Processing payment SUCCESS for {Count} order(s)", orders.Count);
+
+            // 1. Update Transaction
+            transaction.Status = TransactionStatus.Completed;
+            transaction.PayOSTransactionId = webhook.Data.Reference ?? webhook.Data.PaymentLinkId;
+            transaction.CompletedAt = DateTime.UtcNow;
+            transaction.PayOSMetadata = JsonSerializer.Serialize(webhook);
+
+            await _unitOfWork.Transactions.UpdateAsync(transaction);
+
+            // 2. Update all Orders & Distribute revenue to shops
+            var config = await _unitOfWork.PlatformConfigs.GetConfigAsync();
+
+            foreach (var order in orders)
+            {
+                // Update order status
+                order.PaymentStatus = PaymentStatus.Paid;
+                order.Status = OrderStatus.Processing;
+
+                await _unitOfWork.Orders.UpdateAsync(order);
+
+                // Calculate shop revenue for this order
+                decimal orderPlatformFee = order.Total * config.DefaultCommissionRate / 100;
+                decimal shopAmount = order.Total - orderPlatformFee;
+
+                // Add to ShopWallet.PendingBalance
+                await _shopWalletService.AddPendingBalanceAsync(
+                    order.ShopId,
+                    shopAmount,
+                    order.Id,
+                    $"Doanh thu don hang {order.OrderCode}");
+
+                _logger.LogInformation("  ✅ Order {OrderCode}: Shop {ShopId} receives {Amount:N0} VND (Pending), Platform fee: {Fee:N0}",
+                    order.OrderCode, order.ShopId, shopAmount, orderPlatformFee);
+            }
+
+            _logger.LogInformation("✅ Payment SUCCESS: Transaction {TxId}, Total: {Total:N0} VND, Platform fee: {Fee:N0} VND",
+                transaction.Id, transaction.TotalAmount, transaction.PlatformFeeAmount);
+
+            // TODO: Send email notifications to customer & shops
+            // TODO: Send push notifications
+        }
+
+        /// <summary>
+        /// Xử lý khi thanh toán thất bại
+        /// </summary>
+        private async Task HandlePaymentFailedAsync(Transaction transaction, List<Order> orders, PayOSWebhookData webhook)
+        {
+            _logger.LogInformation("Processing payment FAILED for {Count} order(s)", orders.Count);
+
+            // 1. Update Transaction
+            transaction.Status = TransactionStatus.Failed;
+            transaction.PayOSMetadata = JsonSerializer.Serialize(webhook);
+
+            await _unitOfWork.Transactions.UpdateAsync(transaction);
+
+            // 2. Update all Orders to Failed/Cancelled
+            foreach (var order in orders)
+            {
+                order.PaymentStatus = PaymentStatus.Failed;
+                order.Status = OrderStatus.Cancelled;
+
+                await _unitOfWork.Orders.UpdateAsync(order);
+
+                _logger.LogInformation("  ❌ Order {OrderCode} cancelled due to payment failure", order.OrderCode);
+            }
+
+            _logger.LogInformation("❌ Payment FAILED: Transaction {TxId}, Reason: {Reason}",
+                transaction.Id, webhook.Desc);
+
+            // TODO: Restore product stock
+            // TODO: Send email notification
+        }
+
+        // ============================================================
+        // HELPER METHODS
+        // ============================================================
+
+        /// <summary>
+        /// ⭐ Generate UNIQUE OrderCode với timestamp - FIX ERROR 231
+        /// Format: {timestamp-last-7-digits}{random-3-digits}
+        /// Example: 5514991777 (timestamp part + random)
+        /// </summary>
+        private long GenerateUniqueOrderCode()
+        {
+            // Sử dụng timestamp (seconds) + random để đảm bảo unique mỗi lần
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var random = new Random().Next(100, 999);
+
+            // OrderCode = last 7 digits of timestamp + 3 random digits
+            // This ensures uniqueness even for rapid retry attempts
+            var orderCode = (timestamp % 10000000) * 1000 + random;
+
+            _logger.LogInformation("Generated OrderCode: {Code} (Timestamp: {Time}, Random: {Rand})",
+                orderCode, timestamp, random);
+
+            return orderCode;
         }
 
         private async Task<Transaction?> FindTransactionByOrderCode(long orderCode)
@@ -623,53 +740,60 @@ namespace LECOMS.Service.Services
     // DTOs FOR PAYOS API
     // ============================================================
 
+    /// <summary>
+    /// Response khi tạo payment link từ PayOS
+    /// </summary>
     public class PayOSCreateResponse
     {
-        public string Code { get; set; }
-        public string Desc { get; set; }
-        public PayOSData Data { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Desc { get; set; } = string.Empty;
+        public PayOSData? Data { get; set; }
+        public string? Signature { get; set; }
     }
 
     public class PayOSData
     {
-        public string Bin { get; set; }
-        public string AccountNumber { get; set; }
-        public string AccountName { get; set; }
+        public string? Bin { get; set; }
+        public string? AccountNumber { get; set; }
+        public string? AccountName { get; set; }
         public int Amount { get; set; }
-        public string Description { get; set; }
+        public string? Description { get; set; }
         public long OrderCode { get; set; }
-        public string Currency { get; set; }
-        public string PaymentLinkId { get; set; }
-        public string Status { get; set; }
-        public string CheckoutUrl { get; set; }
-        public string QrCode { get; set; }
+        public string? Currency { get; set; }
+        public string? PaymentLinkId { get; set; }
+        public string? Status { get; set; }
+        public string CheckoutUrl { get; set; } = string.Empty;
+        public string? QrCode { get; set; }
     }
 
+    /// <summary>
+    /// Webhook data từ PayOS khi thanh toán complete
+    /// </summary>
     public class PayOSWebhookData
     {
-        public string Code { get; set; }
-        public string Desc { get; set; }
-        public PayOSWebhookDetail Data { get; set; }
-        public string Signature { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Desc { get; set; } = string.Empty;
+        public PayOSWebhookDetail? Data { get; set; }
+        public string? Signature { get; set; }
     }
 
     public class PayOSWebhookDetail
     {
         public long OrderCode { get; set; }
         public decimal Amount { get; set; }
-        public string Description { get; set; }
-        public string AccountNumber { get; set; }
-        public string Reference { get; set; }
-        public string TransactionDateTime { get; set; }
-        public string Currency { get; set; }
-        public string PaymentLinkId { get; set; }
-        public string Code { get; set; }
-        public string Desc { get; set; }
-        public string CounterAccountBankId { get; set; }
-        public string CounterAccountBankName { get; set; }
-        public string CounterAccountName { get; set; }
-        public string CounterAccountNumber { get; set; }
-        public string VirtualAccountName { get; set; }
-        public string VirtualAccountNumber { get; set; }
+        public string? Description { get; set; }
+        public string? AccountNumber { get; set; }
+        public string? Reference { get; set; }
+        public string? TransactionDateTime { get; set; }
+        public string? Currency { get; set; }
+        public string? PaymentLinkId { get; set; }
+        public string? Code { get; set; }
+        public string? Desc { get; set; }
+        public string? CounterAccountBankId { get; set; }
+        public string? CounterAccountBankName { get; set; }
+        public string? CounterAccountName { get; set; }
+        public string? CounterAccountNumber { get; set; }
+        public string? VirtualAccountName { get; set; }
+        public string? VirtualAccountNumber { get; set; }
     }
 }

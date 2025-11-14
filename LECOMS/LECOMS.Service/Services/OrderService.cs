@@ -18,70 +18,80 @@ namespace LECOMS.Service.Services
     {
         private readonly IUnitOfWork _uow;
         private readonly IPaymentService _paymentService;
+        private readonly ICustomerWalletService _customerWalletService;
         private readonly ILogger<OrderService> _logger;
 
         public OrderService(
             IUnitOfWork uow,
             IPaymentService paymentService,
+            ICustomerWalletService customerWalletService,
             ILogger<OrderService> logger)
         {
             _uow = uow;
             _paymentService = paymentService;
+            _customerWalletService = customerWalletService;
             _logger = logger;
         }
 
         /// <summary>
         /// ⭐ Tạo order từ cart + payment link (SÀN THU HỘ)
-        /// 
-        /// FLOW:
-        /// 1. Tạo NHIỀU ORDERS (1 order/shop)
-        /// 2. Tạo 1 TRANSACTION DUY NHẤT cho tất cả orders
-        /// 3. Tạo 1 PAYMENT LINK DUY NHẤT
-        /// 4. Customer thanh toán 1 lần cho tất cả
         /// </summary>
         public async Task<CheckoutResultDTO> CreateOrderFromCartAsync(string userId, CheckoutRequestDTO checkout)
         {
-            _logger.LogInformation("=== START CHECKOUT (SÀN THU HỘ) for User: {UserId} ===", userId);
+            _logger.LogInformation("=== START CHECKOUT for User: {UserId} ===", userId);
 
             using var tx = await _uow.BeginTransactionAsync();
             try
             {
-                // 1. Lấy cart với products & shops
+                // 1. Lấy cart
                 var cart = await _uow.Carts.GetByUserIdAsync(
                     userId,
                     includeProperties: "Items,Items.Product,Items.Product.Shop");
 
                 if (cart == null || !cart.Items.Any())
                 {
-                    throw new InvalidOperationException("Cart is empty. Please add products before checkout.");
+                    throw new InvalidOperationException("Cart is empty.");
                 }
 
-                _logger.LogInformation("✅ Cart found with {Count} items", cart.Items.Count);
+                // 2. Lọc sản phẩm (nếu có SelectedProductIds)
+                var itemsToCheckout = cart.Items.ToList();
 
-                // 2. Group cart items theo ShopId
-                var itemsByShop = cart.Items
-                    .Where(i => i.Product != null)
+                if (checkout.SelectedProductIds != null && checkout.SelectedProductIds.Any())
+                {
+                    itemsToCheckout = cart.Items
+                        .Where(i => checkout.SelectedProductIds.Contains(i.ProductId))
+                        .ToList();
+
+                    if (!itemsToCheckout.Any())
+                    {
+                        throw new InvalidOperationException("No valid products selected.");
+                    }
+                }
+
+                // 3. Group theo Shop
+                var itemsByShop = itemsToCheckout
+                    .Where(i => i.Product != null && i.Product.Shop != null)
                     .GroupBy(i => i.Product.ShopId)
                     .ToList();
 
-                if (itemsByShop.Count == 0)
+                if (!itemsByShop.Any())
                 {
-                    throw new InvalidOperationException("No valid items in cart.");
+                    throw new InvalidOperationException("No valid products in cart.");
                 }
 
-                _logger.LogInformation("Creating orders for {ShopCount} shop(s)...", itemsByShop.Count);
-
                 var createdOrders = new List<Order>();
-                var totalAmount = 0m;
+                decimal grandSubtotal = 0m;
 
-                // 3. ⭐ TẠO NHIỀU ORDERS (1 ORDER/SHOP)
+                // ============================================================
+                // STEP 1: TẠO ORDERS VỚI SUBTOTAL ONLY
+                // ============================================================
                 foreach (var shopGroup in itemsByShop)
                 {
                     var shopId = shopGroup.Key;
                     var shopItems = shopGroup.ToList();
 
-                    // Validate stock & tính subtotal
                     decimal subtotal = 0m;
+
                     foreach (var item in shopItems)
                     {
                         if (item.Product == null)
@@ -105,7 +115,6 @@ namespace LECOMS.Service.Services
 
                     var orderCode = await GenerateOrderCodeAsync();
 
-                    // Tạo Order cho shop này
                     var order = new Order
                     {
                         Id = Guid.NewGuid().ToString(),
@@ -116,7 +125,7 @@ namespace LECOMS.Service.Services
                         ShipToPhone = checkout.ShipToPhone,
                         ShipToAddress = checkout.ShipToAddress,
                         Subtotal = subtotal,
-                        ShippingFee = 0m, // Shipping fee tính chung, không chia theo shop
+                        ShippingFee = 0m,
                         Discount = 0m,
                         Total = subtotal,
                         Status = OrderStatus.Pending,
@@ -127,7 +136,6 @@ namespace LECOMS.Service.Services
 
                     await _uow.Orders.AddAsync(order);
 
-                    // Tạo OrderDetails
                     foreach (var item in shopItems)
                     {
                         var detail = new OrderDetail
@@ -140,88 +148,148 @@ namespace LECOMS.Service.Services
                         };
                         await _uow.OrderDetails.AddAsync(detail);
 
-                        // Giảm stock
                         item.Product.Stock -= item.Quantity;
                         await _uow.Products.UpdateAsync(item.Product);
                     }
 
                     createdOrders.Add(order);
+                    grandSubtotal += subtotal;
+
+                    _logger.LogInformation("Created Order {OrderCode}: Subtotal={Subtotal:N0}",
+                        orderCode, subtotal);
+                }
+
+                await _uow.CompleteAsync();
+
+                // ============================================================
+                // STEP 2: TÍNH SHIPPING FEE & DISCOUNT
+                // ============================================================
+
+                decimal totalShippingFee = CalculateShippingFee(
+                    checkout.ShipToAddress,
+                    itemsByShop.Count,
+                    grandSubtotal);
+
+                _logger.LogInformation("🚚 Calculated Shipping Fee: {Fee:N0} VND for {Shops} shop(s)",
+                    totalShippingFee, itemsByShop.Count);
+
+                decimal totalDiscount = 0m;
+                string? voucherUsed = null;
+
+                if (!string.IsNullOrEmpty(checkout.VoucherCode))
+                {
+                    var voucherResult = ValidateAndApplyVoucher(
+                        checkout.VoucherCode,
+                        userId,
+                        grandSubtotal);
+
+                    totalDiscount = voucherResult.DiscountAmount;
+                    voucherUsed = checkout.VoucherCode;
+                }
+
+                _logger.LogInformation("🎁 Applied Discount: {Discount:N0} VND", totalDiscount);
+
+                // ============================================================
+                // STEP 3: PHÂN BỔ SHIPPING & DISCOUNT
+                // ============================================================
+
+                decimal totalAmount = 0m;
+                decimal remainingShipping = totalShippingFee;
+                decimal remainingDiscount = totalDiscount;
+
+                for (int i = 0; i < createdOrders.Count; i++)
+                {
+                    var order = createdOrders[i];
+
+                    decimal orderShippingFee;
+                    decimal orderDiscount;
+
+                    if (i == createdOrders.Count - 1)
+                    {
+                        orderShippingFee = remainingShipping;
+                        orderDiscount = remainingDiscount;
+                    }
+                    else
+                    {
+                        decimal ratio = order.Subtotal / grandSubtotal;
+                        orderShippingFee = Math.Round(totalShippingFee * ratio, 0);
+                        orderDiscount = Math.Round(totalDiscount * ratio, 0);
+
+                        remainingShipping -= orderShippingFee;
+                        remainingDiscount -= orderDiscount;
+                    }
+
+                    order.ShippingFee = orderShippingFee;
+                    order.Discount = orderDiscount;
+                    order.Total = order.Subtotal + orderShippingFee - orderDiscount;
+
+                    await _uow.Orders.UpdateAsync(order);
+
                     totalAmount += order.Total;
 
-                    _logger.LogInformation("✅ Order created: {OrderCode} for Shop {ShopId}, Subtotal: {Total:N0} VND",
-                        order.OrderCode, shopId, order.Total);
+                    _logger.LogInformation("Updated Order {OrderCode}: Subtotal={Sub:N0}, Shipping={Ship:N0}, Discount={Disc:N0}, Total={Total:N0}",
+                        order.OrderCode, order.Subtotal, order.ShippingFee, order.Discount, order.Total);
                 }
 
-                // Cộng shipping fee và discount vào tổng
-                var shippingFee = checkout.ShippingFee ?? 0m;
-                var discount = checkout.Discount ?? 0m;
-                totalAmount += shippingFee - discount;
-
-                _logger.LogInformation("💰 Total breakdown: Orders={OrderTotal:N0}, Shipping={Ship:N0}, Discount={Disc:N0}, Final={Total:N0}",
-                    totalAmount - shippingFee + discount, shippingFee, discount, totalAmount);
-
-                // Save orders
                 await _uow.CompleteAsync();
 
-                // 4. ⭐ TẠO 1 TRANSACTION DUY NHẤT cho toàn bộ cart
-                _logger.LogInformation("Creating SINGLE transaction for {OrderCount} order(s)...", createdOrders.Count);
+                _logger.LogInformation("💰 GRAND TOTAL:");
+                _logger.LogInformation("   Subtotal:  {Sub:N0} VND", grandSubtotal);
+                _logger.LogInformation("   Shipping: +{Ship:N0} VND", totalShippingFee);
+                _logger.LogInformation("   Discount: -{Disc:N0} VND", totalDiscount);
+                _logger.LogInformation("   ─────────────────────");
+                _logger.LogInformation("   Total:     {Total:N0} VND", totalAmount);
 
-                var config = await _uow.PlatformConfigs.GetConfigAsync();
+                // ============================================================
+                // STEP 4: XỬ LÝ THANH TOÁN
+                // ============================================================
 
-                if (config == null)
+                string? paymentUrl = null;
+                decimal walletAmountUsed = 0m;
+                decimal payosAmountRequired = totalAmount;
+
+                switch (checkout.PaymentMethod?.ToUpper() ?? "PAYOS")
                 {
-                    throw new InvalidOperationException("Platform configuration not found");
+                    case "WALLET":
+                        await ProcessWalletPaymentAsync(userId, totalAmount, createdOrders);
+                        payosAmountRequired = 0;
+                        walletAmountUsed = totalAmount;
+                        break;
+
+                    case "MIXED":
+                        var mixedResult = await ProcessMixedPaymentAsync(
+                            userId,
+                            totalAmount,
+                            checkout.WalletAmountToUse,
+                            createdOrders);
+
+                        walletAmountUsed = mixedResult.WalletUsed;
+                        payosAmountRequired = mixedResult.PayOSRequired;
+
+                        if (payosAmountRequired > 0)
+                        {
+                            var transaction = await CreateTransactionAsync(createdOrders, payosAmountRequired);
+                            paymentUrl = await _paymentService.CreatePaymentLinkForMultipleOrdersAsync(
+                                transaction.Id,
+                                createdOrders);
+                        }
+                        break;
+
+                    case "PAYOS":
+                    default:
+                        var transactionPayOS = await CreateTransactionAsync(createdOrders, totalAmount);
+                        paymentUrl = await _paymentService.CreatePaymentLinkForMultipleOrdersAsync(
+                            transactionPayOS.Id,
+                            createdOrders);
+                        break;
                 }
 
-                decimal platformFeeAmount = totalAmount * config.DefaultCommissionRate / 100;
-                decimal totalShopAmount = totalAmount - platformFeeAmount;
+                // ============================================================
+                // STEP 5: CLEAR CART
+                // ============================================================
 
-                var transaction = new Transaction
-                {
-                    Id = Guid.NewGuid().ToString(),
-
-                    // ⭐ Store ALL order IDs (comma-separated)
-                    OrderId = string.Join(",", createdOrders.Select(o => o.Id)),
-
-                    TotalAmount = totalAmount,
-                    PlatformFeePercent = config.DefaultCommissionRate,
-                    PlatformFeeAmount = platformFeeAmount,
-                    ShopAmount = totalShopAmount,
-                    Status = TransactionStatus.Pending,
-                    PaymentMethod = "PayOS",
-                    CreatedAt = DateTime.UtcNow,
-                    Note = $"Checkout by {userId} at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC"
-                };
-
-                await _uow.Transactions.AddAsync(transaction);
-                await _uow.CompleteAsync();
-
-                _logger.LogInformation("✅ Transaction created: {TxId}", transaction.Id);
-                _logger.LogInformation("   Total: {Total:N0}, Platform fee: {Fee:N0} ({Rate}%), Shops receive: {Shop:N0}",
-                    totalAmount, platformFeeAmount, config.DefaultCommissionRate, totalShopAmount);
-
-                // 5. ⭐ TẠO 1 PAYMENT LINK DUY NHẤT cho transaction
-                _logger.LogInformation("Creating payment link for transaction...");
-
-                string paymentUrl;
-                try
-                {
-                    paymentUrl = await _paymentService.CreatePaymentLinkForMultipleOrdersAsync(
-                        transaction.Id,
-                        createdOrders);
-
-                    _logger.LogInformation("✅ Payment link created: {Url}", paymentUrl);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "❌ Failed to create payment link");
-                    throw new InvalidOperationException(
-                        "Failed to create payment link. Please try again.", ex);
-                }
-
-                // 6. Clear cart
-                _logger.LogInformation("Clearing cart...");
-                foreach (var item in cart.Items.ToList())
+                _logger.LogInformation("Clearing {Count} items from cart...", itemsToCheckout.Count);
+                foreach (var item in itemsToCheckout)
                 {
                     await _uow.CartItems.DeleteAsync(item);
                 }
@@ -229,38 +297,21 @@ namespace LECOMS.Service.Services
                 await _uow.CompleteAsync();
                 await tx.CommitAsync();
 
-                _logger.LogInformation("=== ✅ CHECKOUT SUCCESS: {OrderCount} order(s), 1 payment link, Total: {Total:N0} VND ===",
+                _logger.LogInformation("=== ✅ CHECKOUT SUCCESS: {OrderCount} order(s), Total: {Total:N0} VND ===",
                     createdOrders.Count, totalAmount);
 
-                // 7. Build result DTO
-                var result = new CheckoutResultDTO
+                return new CheckoutResultDTO
                 {
-                    Orders = createdOrders.Select(o => new OrderDTO
-                    {
-                        Id = o.Id,
-                        OrderCode = o.OrderCode,
-                        UserId = o.UserId,
-                        ShopId = o.ShopId,
-                        ShipToName = o.ShipToName,
-                        ShipToPhone = o.ShipToPhone,
-                        ShipToAddress = o.ShipToAddress,
-                        Subtotal = o.Subtotal,
-                        ShippingFee = o.ShippingFee,
-                        Discount = o.Discount,
-                        Total = o.Total,
-                        Status = o.Status.ToString(),
-                        PaymentStatus = o.PaymentStatus.ToString(),
-                        BalanceReleased = o.BalanceReleased,
-                        CreatedAt = o.CreatedAt,
-                        Details = new List<OrderDetailDTO>()
-                    }).ToList(),
-
-                    PaymentUrl = paymentUrl, // ⭐ 1 URL duy nhất
-
-                    TotalAmount = totalAmount
+                    Orders = createdOrders.Select(MapToDTO).ToList(),
+                    PaymentUrl = paymentUrl,
+                    TotalAmount = totalAmount,
+                    PaymentMethod = checkout.PaymentMethod ?? "PayOS",
+                    WalletAmountUsed = walletAmountUsed,
+                    PayOSAmountRequired = payosAmountRequired,
+                    DiscountApplied = totalDiscount,
+                    ShippingFee = totalShippingFee,
+                    VoucherCodeUsed = voucherUsed
                 };
-
-                return result;
             }
             catch (Exception ex)
             {
@@ -270,7 +321,224 @@ namespace LECOMS.Service.Services
             }
         }
 
-        // Other methods...
+        // ============================================================
+        // HELPER METHODS - CALCULATION
+        // ============================================================
+
+        private decimal CalculateShippingFee(string address, int shopCount, decimal subtotal)
+        {
+            decimal baseFee = 30000m;
+            decimal perShopFee = 10000m;
+
+            decimal totalFee = baseFee + (shopCount - 1) * perShopFee;
+
+            if (subtotal >= 500000)
+            {
+                totalFee = 0;
+                _logger.LogInformation("🎉 Free shipping applied (subtotal >= 500k)");
+            }
+
+            return totalFee;
+        }
+
+        private (decimal DiscountAmount, string VoucherCode) ValidateAndApplyVoucher(
+            string voucherCode,
+            string userId,
+            decimal totalAmount)
+        {
+            _logger.LogInformation("Voucher validation: {Code} (Not implemented yet)", voucherCode);
+            return (0m, voucherCode);
+        }
+
+        // ============================================================
+        // HELPER METHODS - PAYMENT
+        // ============================================================
+
+        private async Task<Transaction> CreateTransactionAsync(List<Order> orders, decimal totalAmount)
+        {
+            var config = await _uow.PlatformConfigs.GetConfigAsync();
+            if (config == null)
+            {
+                throw new InvalidOperationException("Platform configuration not found");
+            }
+
+            decimal platformFeeAmount = totalAmount * config.DefaultCommissionRate / 100;
+            decimal totalShopAmount = totalAmount - platformFeeAmount;
+
+            var transaction = new Transaction
+            {
+                Id = Guid.NewGuid().ToString(),
+                OrderId = string.Join(",", orders.Select(o => o.Id)),
+                TotalAmount = totalAmount,
+                PlatformFeePercent = config.DefaultCommissionRate,
+                PlatformFeeAmount = platformFeeAmount,
+                ShopAmount = totalShopAmount,
+                Status = TransactionStatus.Pending,
+                PaymentMethod = "PayOS",
+                CreatedAt = DateTime.UtcNow,
+                Note = $"Checkout by user at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC"
+            };
+
+            await _uow.Transactions.AddAsync(transaction);
+            await _uow.CompleteAsync();
+
+            _logger.LogInformation("✅ Transaction created: {TransactionId}, Amount: {Amount:N0}",
+                transaction.Id, totalAmount);
+
+            return transaction;
+        }
+
+        private async Task ProcessWalletPaymentAsync(
+            string userId,
+            decimal amount,
+            List<Order> orders)
+        {
+            _logger.LogInformation("Processing WALLET payment for {Amount:N0} VND", amount);
+
+            var hasBalance = await _customerWalletService.HasSufficientBalanceAsync(userId, amount);
+            if (!hasBalance)
+            {
+                throw new InvalidOperationException("Insufficient wallet balance.");
+            }
+
+            await _customerWalletService.DeductBalanceAsync(
+                userId,
+                amount,
+                WalletTransactionType.Payment,
+                string.Join(",", orders.Select(o => o.Id)),
+                $"Thanh toán đơn hàng {string.Join(", ", orders.Select(o => o.OrderCode))}");
+
+            foreach (var order in orders)
+            {
+                order.PaymentStatus = PaymentStatus.Paid;
+                await _uow.Orders.UpdateAsync(order);
+            }
+
+            var transaction = await CreateTransactionAsync(orders, amount);
+            transaction.Status = TransactionStatus.Completed;
+            await _uow.Transactions.UpdateAsync(transaction);
+
+            await DistributeRevenueToShopsAsync(orders, transaction);
+
+            await _uow.CompleteAsync();
+
+            _logger.LogInformation("✅ Wallet payment completed successfully");
+        }
+
+        private async Task<(decimal WalletUsed, decimal PayOSRequired)> ProcessMixedPaymentAsync(
+            string userId,
+            decimal totalAmount,
+            decimal? walletAmountToUse,
+            List<Order> orders)
+        {
+            _logger.LogInformation("Processing MIXED payment: Total {Total:N0}, Wallet request: {Wallet}",
+                totalAmount, walletAmountToUse);
+
+            var balance = await _customerWalletService.GetBalanceAsync(userId);
+
+            decimal walletUsed = Math.Min(
+                walletAmountToUse ?? balance,
+                Math.Min(balance, totalAmount)
+            );
+
+            decimal payosRequired = totalAmount - walletUsed;
+
+            _logger.LogInformation("Calculated: Wallet = {Wallet:N0}, PayOS = {PayOS:N0}",
+                walletUsed, payosRequired);
+
+            if (walletUsed > 0)
+            {
+                await _customerWalletService.DeductBalanceAsync(
+                    userId,
+                    walletUsed,
+                    WalletTransactionType.Payment,
+                    string.Join(",", orders.Select(o => o.Id)),
+                    $"Thanh toán một phần đơn hàng (Wallet: {walletUsed:N0} VND)");
+
+                _logger.LogInformation("✅ Deducted {Amount:N0} from wallet", walletUsed);
+            }
+
+            return (walletUsed, payosRequired);
+        }
+
+        private async Task DistributeRevenueToShopsAsync(List<Order> orders, Transaction transaction)
+        {
+            _logger.LogInformation("Distributing revenue to shops...");
+
+            var config = await _uow.PlatformConfigs.GetConfigAsync();
+            if (config == null)
+            {
+                throw new InvalidOperationException("Platform configuration not found");
+            }
+
+            var ordersByShop = orders.GroupBy(o => o.ShopId);
+
+            foreach (var shopGroup in ordersByShop)
+            {
+                var shopId = shopGroup.Key;
+                var shopOrders = shopGroup.ToList();
+
+                decimal shopSubtotal = shopOrders.Sum(o => o.Total);
+                decimal platformFee = shopSubtotal * config.DefaultCommissionRate / 100;
+                decimal shopReceives = shopSubtotal - platformFee;
+
+                var shopWallet = await _uow.ShopWallets.GetByShopIdAsync(shopId);
+                if (shopWallet == null)
+                {
+                    _logger.LogInformation("Creating new ShopWallet for Shop {ShopId}", shopId);
+
+                    shopWallet = new ShopWallet
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        ShopId = shopId,
+                        AvailableBalance = 0,
+                        PendingBalance = 0,
+                        TotalEarned = 0,
+                        TotalWithdrawn = 0,
+                        TotalRefunded = 0,
+                        CreatedAt = DateTime.UtcNow,
+                        LastUpdated = DateTime.UtcNow
+                    };
+                    await _uow.ShopWallets.AddAsync(shopWallet);
+                }
+
+                decimal balanceBefore = shopWallet.PendingBalance;
+
+                shopWallet.PendingBalance += shopReceives;
+                shopWallet.TotalEarned += shopReceives;
+                shopWallet.LastUpdated = DateTime.UtcNow;
+
+                await _uow.ShopWallets.UpdateAsync(shopWallet);
+
+                var walletTransaction = new WalletTransaction
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ShopWalletId = shopWallet.Id,
+                    Type = WalletTransactionType.OrderRevenue,
+                    Amount = shopReceives,
+                    BalanceBefore = balanceBefore,
+                    BalanceAfter = shopWallet.PendingBalance,
+                    BalanceType = "Pending",
+                    Description = $"Doanh thu đơn hàng {string.Join(", ", shopOrders.Select(o => o.OrderCode))}",
+                    ReferenceId = transaction.Id,
+                    ReferenceType = "Transaction",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _uow.WalletTransactions.AddAsync(walletTransaction);
+
+                _logger.LogInformation(
+                    "✅ Shop {ShopId}: Subtotal={Subtotal:N0}, Fee={Fee:N0} ({Rate}%), Receives={Receives:N0}",
+                    shopId, shopSubtotal, platformFee, config.DefaultCommissionRate, shopReceives);
+            }
+
+            await _uow.CompleteAsync();
+        }
+
+        // ============================================================
+        // OTHER METHODS
+        // ============================================================
+
         public async Task<OrderDTO?> GetByIdAsync(string orderId)
         {
             var order = await _uow.Orders.GetAsync(
@@ -354,7 +622,6 @@ namespace LECOMS.Service.Services
             return MapToDTO(order);
         }
 
-        // Helper methods
         private async Task<string> GenerateOrderCodeAsync()
         {
             var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");

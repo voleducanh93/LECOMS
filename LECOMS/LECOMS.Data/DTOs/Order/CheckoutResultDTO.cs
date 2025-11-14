@@ -1,38 +1,56 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace LECOMS.Data.DTOs.Order
 {
-    /// <summary>
-    /// DTO trả về khi checkout thành công
-    /// Theo mô hình SÀN THU HỘ
-    /// </summary>
     public class CheckoutResultDTO
     {
         /// <summary>
         /// Danh sách orders được tạo
-        /// Có thể nhiều orders nếu cart có items từ nhiều shops
-        /// Example: Cart có 3 shops → 3 orders
         /// </summary>
         public List<OrderDTO> Orders { get; set; } = new List<OrderDTO>();
 
         /// <summary>
-        /// ⭐ Payment URL DUY NHẤT cho toàn bộ đơn hàng
-        /// 
-        /// MÔ HÌNH SÀN THU HỘ:
-        /// - Customer chỉ thanh toán 1 LẦN cho tất cả orders
-        /// - Platform nhận tiền trước
-        /// - Platform tự động chia tiền cho các shops
-        /// 
-        /// VD: Cart có 3 shops (100k + 200k + 150k = 450k)
-        ///     → Customer thanh toán 1 lần: 450k
-        ///     → 1 PaymentUrl duy nhất
+        /// Payment URL (nếu dùng PayOS)
+        /// NULL nếu thanh toán bằng Wallet
         /// </summary>
-        public string PaymentUrl { get; set; } = string.Empty;
+        public string? PaymentUrl { get; set; }
 
         /// <summary>
-        /// Tổng số tiền customer cần thanh toán
-        /// = Tổng tất cả orders + shipping fee - discount
+        /// Tổng tiền phải thanh toán
         /// </summary>
         public decimal TotalAmount { get; set; }
+
+        // ⭐ THÊM MỚI: Payment breakdown
+
+        /// <summary>
+        /// Phương thức thanh toán đã dùng
+        /// </summary>
+        public string PaymentMethod { get; set; } = null!;
+
+        /// <summary>
+        /// Số tiền đã thanh toán từ Wallet
+        /// </summary>
+        public decimal WalletAmountUsed { get; set; }
+
+        /// <summary>
+        /// Số tiền cần thanh toán qua PayOS
+        /// </summary>
+        public decimal PayOSAmountRequired { get; set; }
+
+        /// <summary>
+        /// Discount đã áp dụng
+        /// </summary>
+        public decimal DiscountApplied { get; set; }
+
+        /// <summary>
+        /// Phí ship
+        /// </summary>
+        public decimal ShippingFee { get; set; }
+
+        /// <summary>
+        /// Voucher code đã dùng
+        /// </summary>
+        public string? VoucherCodeUsed { get; set; }
     }
 }
