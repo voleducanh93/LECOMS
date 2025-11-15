@@ -1,4 +1,5 @@
 ﻿using LECOMS.Common.Helper;
+using LECOMS.Data.DTOs.Course;
 using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.Service.Services;
 using LECOMS.ServiceContract.Interfaces;
@@ -155,7 +156,7 @@ namespace LECOMS.API.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
         /// <summary>
-        /// Lấy thông tin course (public) kèm sessions và lessons theo slug (trang chi tiết khóa học)
+        /// Lấy thông tin course (public) kèm sessions, lessons và sản phẩm linked theo slug (trang chi tiết khóa học)
         /// </summary>
         [HttpGet("courses/{slug}")]
         [AllowAnonymous]
@@ -164,10 +165,13 @@ namespace LECOMS.API.Controllers
             var response = new APIResponse();
             try
             {
-                // 1️⃣ Lấy course theo slug (active)
+                // 1️⃣ Lấy course theo slug (active) + include đầy đủ navigation
                 var course = await _uow.Courses.GetAsync(
                     c => c.Slug == slug && c.Active == 1,
-                    includeProperties: "Category,Shop,Sections.Lessons"
+                    includeProperties:
+                        "Category,Shop," +
+                        "Sections.Lessons.LessonProducts.Product.Images," +
+                        "Sections.Lessons.LessonProducts.Product.Shop"
                 );
 
                 if (course == null)
@@ -203,13 +207,35 @@ namespace LECOMS.API.Controllers
                             orderIndex = s.OrderIndex,
                             lessons = s.Lessons
                                 .OrderBy(l => l.OrderIndex)
-                                .Select(l => new
+                                .Select(l =>
                                 {
-                                    id = l.Id,
-                                    title = l.Title,
-                                    type = l.Type.ToString(),
-                                    durationSeconds = l.DurationSeconds,
-                                    contentUrl = l.ContentUrl
+                                    // 🔹 Lấy danh sách sản phẩm liên kết với lesson
+                                    var linkedProducts = l.LessonProducts?
+                                        .Where(lp => lp.Product != null)
+                                        .Select(lp => new LessonLinkedProductDTO
+                                        {
+                                            Id = lp.Product.Id,
+                                            Name = lp.Product.Name,
+                                            Price = lp.Product.Price,
+                                            ThumbnailUrl = lp.Product.Images
+                                                .OrderBy(i => i.OrderIndex)
+                                                .FirstOrDefault(i => i.IsPrimary)?.Url,
+                                            ShopName = lp.Product.Shop != null ? lp.Product.Shop.Name : null
+                                        })
+                                        .ToList();
+
+                                    return new
+                                    {
+                                        id = l.Id,
+                                        title = l.Title,
+                                        type = l.Type.ToString(),
+                                        durationSeconds = l.DurationSeconds,
+                                        contentUrl = l.ContentUrl,
+                                        orderIndex = l.OrderIndex,
+
+                                        hasLinkedProducts = linkedProducts != null && linkedProducts.Any(),
+                                        linkedProducts = linkedProducts // có thể null hoặc []
+                                    };
                                 })
                         })
                 };
@@ -226,6 +252,7 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+
         [HttpGet("products/{id}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetProductDetailById(string id)

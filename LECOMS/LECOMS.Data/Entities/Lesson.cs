@@ -21,5 +21,7 @@ namespace LECOMS.Data.Entities
         public int? DurationSeconds { get; set; } // for video
         [MaxLength(1000)] public string? ContentUrl { get; set; }
         public int OrderIndex { get; set; }
+        public ICollection<LessonProduct> LessonProducts { get; set; } = new List<LessonProduct>();
+
     }
 }
