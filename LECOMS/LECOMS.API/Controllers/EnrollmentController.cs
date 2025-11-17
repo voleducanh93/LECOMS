@@ -92,5 +92,36 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+
+        [HttpGet("my-enrollments")]
+        public async Task<IActionResult> GetMyEnrollments()
+        {
+            var response = new APIResponse();
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                if (string.IsNullOrWhiteSpace(userId))
+                {
+                    response.StatusCode = HttpStatusCode.Unauthorized;
+                    response.IsSuccess = false;
+                    response.ErrorMessages.Add("User not found.");
+                    return StatusCode((int)response.StatusCode, response);
+                }
+
+                var result = await _enrollmentService.GetUserEnrollmentsAsync(userId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
+            }
+            catch (Exception ex)
+            {
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.IsSuccess = false;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
+
     }
 }

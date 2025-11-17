@@ -1,9 +1,11 @@
 ﻿using LECOMS.Common.Helper;
 using LECOMS.Data.DTOs.Course;
+using LECOMS.Data.Entities;
 using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.Service.Services;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
@@ -17,16 +19,19 @@ namespace LECOMS.API.Controllers
         private readonly ISellerCourseService _courseService;
         private readonly IUnitOfWork _uow;
         private readonly IShopService _shopService;
+        private readonly UserManager<User> _userManager;
         public HomeController(
             IProductService productService,
             ISellerCourseService courseService,
             IUnitOfWork uow,
-            IShopService shopService)
+            IShopService shopService, UserManager<User> userManager)
         {
             _productService = productService;
             _courseService = courseService;
             _uow = uow;
             _shopService = shopService;
+            _userManager = userManager;
+
         }
 
         /// <summary>
@@ -182,7 +187,22 @@ namespace LECOMS.API.Controllers
                     return StatusCode((int)response.StatusCode, response);
                 }
 
-                // 2️⃣ Map dữ liệu trả về cho FE
+                // 2️⃣ CHECK ENROLLMENT (để nằm TRƯỚC phần result)
+                bool isEnrolled = false;
+
+                if (User.Identity != null && User.Identity.IsAuthenticated)
+                {
+                    var userId = _userManager.GetUserId(User);
+
+                    if (!string.IsNullOrEmpty(userId))
+                    {
+                        isEnrolled = await _uow.Enrollments.AnyAsync(
+                            e => e.UserId == userId && e.CourseId == course.Id
+                        );
+                    }
+                }
+
+                // 3️⃣ Map dữ liệu trả về cho FE
                 var result = new
                 {
                     id = course.Id,
@@ -191,6 +211,10 @@ namespace LECOMS.API.Controllers
                     summary = course.Summary,
                     categoryName = course.Category?.Name,
                     courseThumbnail = course.CourseThumbnail,
+
+                    // 👇👇 Add isEnrolled vào đây (do khai báo phía trên)
+                    isEnrolled = isEnrolled,
+
                     shop = new
                     {
                         id = course.Shop.Id,
@@ -198,6 +222,7 @@ namespace LECOMS.API.Controllers
                         avatar = course.Shop.ShopAvatar,
                         description = course.Shop.Description
                     },
+
                     sections = course.Sections
                         .OrderBy(s => s.OrderIndex)
                         .Select(s => new
@@ -220,7 +245,7 @@ namespace LECOMS.API.Controllers
                                             ThumbnailUrl = lp.Product.Images
                                                 .OrderBy(i => i.OrderIndex)
                                                 .FirstOrDefault(i => i.IsPrimary)?.Url,
-                                            ShopName = lp.Product.Shop != null ? lp.Product.Shop.Name : null
+                                            ShopName = lp.Product.Shop?.Name
                                         })
                                         .ToList();
 
@@ -234,7 +259,7 @@ namespace LECOMS.API.Controllers
                                         orderIndex = l.OrderIndex,
 
                                         hasLinkedProducts = linkedProducts != null && linkedProducts.Any(),
-                                        linkedProducts = linkedProducts // có thể null hoặc []
+                                        linkedProducts = linkedProducts
                                     };
                                 })
                         })

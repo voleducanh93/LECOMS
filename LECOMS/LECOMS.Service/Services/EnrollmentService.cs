@@ -47,7 +47,10 @@ namespace LECOMS.Service.Services
                 CourseTitle = course.Title,
                 Progress = enrollment.Progress,
                 EnrolledAt = enrollment.EnrolledAt,
-                CompletedAt = enrollment.CompletedAt
+                CompletedAt = enrollment.CompletedAt,
+                ShopName = enrollment.Course.Shop?.Name,
+                CategoryName = enrollment.Course.Category?.Name,
+                CourseThumbnail = enrollment.Course.CourseThumbnail
             };
         }
 
@@ -55,7 +58,8 @@ namespace LECOMS.Service.Services
         {
             if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(courseId)) return null;
 
-            var e = await _uow.Enrollments.GetAsync(en => en.UserId == userId && en.CourseId == courseId, includeProperties: "Course");
+            var e = await _uow.Enrollments.GetAsync(en => en.UserId == userId && en.CourseId == courseId, includeProperties: "Course,Course.Shop,Course.Category"
+);
             if (e == null) return null;
 
             return new EnrollmentDTO
@@ -66,8 +70,31 @@ namespace LECOMS.Service.Services
                 CourseTitle = e.Course?.Title,
                 Progress = e.Progress,
                 EnrolledAt = e.EnrolledAt,
-                CompletedAt = e.CompletedAt
+                CompletedAt = e.CompletedAt,
+                // NEW — cần Include Course.Shop và Course.Category ở Repository
+                ShopName = e.Course.Shop?.Name,
+                CategoryName = e.Course.Category?.Name,
+                CourseThumbnail = e.Course.CourseThumbnail
             };
         }
+        public async Task<IEnumerable<EnrollmentDTO>> GetUserEnrollmentsAsync(string userId)
+        {
+            var list = await _uow.Enrollments.GetByUserAsync(userId);
+
+            return list.Select(e => new EnrollmentDTO
+            {
+                Id = e.Id,
+                UserId = e.UserId,
+                CourseId = e.CourseId,
+                CourseTitle = e.Course.Title,
+                Progress = e.Progress,
+                EnrolledAt = e.EnrolledAt,
+                CompletedAt = e.CompletedAt,
+                ShopName = e.Course.Shop?.Name,
+                CategoryName = e.Course.Category?.Name,
+                CourseThumbnail = e.Course.CourseThumbnail
+            });
+        }
+
     }
 }

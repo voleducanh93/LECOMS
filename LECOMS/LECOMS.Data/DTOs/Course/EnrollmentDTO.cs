@@ -12,5 +12,9 @@ namespace LECOMS.Data.DTOs.Course
         public double Progress { get; set; }
         public DateTime EnrolledAt { get; set; }
         public DateTime? CompletedAt { get; set; }
+        public string? ShopName { get; set; }
+        public string? CategoryName { get; set; }
+        public string? CourseThumbnail { get; set; }
+
     }
 }

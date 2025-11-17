@@ -16,5 +16,16 @@ namespace LECOMS.Repository.Repositories
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e => e.UserId == userId && e.CourseId == courseId);
         }
+        public async Task<List<Enrollment>> GetByUserAsync(string userId)
+        {
+            return await dbSet
+                .Include(e => e.Course)
+                    .ThenInclude(c => c.Shop)
+                .Include(e => e.Course)
+                    .ThenInclude(c => c.Category)
+                .AsNoTracking()
+                .Where(e => e.UserId == userId)
+                .ToListAsync();
+        }
     }
 }
