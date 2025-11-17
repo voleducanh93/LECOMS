@@ -236,6 +236,17 @@ namespace LECOMS.Common.Helper
                     s.IsClaimed ? "Claimed" :
                     s.IsCompleted ? "Completed" :
                     "InProgress"));
+
+            // ============================================================
+            // ENROLLMENT (THÊM COURSE SLUG + FULL INCLUDE)
+            // ============================================================
+            CreateMap<Enrollment, EnrollmentDTO>()
+                .ForMember(d => d.CourseTitle, o => o.MapFrom(s => s.Course.Title))
+                .ForMember(d => d.CourseSlug, o => o.MapFrom(s => s.Course.Slug))          // ⭐ THÊM
+                .ForMember(d => d.ShopName, o => o.MapFrom(s => s.Course.Shop.Name))
+                .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Course.Category.Name))
+                .ForMember(d => d.CourseThumbnail, o => o.MapFrom(s => s.Course.CourseThumbnail));
+
         }
     }
 }

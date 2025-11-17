@@ -1,4 +1,5 @@
-﻿using LECOMS.Data.DTOs.Course;
+﻿using CloudinaryDotNet;
+using LECOMS.Data.DTOs.Course;
 using LECOMS.Data.Entities;
 using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
@@ -45,6 +46,7 @@ namespace LECOMS.Service.Services
                 UserId = enrollment.UserId,
                 CourseId = enrollment.CourseId,
                 CourseTitle = course.Title,
+                CourseSlug = course.Slug,
                 Progress = enrollment.Progress,
                 EnrolledAt = enrollment.EnrolledAt,
                 CompletedAt = enrollment.CompletedAt,
@@ -68,6 +70,7 @@ namespace LECOMS.Service.Services
                 UserId = e.UserId,
                 CourseId = e.CourseId,
                 CourseTitle = e.Course?.Title,
+                CourseSlug = e.Course.Slug,
                 Progress = e.Progress,
                 EnrolledAt = e.EnrolledAt,
                 CompletedAt = e.CompletedAt,
@@ -87,6 +90,7 @@ namespace LECOMS.Service.Services
                 UserId = e.UserId,
                 CourseId = e.CourseId,
                 CourseTitle = e.Course.Title,
+                CourseSlug = e.Course.Slug,
                 Progress = e.Progress,
                 EnrolledAt = e.EnrolledAt,
                 CompletedAt = e.CompletedAt,

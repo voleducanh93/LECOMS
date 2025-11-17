@@ -9,6 +9,7 @@ namespace LECOMS.Data.DTOs.Course
         public string UserId { get; set; } = null!;
         public string CourseId { get; set; } = null!;
         public string? CourseTitle { get; set; }
+        public string? CourseSlug { get; set; }
         public double Progress { get; set; }
         public DateTime EnrolledAt { get; set; }
         public DateTime? CompletedAt { get; set; }
