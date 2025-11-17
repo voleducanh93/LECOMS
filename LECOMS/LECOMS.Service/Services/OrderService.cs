@@ -380,7 +380,7 @@ namespace LECOMS.Service.Services
             };
 
             await _uow.Transactions.AddAsync(transaction);
-            //await _uow.CompleteAsync();
+            await _uow.CompleteAsync();
 
             _logger.LogInformation("✅ Transaction created: {TransactionId}, Amount: {Amount:N0}",
                 transaction.Id, totalAmount);
