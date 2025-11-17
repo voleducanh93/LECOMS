@@ -40,7 +40,7 @@ namespace LECOMS.API.Controllers
         /// POST: api/orders/checkout
         /// </summary>
         [HttpPost("checkout")]
-        [Authorize(Roles = "Customer")]
+        [Authorize(Roles = "Customer, Seller")]
         public async Task<IActionResult> Checkout([FromBody] CheckoutRequestDTO dto)
         {
             var response = new APIResponse();
@@ -112,7 +112,7 @@ namespace LECOMS.API.Controllers
         /// GET: api/orders/my?page=1&pageSize=20
         /// </summary>
         [HttpGet("my")]
-        [Authorize(Roles = "Customer")]
+        [Authorize(Roles = "Customer, Seller")]
         public async Task<IActionResult> MyOrders(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
@@ -229,7 +229,7 @@ namespace LECOMS.API.Controllers
         /// POST: api/orders/{id}/confirm-received
         /// </summary>
         [HttpPost("{id}/confirm-received")]
-        [Authorize(Roles = "Customer")]
+        [Authorize(Roles = "Customer, Seller")]
         public async Task<IActionResult> ConfirmReceived(string id)
         {
             var response = new APIResponse();
