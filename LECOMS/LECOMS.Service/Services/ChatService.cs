@@ -40,7 +40,10 @@ namespace LECOMS.Service.Services
             if (product == null)
                 throw new KeyNotFoundException("Product not found.");
 
-            string sellerId = product.Shop.SellerId;
+            var sellerId = product.Shop.SellerId;
+
+            if (buyerId == sellerId)
+                throw new InvalidOperationException("Seller cannot start conversation as buyer for own product.");
 
             // Check nếu đã có conversation này rồi
             var existing = await _uow.Conversations.GetByKeyAsync(
@@ -108,10 +111,10 @@ namespace LECOMS.Service.Services
         // ========================================================
         public async Task<MessageDTO> SendSellerMessage(Guid conversationId, string senderId, string content)
         {
-            // Validate conversation
             var conversation = await _uow.Conversations.GetAsync(
                 c => c.Id == conversationId,
-                includeProperties: "Messages");
+                includeProperties: "Messages"
+            );
 
             if (conversation == null)
                 throw new KeyNotFoundException("Conversation not found.");
@@ -119,7 +122,10 @@ namespace LECOMS.Service.Services
             if (conversation.IsAIChat)
                 throw new InvalidOperationException("This is an AI conversation. Use SendAIMessage instead.");
 
-            // Tạo message
+            // 🔒 Check user có thuộc cuộc chat không
+            if (conversation.BuyerId != senderId && conversation.SellerId != senderId)
+                throw new UnauthorizedAccessException("You are not part of this conversation.");
+
             var message = new Message
             {
                 Id = Guid.NewGuid(),
@@ -132,7 +138,6 @@ namespace LECOMS.Service.Services
 
             await _uow.Messages.AddAsync(message);
 
-            // Cập nhật conversation
             conversation.LastMessage = content;
             conversation.LastMessageAt = DateTime.UtcNow;
 
@@ -140,6 +145,7 @@ namespace LECOMS.Service.Services
 
             return _mapper.Map<MessageDTO>(message);
         }
+    
 
         // ========================================================
         // 4. SEND Message to AI (AI auto responds)

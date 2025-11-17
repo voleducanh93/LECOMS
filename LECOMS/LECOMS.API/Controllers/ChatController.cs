@@ -57,19 +57,19 @@ namespace LECOMS.API.Controllers
         // ================================================
         // SEND MESSAGE TO SELLER
         // ================================================
-        [HttpPost("seller/{conversationId}/message")]
-        public async Task<IActionResult> SendSellerMessage(Guid conversationId, [FromBody] SendMessageDTO dto)
+        [HttpPost("{conversationId}/message")]
+        public async Task<IActionResult> SendMessage(Guid conversationId, [FromBody] SendMessageDTO dto)
         {
             var userId = _userManager.GetUserId(User);
 
-            var msg = await _chatService.SendSellerMessage(conversationId, userId, dto.Content);
+            var msg = await _chatService.SendSellerMessage(conversationId, userId, dto.Content); // hoặc rename thành SendMessage
 
-            // 🔥 Realtime send
             await _hub.Clients.Group(conversationId.ToString())
                 .SendAsync("ReceiveMessage", msg);
 
             return Ok(msg);
         }
+
 
         // ================================================
         // SEND MESSAGE TO AI (AI auto reply)
