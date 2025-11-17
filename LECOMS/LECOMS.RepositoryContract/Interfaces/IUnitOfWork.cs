@@ -60,5 +60,6 @@ namespace LECOMS.RepositoryContract.Interfaces
 
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
+        bool HasActiveTransaction { get; }
     }
 }

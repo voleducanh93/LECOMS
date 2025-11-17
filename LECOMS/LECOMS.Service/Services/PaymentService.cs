@@ -50,77 +50,102 @@ namespace LECOMS.Service.Services
         /// </summary>
         public async Task<string> CreatePaymentLinkAsync(string orderId)
         {
-            _logger.LogInformation("=== START CreatePaymentLink for Order: {OrderId} ===", orderId);
+            _logger.LogInformation("=== START CreatePaymentLink (retry) for Order: {OrderId} ===", orderId);
 
             try
             {
-                // 1. Load order with full details
-                var order = await _unitOfWork.Orders.GetAsync(
-                    o => o.Id == orderId,
-                    includeProperties: "Details.Product,Shop,User");
-
-                if (order == null)
-                {
-                    throw new InvalidOperationException($"Order {orderId} not found");
-                }
-
-                _logger.LogInformation("Order {OrderCode}: Subtotal={Subtotal:N0}, Shipping={Shipping:N0}, Discount={Discount:N0}, Total={Total:N0}",
-                    order.OrderCode, order.Subtotal, order.ShippingFee, order.Discount, order.Total);
-
-                // 2. Get platform config
-                var config = await _unitOfWork.PlatformConfigs.GetConfigAsync();
-                if (config == null)
-                {
-                    throw new InvalidOperationException("Platform configuration not found");
-                }
-
-                // ⭐⭐⭐ 3. CALCULATE FEES BASED ON THIS ORDER ONLY ⭐⭐⭐
-                decimal orderTotal = order.Total; // ✅ CHỈ order này
-                decimal platformFeeAmount = orderTotal * config.DefaultCommissionRate / 100;
-                decimal shopAmount = orderTotal - platformFeeAmount;
-
-                // 4. Check existing transaction
+                // 0. Cố gắng tìm transaction hiện có theo orderId (có thể là 1 hoặc nhiều order)
                 var transaction = await _unitOfWork.Transactions.GetByOrderIdAsync(orderId);
+
+                List<Order> orders = new List<Order>();
 
                 if (transaction != null)
                 {
-                    _logger.LogInformation("Found existing transaction: {TxId}, Status: {Status}, OldOrderCode: {Code}",
-                        transaction.Id, transaction.Status, transaction.PayOSOrderCode);
+                    _logger.LogInformation(
+                        "Found existing transaction {TxId} with OrderIds = {OrderIds}, Status = {Status}",
+                        transaction.Id, transaction.OrderId, transaction.Status);
 
-                    // ❌ Nếu đã Completed, không cho retry
                     if (transaction.Status == TransactionStatus.Completed)
                     {
-                        throw new InvalidOperationException("This order has already been paid successfully");
+                        throw new InvalidOperationException("This order group has already been paid successfully.");
                     }
 
-                    // ✅ Nếu Pending/Failed, reset và UPDATE AMOUNT
-                    if (transaction.Status == TransactionStatus.Pending ||
-                        transaction.Status == TransactionStatus.Failed)
+                    // Lấy toàn bộ orders trong transaction (group checkout)
+                    var orderIds = transaction.OrderId
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                    foreach (var oid in orderIds)
                     {
-                        _logger.LogInformation("🔄 RETRY MODE: Resetting transaction");
+                        var o = await _unitOfWork.Orders.GetAsync(
+                            x => x.Id == oid,
+                            includeProperties: "Details.Product,Shop,User");
 
-                        // ⭐ UPDATE transaction amounts to match THIS ORDER ONLY
-                        transaction.OrderId = orderId; // ✅ CHỈ order này
-                        transaction.TotalAmount = orderTotal;
-                        transaction.PlatformFeeAmount = platformFeeAmount;
-                        transaction.ShopAmount = shopAmount;
-                        transaction.PayOSOrderCode = null;
-                        transaction.PayOSPaymentUrl = null;
-                        transaction.PayOSTransactionId = null;
-                        transaction.Status = TransactionStatus.Pending;
-                        transaction.Note += $" | Retry at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC";
-
-                        await _unitOfWork.Transactions.UpdateAsync(transaction);
-                        await _unitOfWork.CompleteAsync();
+                        if (o != null) orders.Add(o);
+                        else _logger.LogWarning("Order {OrderId} not found when retry payment", oid);
                     }
+
+                    if (!orders.Any())
+                    {
+                        throw new InvalidOperationException("No valid orders found for transaction when retrying payment.");
+                    }
+
+                    _logger.LogInformation("Retrying payment for {Count} order(s) in transaction {TxId}",
+                        orders.Count, transaction.Id);
+
+                    // (Optional) Nếu muốn, có thể kiểm tra lại tổng tiền vs transaction.TotalAmount
+
+                    // Reset một số field cho retry
+                    transaction.PayOSOrderCode = null;
+                    transaction.PayOSPaymentUrl = null;
+                    transaction.PayOSTransactionId = null;
+                    transaction.Status = TransactionStatus.Pending;
+                    transaction.Note += $" | Retry at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC";
+
+                    await _unitOfWork.Transactions.UpdateAsync(transaction);
+                    await _unitOfWork.CompleteAsync();
+
+                    // Tạo lại link PayOS cho nhóm orders này
+                    var paymentUrl = await CreatePayOSPaymentAsync(transaction, orders);
+
+                    transaction.PayOSPaymentUrl = paymentUrl;
+                    await _unitOfWork.Transactions.UpdateAsync(transaction);
+                    await _unitOfWork.CompleteAsync();
+
+                    _logger.LogInformation(
+                        "=== ✅ SUCCESS: Retry payment link for transaction {TxId}: {Url} ===",
+                        transaction.Id, paymentUrl);
+
+                    return paymentUrl;
                 }
                 else
                 {
-                    // ⭐ Tạo transaction MỚI cho order này
-                    transaction = new Transaction
+                    // 🔹 Trường hợp KHÔNG có transaction → fallback xử lý 1 order đơn lẻ
+                    // (Use case: admin tạo link thủ công cho một order không thông qua checkout group)
+
+                    _logger.LogInformation("No transaction found for Order {OrderId}. Creating SINGLE-order transaction.", orderId);
+
+                    var order = await _unitOfWork.Orders.GetAsync(
+                        o => o.Id == orderId,
+                        includeProperties: "Details.Product,Shop,User");
+
+                    if (order == null)
+                    {
+                        throw new InvalidOperationException($"Order {orderId} not found");
+                    }
+
+                    // Lấy config
+                    var config = await _unitOfWork.PlatformConfigs.GetConfigAsync()
+                        ?? throw new InvalidOperationException("Platform configuration not found");
+
+                    decimal orderTotal = order.Total;
+                    decimal platformFeeAmount = orderTotal * config.DefaultCommissionRate / 100;
+                    decimal shopAmount = orderTotal - platformFeeAmount;
+
+                    // Tạo transaction mới cho 1 order
+                    var newTx = new Transaction
                     {
                         Id = Guid.NewGuid().ToString(),
-                        OrderId = orderId, // ✅ CHỈ order này
+                        OrderId = orderId,
                         TotalAmount = orderTotal,
                         PlatformFeePercent = config.DefaultCommissionRate,
                         PlatformFeeAmount = platformFeeAmount,
@@ -131,32 +156,29 @@ namespace LECOMS.Service.Services
                         Note = $"Payment for order {order.OrderCode}"
                     };
 
-                    await _unitOfWork.Transactions.AddAsync(transaction);
+                    await _unitOfWork.Transactions.AddAsync(newTx);
                     await _unitOfWork.CompleteAsync();
+
+                    var paymentUrl = await CreatePayOSPaymentAsync(newTx, new List<Order> { order });
+
+                    newTx.PayOSPaymentUrl = paymentUrl;
+                    await _unitOfWork.Transactions.UpdateAsync(newTx);
+                    await _unitOfWork.CompleteAsync();
+
+                    _logger.LogInformation(
+                        "=== ✅ SUCCESS: Payment link for single order {OrderCode}: {Url} ===",
+                        order.OrderCode, paymentUrl);
+
+                    return paymentUrl;
                 }
-
-                // 5. Create PayOS payment link - CHỈ CHO ORDER NÀY
-                _logger.LogInformation("Creating payment link for SINGLE order: {OrderCode}, Amount: {Amount:N0}",
-                    order.OrderCode, orderTotal);
-
-                string paymentUrl = await CreatePayOSPaymentAsync(transaction, new List<Order> { order });
-
-                // 6. Update transaction
-                transaction.PayOSPaymentUrl = paymentUrl;
-                await _unitOfWork.Transactions.UpdateAsync(transaction);
-                await _unitOfWork.CompleteAsync();
-
-                _logger.LogInformation("=== ✅ SUCCESS: Payment link for order {OrderCode}: {Url} ===",
-                    order.OrderCode, paymentUrl);
-
-                return paymentUrl;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "=== ❌ ERROR creating payment link for Order {OrderId} ===", orderId);
+                _logger.LogError(ex, "=== ❌ ERROR in CreatePaymentLinkAsync for Order {OrderId} ===", orderId);
                 throw;
             }
         }
+
 
         /// <summary>
         /// ⭐ Tạo payment link cho NHIỀU orders (checkout flow)
