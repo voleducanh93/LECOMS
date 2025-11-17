@@ -43,7 +43,7 @@
         /// <summary>
         /// SKU của product (optional)
         /// </summary>
-        public string? ProductSku { get; set; }
+        //public string? ProductSku { get; set; }
 
         /// <summary>
         /// Category của product (optional)
