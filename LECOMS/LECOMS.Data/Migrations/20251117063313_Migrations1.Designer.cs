@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LECOMS.Data.Migrations
 {
     [DbContext(typeof(LecomDbContext))]
-    [Migration("20251114043503_Migrations")]
-    partial class Migrations
+    [Migration("20251117063313_Migrations1")]
+    partial class Migrations1
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -99,6 +99,45 @@ namespace LECOMS.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Badges");
+                });
+
+            modelBuilder.Entity("LECOMS.Data.Entities.Booster", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("CostPoints")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<TimeSpan?>("Duration")
+                        .HasColumnType("time");
+
+                    b.Property<int>("EffectType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Boosters");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.Cart", b =>
@@ -1102,6 +1141,18 @@ namespace LECOMS.Data.Migrations
                     b.Property<int>("Balance")
                         .HasColumnType("int");
 
+                    b.Property<int>("CurrentXP")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LifetimeEarned")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LifetimeSpent")
+                        .HasColumnType("int");
+
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -1222,6 +1273,48 @@ namespace LECOMS.Data.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("ProductImages");
+                });
+
+            modelBuilder.Entity("LECOMS.Data.Entities.QuestDefinition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Period")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RewardPoints")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RewardXP")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TargetValue")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("QuestDefinitions");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.RankTier", b =>
@@ -1780,6 +1873,76 @@ namespace LECOMS.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("UserBadges");
+                });
+
+            modelBuilder.Entity("LECOMS.Data.Entities.UserBooster", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("AcquiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ActivatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("BoosterId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsConsumed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoosterId");
+
+                    b.HasIndex("UserId", "BoosterId", "AcquiredAt");
+
+                    b.ToTable("UserBoosters");
+                });
+
+            modelBuilder.Entity("LECOMS.Data.Entities.UserQuestProgress", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("CurrentValue")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsClaimed")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("QuestDefinitionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestDefinitionId");
+
+                    b.HasIndex("UserId", "QuestDefinitionId", "PeriodStart")
+                        .IsUnique();
+
+                    b.ToTable("UserQuestProgresses");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.UserTierHistory", b =>
@@ -2422,7 +2585,7 @@ namespace LECOMS.Data.Migrations
             modelBuilder.Entity("LECOMS.Data.Entities.LessonProduct", b =>
                 {
                     b.HasOne("LECOMS.Data.Entities.Lesson", "Lesson")
-                        .WithMany()
+                        .WithMany("LessonProducts")
                         .HasForeignKey("LessonId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -2523,7 +2686,7 @@ namespace LECOMS.Data.Migrations
             modelBuilder.Entity("LECOMS.Data.Entities.PointLedger", b =>
                 {
                     b.HasOne("LECOMS.Data.Entities.PointWallet", "Wallet")
-                        .WithMany("Ledgers")
+                        .WithMany()
                         .HasForeignKey("PointWalletId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -2692,6 +2855,44 @@ namespace LECOMS.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Badge");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LECOMS.Data.Entities.UserBooster", b =>
+                {
+                    b.HasOne("LECOMS.Data.Entities.Booster", "Booster")
+                        .WithMany()
+                        .HasForeignKey("BoosterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LECOMS.Data.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Booster");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LECOMS.Data.Entities.UserQuestProgress", b =>
+                {
+                    b.HasOne("LECOMS.Data.Entities.QuestDefinition", "Quest")
+                        .WithMany()
+                        .HasForeignKey("QuestDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LECOMS.Data.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Quest");
 
                     b.Navigation("User");
                 });
@@ -2870,6 +3071,11 @@ namespace LECOMS.Data.Migrations
                     b.Navigation("Entries");
                 });
 
+            modelBuilder.Entity("LECOMS.Data.Entities.Lesson", b =>
+                {
+                    b.Navigation("LessonProducts");
+                });
+
             modelBuilder.Entity("LECOMS.Data.Entities.Order", b =>
                 {
                     b.Navigation("Details");
@@ -2884,11 +3090,6 @@ namespace LECOMS.Data.Migrations
             modelBuilder.Entity("LECOMS.Data.Entities.Payment", b =>
                 {
                     b.Navigation("Attempts");
-                });
-
-            modelBuilder.Entity("LECOMS.Data.Entities.PointWallet", b =>
-                {
-                    b.Navigation("Ledgers");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.Product", b =>

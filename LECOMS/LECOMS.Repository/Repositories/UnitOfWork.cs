@@ -43,10 +43,42 @@ namespace LECOMS.Repository.Repositories
         public IPlatformConfigRepository PlatformConfigs { get; }
         public IConversationRepository Conversations { get; }
         public IMessageRepository Messages { get; }
+        public IQuestDefinitionRepository QuestDefinitions { get; }
+        public IUserQuestProgressRepository UserQuestProgresses { get; }
+
+        public IEarnRuleRepository EarnRules { get; }
+        public IRedeemRuleRepository RedeemRules { get; }
+        public ILeaderboardRepository Leaderboards { get; }
+        public ILeaderboardEntryRepository LeaderboardEntries { get; }
+        public IVoucherRepository Vouchers { get; }
+        public IUserVoucherRepository UserVouchers { get; }
+        public IRankTierRepository RankTiers { get; }
+        public IBoosterRepository Boosters { get; }
+        public IUserBoosterRepository UserBoosters { get; }
+        public IPointWalletRepository PointWallets { get; }
+        public IPointLedgerRepository PointLedgers { get; }
 
         public UnitOfWork(LecomDbContext context, IUserRepository userRepository, IShopRepository shopRepository, ICourseRepository courseRepo, ICourseSectionRepository sectionRepo,
         ILessonRepository lessonRepo, ICourseProductRepository cpRepo, ICourseCategoryRepository courseCategories, IProductCategoryRepository productCategories, IProductRepository products, IEnrollmentRepository enrollmentRepository, IProductImageRepository productImageRepository, ILessonProductRepository lessonProductRepository, ILandingPageRepository landingPage, ICartRepository cartRepository, ICartItemRepository cartItemRepository, IOrderRepository orderRepository, IOrderDetailRepository orderDetailRepository, IPaymentRepository paymentRepository, ITransactionRepository transactionRepository, IShopWalletRepository shopWalletRepository, ICustomerWalletRepository customerWalletRepository, IWalletTransactionRepository walletTransactionRepository, ICustomerWalletTransactionRepository customerWalletTransactionRepository, IRefundRequestRepository refundRequestRepository, IWithdrawalRequestRepository withdrawalRequestRepository, ICustomerWithdrawalRequestRepository customerWithdrawalRequestRepository, IPlatformConfigRepository platformConfigRepository
-            ,IConversationRepository conversationRepository, IMessageRepository messageRepository)
+            ,IConversationRepository conversationRepository, IMessageRepository messageRepository,
+     
+
+    // ⭐ thêm mấy thằng gamification ở đây
+    IPointWalletRepository pointWalletRepository,
+    IPointLedgerRepository pointLedgerRepository,
+    IQuestDefinitionRepository questDefinitionRepository,
+    IUserQuestProgressRepository userQuestProgressRepository,
+    IEarnRuleRepository earnRuleRepository,
+    IRedeemRuleRepository redeemRuleRepository,
+    ILeaderboardRepository leaderboardRepository,
+    ILeaderboardEntryRepository leaderboardEntryRepository,
+    IVoucherRepository voucherRepository,
+    IUserVoucherRepository userVoucherRepository,
+    IRankTierRepository rankTierRepository,
+    IBoosterRepository boosterRepository,
+    IUserBoosterRepository userBoosterRepository
+)
+
         {
             _context = context;
             Users = userRepository;
@@ -79,6 +111,20 @@ namespace LECOMS.Repository.Repositories
             PlatformConfigs = platformConfigRepository;
             Conversations = conversationRepository;
             Messages = messageRepository;
+            PointWallets = pointWalletRepository;
+            PointLedgers = pointLedgerRepository;
+            QuestDefinitions = questDefinitionRepository;
+            UserQuestProgresses = userQuestProgressRepository;
+            EarnRules = earnRuleRepository;
+            RedeemRules = redeemRuleRepository;
+            Leaderboards = leaderboardRepository;
+            LeaderboardEntries = leaderboardEntryRepository;
+            Vouchers = voucherRepository;
+            UserVouchers = userVoucherRepository;
+            RankTiers = rankTierRepository;
+            Boosters = boosterRepository;
+            UserBoosters = userBoosterRepository;
+
         }
         public async Task<int> CompleteAsync()
         {

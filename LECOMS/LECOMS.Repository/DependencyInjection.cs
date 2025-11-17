@@ -46,6 +46,20 @@ namespace LECOMS.Repository
             services.AddTransient<IPlatformConfigRepository, PlatformConfigRepository>();
             services.AddTransient<IConversationRepository, ConversationRepository>();
             services.AddTransient<IMessageRepository, MessageRepository>();
+            services.AddScoped<IPointWalletRepository, PointWalletRepository>();
+            services.AddScoped<IPointLedgerRepository, PointLedgerRepository>();
+            services.AddScoped<IQuestDefinitionRepository, QuestDefinitionRepository>();
+            services.AddScoped<IUserQuestProgressRepository, UserQuestProgressRepository>();
+            services.AddScoped<IBoosterRepository, BoosterRepository>();
+            services.AddScoped<IUserBoosterRepository, UserBoosterRepository>();
+            services.AddTransient<IEarnRuleRepository, EarnRuleRepository>();
+            services.AddTransient<IRedeemRuleRepository, RedeemRuleRepository>();
+            services.AddTransient<ILeaderboardRepository, LeaderboardRepository>();
+            services.AddTransient<ILeaderboardEntryRepository, LeaderboardEntryRepository>();
+            services.AddTransient<IVoucherRepository, VoucherRepository>();
+            services.AddTransient<IUserVoucherRepository, UserVoucherRepository>();
+            services.AddTransient<IRankTierRepository, RankTierRepository>();
+
             //DI Unit Of Work
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             return services;

@@ -42,7 +42,22 @@ namespace LECOMS.RepositoryContract.Interfaces
         ICustomerWithdrawalRequestRepository CustomerWithdrawalRequests { get; }
         IPlatformConfigRepository PlatformConfigs { get; }
         IMessageRepository Messages { get; }
-        IConversationRepository Conversations { get; }  
+        IConversationRepository Conversations { get; }
+        IQuestDefinitionRepository QuestDefinitions { get; }
+        IUserQuestProgressRepository UserQuestProgresses { get; }
+
+        IEarnRuleRepository EarnRules { get; }
+        IRedeemRuleRepository RedeemRules { get; }
+        ILeaderboardRepository Leaderboards { get; }
+        ILeaderboardEntryRepository LeaderboardEntries { get; }
+        IVoucherRepository Vouchers { get; }
+        IUserVoucherRepository UserVouchers { get; }
+        IRankTierRepository RankTiers { get; }
+        IBoosterRepository Boosters { get; }
+        IUserBoosterRepository UserBoosters { get; }
+        IPointWalletRepository PointWallets { get; }
+        IPointLedgerRepository PointLedgers { get; }
+
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
     }

@@ -72,6 +72,25 @@ namespace LECOMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Boosters",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Code = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    EffectType = table.Column<int>(type: "int", nullable: false),
+                    CostPoints = table.Column<int>(type: "int", nullable: false),
+                    Duration = table.Column<TimeSpan>(type: "time", nullable: true),
+                    Active = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Boosters", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "CourseCategories",
                 columns: table => new
                 {
@@ -155,6 +174,26 @@ namespace LECOMS.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ProductCategories", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "QuestDefinitions",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Code = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    Period = table.Column<int>(type: "int", nullable: false),
+                    TargetValue = table.Column<int>(type: "int", nullable: false),
+                    RewardXP = table.Column<int>(type: "int", nullable: false),
+                    RewardPoints = table.Column<int>(type: "int", nullable: false),
+                    Active = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_QuestDefinitions", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -455,7 +494,11 @@ namespace LECOMS.Data.Migrations
                 {
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Balance = table.Column<int>(type: "int", nullable: false)
+                    Balance = table.Column<int>(type: "int", nullable: false),
+                    LifetimeEarned = table.Column<int>(type: "int", nullable: false),
+                    LifetimeSpent = table.Column<int>(type: "int", nullable: false),
+                    Level = table.Column<int>(type: "int", nullable: false),
+                    CurrentXP = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -490,6 +533,35 @@ namespace LECOMS.Data.Migrations
                         name: "FK_UserBadges_Badges_BadgeId",
                         column: x => x.BadgeId,
                         principalTable: "Badges",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "UserBoosters",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    BoosterId = table.Column<int>(type: "int", nullable: false),
+                    AcquiredAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ActivatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsConsumed = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserBoosters", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_UserBoosters_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_UserBoosters_Boosters_BoosterId",
+                        column: x => x.BoosterId,
+                        principalTable: "Boosters",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -564,6 +636,36 @@ namespace LECOMS.Data.Migrations
                         name: "FK_LeaderboardEntries_Leaderboards_LeaderboardId",
                         column: x => x.LeaderboardId,
                         principalTable: "Leaderboards",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "UserQuestProgresses",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    QuestDefinitionId = table.Column<int>(type: "int", nullable: false),
+                    CurrentValue = table.Column<int>(type: "int", nullable: false),
+                    IsCompleted = table.Column<bool>(type: "bit", nullable: false),
+                    IsClaimed = table.Column<bool>(type: "bit", nullable: false),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserQuestProgresses", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_UserQuestProgresses_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_UserQuestProgresses_QuestDefinitions_QuestDefinitionId",
+                        column: x => x.QuestDefinitionId,
+                        principalTable: "QuestDefinitions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -1852,6 +1954,27 @@ namespace LECOMS.Data.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_UserBoosters_BoosterId",
+                table: "UserBoosters",
+                column: "BoosterId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserBoosters_UserId_BoosterId_AcquiredAt",
+                table: "UserBoosters",
+                columns: new[] { "UserId", "BoosterId", "AcquiredAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserQuestProgresses_QuestDefinitionId",
+                table: "UserQuestProgresses",
+                column: "QuestDefinitionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserQuestProgresses_UserId_QuestDefinitionId_PeriodStart",
+                table: "UserQuestProgresses",
+                columns: new[] { "UserId", "QuestDefinitionId", "PeriodStart" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_UserTierHistories_TierID",
                 table: "UserTierHistories",
                 column: "TierID");
@@ -1995,6 +2118,12 @@ namespace LECOMS.Data.Migrations
                 name: "UserBadges");
 
             migrationBuilder.DropTable(
+                name: "UserBoosters");
+
+            migrationBuilder.DropTable(
+                name: "UserQuestProgresses");
+
+            migrationBuilder.DropTable(
                 name: "UserTierHistories");
 
             migrationBuilder.DropTable(
@@ -2038,6 +2167,12 @@ namespace LECOMS.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "Badges");
+
+            migrationBuilder.DropTable(
+                name: "Boosters");
+
+            migrationBuilder.DropTable(
+                name: "QuestDefinitions");
 
             migrationBuilder.DropTable(
                 name: "RankTiers");

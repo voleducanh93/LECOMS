@@ -71,6 +71,11 @@ namespace LECOMS.Data.Models
         public DbSet<WithdrawalRequest> WithdrawalRequests => Set<WithdrawalRequest>();
         public DbSet<CustomerWithdrawalRequest> CustomerWithdrawalRequests => Set<CustomerWithdrawalRequest>();
         public DbSet<PlatformConfig> PlatformConfigs => Set<PlatformConfig>();
+        public DbSet<QuestDefinition> QuestDefinitions { get; set; }
+        public DbSet<UserQuestProgress> UserQuestProgresses { get; set; }
+
+        public DbSet<Booster> Boosters { get; set; }
+        public DbSet<UserBooster> UserBoosters { get; set; }
 
         // =====================================================================
         // ==== MODEL CONFIGURATION ====

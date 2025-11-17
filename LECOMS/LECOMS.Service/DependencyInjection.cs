@@ -52,6 +52,8 @@ namespace LECOMS.Service
             services.AddTransient<GroqAuthHandler>();
             services.AddHttpClient<IAIProductChatService, AIProductChatService>()
                     .AddHttpMessageHandler<GroqAuthHandler>();
+            // ⭐ Gamification Service
+            services.AddTransient<IGamificationService, GamificationService>();
 
             return services;
         }

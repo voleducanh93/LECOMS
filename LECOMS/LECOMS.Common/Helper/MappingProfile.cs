@@ -3,6 +3,7 @@ using LECOMS.Data.DTOs.Auth;
 using LECOMS.Data.DTOs.Cart;
 using LECOMS.Data.DTOs.Chat;
 using LECOMS.Data.DTOs.Course;
+using LECOMS.Data.DTOs.Gamification;
 using LECOMS.Data.DTOs.Order;
 using LECOMS.Data.DTOs.Product;
 using LECOMS.Data.DTOs.Refund;
@@ -319,7 +320,21 @@ namespace LECOMS.Common.Helper
                 opt => opt.MapFrom(src => src.Images.FirstOrDefault().Url));
 
             CreateMap<Conversation, ConversationDTO>();
-
+            // ============================================================
+            // ⭐ GAMIFICATION MAPPING
+            // ============================================================
+            CreateMap<UserQuestProgress, QuestDTO>()
+                .ForMember(d => d.Id, o => o.MapFrom(s => s.Id))
+                .ForMember(d => d.Title, o => o.MapFrom(s => s.Quest.Title))
+                .ForMember(d => d.Description, o => o.MapFrom(s => s.Quest.Description))
+                .ForMember(d => d.Period, o => o.MapFrom(s => s.Quest.Period.ToString()))
+                .ForMember(d => d.CurrentValue, o => o.MapFrom(s => s.CurrentValue))
+                .ForMember(d => d.TargetValue, o => o.MapFrom(s => s.Quest.TargetValue))
+                .ForMember(d => d.RewardXP, o => o.MapFrom(s => s.Quest.RewardXP))
+                .ForMember(d => d.RewardPoints, o => o.MapFrom(s => s.Quest.RewardPoints))
+                .ForMember(d => d.Status, o => o.MapFrom(s =>
+                    s.IsClaimed ? "Claimed" :
+                    s.IsCompleted ? "Completed" : "InProgress"));
         }
     }
 }
