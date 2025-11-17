@@ -87,8 +87,18 @@ namespace LECOMS.Repository.Repositories
 
         public async Task<IDbContextTransaction> BeginTransactionAsync()
         {
+            // Nếu đã có transaction hiện tại thì trả về luôn
+            if (_context.Database.CurrentTransaction != null)
+            {
+                return _context.Database.CurrentTransaction;
+            }
+
+            // Chưa có thì mới tạo transaction mới
             return await _context.Database.BeginTransactionAsync();
         }
+
+        public bool HasActiveTransaction => _context.Database.CurrentTransaction != null;
+
 
         public void Dispose()
         {

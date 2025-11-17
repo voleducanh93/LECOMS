@@ -45,5 +45,6 @@ namespace LECOMS.RepositoryContract.Interfaces
         IConversationRepository Conversations { get; }  
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
+        bool HasActiveTransaction { get; }
     }
 }

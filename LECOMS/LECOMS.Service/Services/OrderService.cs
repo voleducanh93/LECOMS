@@ -159,7 +159,7 @@ namespace LECOMS.Service.Services
                         orderCode, subtotal);
                 }
 
-                await _uow.CompleteAsync();
+                //await _uow.CompleteAsync();
 
                 // ============================================================
                 // STEP 2: TÍNH SHIPPING FEE & DISCOUNT
@@ -223,7 +223,7 @@ namespace LECOMS.Service.Services
                     order.Discount = orderDiscount;
                     order.Total = order.Subtotal + orderShippingFee - orderDiscount;
 
-                    await _uow.Orders.UpdateAsync(order);
+                   // await _uow.Orders.UpdateAsync(order);
 
                     totalAmount += order.Total;
 
@@ -231,7 +231,7 @@ namespace LECOMS.Service.Services
                         order.OrderCode, order.Subtotal, order.ShippingFee, order.Discount, order.Total);
                 }
 
-                await _uow.CompleteAsync();
+               // await _uow.CompleteAsync();
 
                 _logger.LogInformation("💰 GRAND TOTAL:");
                 _logger.LogInformation("   Subtotal:  {Sub:N0} VND", grandSubtotal);
@@ -380,7 +380,7 @@ namespace LECOMS.Service.Services
             };
 
             await _uow.Transactions.AddAsync(transaction);
-            await _uow.CompleteAsync();
+            //await _uow.CompleteAsync();
 
             _logger.LogInformation("✅ Transaction created: {TransactionId}, Amount: {Amount:N0}",
                 transaction.Id, totalAmount);
@@ -411,16 +411,16 @@ namespace LECOMS.Service.Services
             foreach (var order in orders)
             {
                 order.PaymentStatus = PaymentStatus.Paid;
-                await _uow.Orders.UpdateAsync(order);
+                //await _uow.Orders.UpdateAsync(order);
             }
 
             var transaction = await CreateTransactionAsync(orders, amount);
             transaction.Status = TransactionStatus.Completed;
-            await _uow.Transactions.UpdateAsync(transaction);
+            //await _uow.Transactions.UpdateAsync(transaction);
 
             await DistributeRevenueToShopsAsync(orders, transaction);
 
-            await _uow.CompleteAsync();
+            //await _uow.CompleteAsync();
 
             _logger.LogInformation("✅ Wallet payment completed successfully");
         }
@@ -508,7 +508,7 @@ namespace LECOMS.Service.Services
                 shopWallet.TotalEarned += shopReceives;
                 shopWallet.LastUpdated = DateTime.UtcNow;
 
-                await _uow.ShopWallets.UpdateAsync(shopWallet);
+               // await _uow.ShopWallets.UpdateAsync(shopWallet);
 
                 var walletTransaction = new WalletTransaction
                 {
@@ -532,7 +532,7 @@ namespace LECOMS.Service.Services
                     shopId, shopSubtotal, platformFee, config.DefaultCommissionRate, shopReceives);
             }
 
-            await _uow.CompleteAsync();
+            //await _uow.CompleteAsync();
         }
 
         // ============================================================
@@ -590,7 +590,7 @@ namespace LECOMS.Service.Services
 
             order.Status = newStatus;
             await _uow.Orders.UpdateAsync(order);
-            await _uow.CompleteAsync();
+            //await _uow.CompleteAsync();
 
             _logger.LogInformation("Order {OrderId} status updated to {Status} by user {UserId}",
                 orderId, status, userId);
@@ -615,7 +615,7 @@ namespace LECOMS.Service.Services
             order.CompletedAt = DateTime.UtcNow;
 
             await _uow.Orders.UpdateAsync(order);
-            await _uow.CompleteAsync();
+            //await _uow.CompleteAsync();
 
             _logger.LogInformation("✅ Order {OrderId} confirmed received by user {UserId}", orderId, userId);
 
