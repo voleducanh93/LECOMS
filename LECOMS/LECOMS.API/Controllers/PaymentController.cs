@@ -1,8 +1,11 @@
-﻿using LECOMS.ServiceContract.Interfaces;
+﻿using Azure;
+using LECOMS.Common.Helper;
+using LECOMS.ServiceContract.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace LECOMS.API.Controllers
@@ -31,31 +34,40 @@ namespace LECOMS.API.Controllers
         /// <param name="request">Request chứa OrderId</param>
         /// <returns>Payment URL để redirect customer</returns>
         [HttpPost("create-payment-link")]
-        [Authorize] // Customer phải login
+        [Authorize]
         public async Task<IActionResult> CreatePaymentLink([FromBody] CreatePaymentLinkRequest request)
         {
+            var response = new APIResponse();  // 🔥 thêm response
+
             try
             {
-                var paymentUrl = await _paymentService.CreatePaymentLinkAsync(request.OrderId);
+                // Lấy full result (orders + total + shipping + discount + paymentUrl)
+                var result = await _paymentService.CreatePaymentResultForExistingOrdersAsync(request.OrderId);
 
-                return Ok(new
-                {
-                    success = true,
-                    paymentUrl = paymentUrl,
-                    message = "Payment link created successfully"
-                });
+                response.StatusCode = HttpStatusCode.Created;
+                response.IsSuccess = true;
+                response.Result = result;
+
+                return StatusCode((int)response.StatusCode, response);
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "Invalid operation creating payment link");
-                return BadRequest(new { success = false, message = ex.Message });
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+                return BadRequest(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating payment link for Order {OrderId}", request.OrderId);
-                return StatusCode(500, new { success = false, message = "Internal server error" });
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add("Internal server error");
+                response.ErrorMessages.Add(ex.Message);
+
+                return StatusCode(500, response);
             }
         }
+
 
         /// <summary>
         /// Webhook callback từ PayOS

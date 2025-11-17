@@ -1,4 +1,5 @@
-﻿using LECOMS.Data.Entities;
+﻿using LECOMS.Data.DTOs.Order;
+using LECOMS.Data.Entities;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -43,5 +44,7 @@ namespace LECOMS.ServiceContract.Interfaces
         /// Cancel payment
         /// </summary>
         Task<bool> CancelPaymentAsync(string orderId);
+        Task<CheckoutResultDTO> CreatePaymentResultForExistingOrdersAsync(string orderId);
+
     }
 }

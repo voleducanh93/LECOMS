@@ -1,4 +1,5 @@
-﻿using LECOMS.Data.Entities;
+﻿using LECOMS.Data.DTOs.Order;
+using LECOMS.Data.Entities;
 using LECOMS.Data.Enum;
 using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
@@ -756,6 +757,92 @@ namespace LECOMS.Service.Services
             var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
             return BitConverter.ToString(hash).Replace("-", "").ToLower();
         }
+
+        /// <summary>
+        /// ⭐ Trả FULL CheckoutResultDTO cho API create-payment-link
+        /// Giống y hệt Checkout, nhưng áp dụng cho các order đã tạo trước đó
+        /// </summary>
+        public async Task<CheckoutResultDTO> CreatePaymentResultForExistingOrdersAsync(string orderId)
+        {
+            // Tìm transaction theo orderId
+            var tx = await _unitOfWork.Transactions.GetByOrderIdAsync(orderId);
+            if (tx == null)
+                throw new InvalidOperationException("Transaction not found for this order.");
+
+            // Lấy list order IDs
+            var orderIds = tx.OrderId.Split(',', StringSplitOptions.RemoveEmptyEntries);
+
+            var orders = new List<Order>();
+            foreach (var oid in orderIds)
+            {
+                var order = await _unitOfWork.Orders.GetAsync(
+                    o => o.Id == oid.Trim(),
+                    includeProperties:
+                    "Details.Product,Details.Product.Images,Details.Product.Category,Shop,User");
+
+                if (order != null)
+                    orders.Add(order);
+            }
+
+            if (!orders.Any())
+                throw new InvalidOperationException("No valid orders found.");
+
+            // Tạo lại link PayOS cho FULL bộ orders
+            var paymentUrl = await CreatePaymentLinkForMultipleOrdersAsync(tx.Id, orders);
+
+            // Tính tổng tiền
+            decimal totalAmount = orders.Sum(o => o.Total);
+            decimal shippingFee = orders.Sum(o => o.ShippingFee);
+            decimal discount = orders.Sum(o => o.Discount);
+
+            // Map order DTO
+            var orderDtos = orders.Select(o => new OrderDTO
+            {
+                Id = o.Id,
+                OrderCode = o.OrderCode,
+                UserId = o.UserId,
+                ShopId = o.ShopId,
+                ShopName = o.Shop?.Name,
+                CustomerName = o.User?.FullName,
+                ShipToName = o.ShipToName,
+                ShipToPhone = o.ShipToPhone,
+                ShipToAddress = o.ShipToAddress,
+                Subtotal = o.Subtotal,
+                ShippingFee = o.ShippingFee,
+                Discount = o.Discount,
+                Total = o.Total,
+                Status = o.Status.ToString(),
+                PaymentStatus = o.PaymentStatus.ToString(),
+                BalanceReleased = o.BalanceReleased,
+                CreatedAt = o.CreatedAt,
+                CompletedAt = o.CompletedAt,
+                Details = o.Details.Select(d => new OrderDetailDTO
+                {
+                    Id = d.Id,
+                    ProductId = d.ProductId,
+                    ProductName = d.Product?.Name,
+                    ProductImage = d.Product?.Images.FirstOrDefault(i => i.IsPrimary)?.Url,
+                    ProductCategory = d.Product?.Category?.Name,
+                    Quantity = d.Quantity,
+                    UnitPrice = d.UnitPrice
+                }).ToList()
+            }).ToList();
+
+            // ⭐ Trả về FULL object giống y API Checkout
+            return new CheckoutResultDTO
+            {
+                Orders = orderDtos,
+                PaymentUrl = paymentUrl,
+                TotalAmount = totalAmount,
+                PaymentMethod = "PAYOS",
+                WalletAmountUsed = 0,                 // retry không dùng wallet
+                PayOSAmountRequired = totalAmount,
+                DiscountApplied = discount,
+                ShippingFee = shippingFee,
+                VoucherCodeUsed = null
+            };
+        }
+
     }
 
     // ============================================================
@@ -818,4 +905,5 @@ namespace LECOMS.Service.Services
         public string? VirtualAccountName { get; set; }
         public string? VirtualAccountNumber { get; set; }
     }
+
 }
