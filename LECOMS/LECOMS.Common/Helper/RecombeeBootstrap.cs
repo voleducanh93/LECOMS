@@ -13,12 +13,9 @@ namespace LECOMS.Common.Helper
             _client = client;
         }
 
-        /// <summary>
-        /// ✅ Khởi tạo schema trong Recommbee (chạy 1 lần duy nhất)
-        /// </summary>
         public async Task InitSchemaAsync()
         {
-            // --- ITEM (Product) PROPERTIES ---
+            await _client.SendAsync(new AddItemProperty("type", "string"));
             await _client.SendAsync(new AddItemProperty("name", "string"));
             await _client.SendAsync(new AddItemProperty("slug", "string"));
             await _client.SendAsync(new AddItemProperty("categoryId", "string"));
@@ -27,12 +24,6 @@ namespace LECOMS.Common.Helper
             await _client.SendAsync(new AddItemProperty("thumbnailUrl", "string"));
             await _client.SendAsync(new AddItemProperty("shopId", "int"));
             await _client.SendAsync(new AddItemProperty("shopName", "string"));
-            await _client.SendAsync(new AddItemProperty("status", "string"));
-
-            // --- USER PROPERTIES (nếu cần cá nhân hoá sâu hơn) ---
-            await _client.SendAsync(new AddUserProperty("role", "string"));
-            await _client.SendAsync(new AddUserProperty("gender", "string"));
-            await _client.SendAsync(new AddUserProperty("preferredCategory", "string"));
         }
     }
 }

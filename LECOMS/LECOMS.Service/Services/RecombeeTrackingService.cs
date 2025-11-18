@@ -13,40 +13,24 @@ namespace LECOMS.Service.Services
             _client = client;
         }
 
-        // ✅ Ghi hành vi: user xem sản phẩm
-        public async Task TrackViewAsync(string userId, string productId)
+        public async Task TrackViewAsync(string userId, string itemId)
         {
-            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(productId))
-                return;
-
-            await _client.SendAsync(new AddDetailView(userId, productId, cascadeCreate: true));
+            await _client.SendAsync(new AddDetailView(userId, itemId, cascadeCreate: true));
         }
 
-        // ✅ Ghi hành vi: user thêm sản phẩm vào giỏ
-        public async Task TrackAddToCartAsync(string userId, string productId)
+        public async Task TrackAddToCartAsync(string userId, string itemId)
         {
-            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(productId))
-                return;
-
-            await _client.SendAsync(new AddCartAddition(userId, productId, cascadeCreate: true));
+            await _client.SendAsync(new AddCartAddition(userId, itemId, cascadeCreate: true));
         }
 
-        // ✅ Ghi hành vi: user mua sản phẩm
-        public async Task TrackPurchaseAsync(string userId, string productId)
+        public async Task TrackPurchaseAsync(string userId, string itemId)
         {
-            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(productId))
-                return;
-
-            await _client.SendAsync(new AddPurchase(userId, productId, cascadeCreate: true));
+            await _client.SendAsync(new AddPurchase(userId, itemId, cascadeCreate: true));
         }
 
-        // ✅ (tuỳ chọn) Ghi hành vi: user đánh giá sản phẩm
-        public async Task TrackRatingAsync(string userId, string productId, double rating)
+        public async Task TrackRatingAsync(string userId, string itemId, double rating)
         {
-            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(productId))
-                return;
-
-            await _client.SendAsync(new AddRating(userId, productId, rating, cascadeCreate: true));
+            await _client.SendAsync(new AddRating(userId, itemId, rating, cascadeCreate: true));
         }
     }
 }

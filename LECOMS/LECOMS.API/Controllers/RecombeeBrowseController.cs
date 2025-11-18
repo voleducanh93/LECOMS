@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
-using System.Threading.Tasks;
 
 namespace LECOMS.API.Controllers
 {
@@ -14,97 +13,132 @@ namespace LECOMS.API.Controllers
     [Route("api/recombee")]
     public class RecombeeBrowseController : ControllerBase
     {
-        private readonly RecombeeService _recombeeService;
-        private readonly RecombeeBootstrap _bootstrap;
+        private readonly RecombeeService _recombee;
+        private readonly RecombeeTrackingService _tracking;
         private readonly UserManager<User> _userManager;
         private readonly IProductService _productService;
+        private readonly ISellerCourseService _courseService;
+
         public RecombeeBrowseController(
-            RecombeeService recombeeService,
-            RecombeeBootstrap bootstrap,
-            UserManager<User> userManager, IProductService productService)
+            RecombeeService recombee,
+            RecombeeTrackingService tracking,
+            UserManager<User> userManager,
+            IProductService productService,
+            ISellerCourseService courseService)
         {
-            _recombeeService = recombeeService;
-            _bootstrap = bootstrap;
+            _recombee = recombee;
+            _tracking = tracking;
             _userManager = userManager;
             _productService = productService;
+            _courseService = courseService;
         }
 
-        // ===========================================================
-        // 1️⃣ Khởi tạo schema (chỉ chạy 1 lần bởi Admin)
-        // ===========================================================
-        [HttpPost("init-schema")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> InitSchema()
-        {
-            await _bootstrap.InitSchemaAsync();
-            return Ok(new { message = "✅ Schema Recommbee đã được khởi tạo thành công." });
-        }
-
-        // ===========================================================
-        // 2️⃣ Đồng bộ toàn bộ sản phẩm sang Recommbee
-        // ===========================================================
-        [HttpPost("sync-products")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> SyncProducts()
-        {
-            var count = await _recombeeService.SyncProductsAsync();
-            return Ok(new { message = $"✅ Đã đồng bộ {count} sản phẩm sang Recommbee." });
-        }
-
-        // ===========================================================
-        // 3️⃣ API chính cho trang Shopping Browse
-        // ===========================================================
-        [HttpGet("browse")]
+        // =============================================================
+        // 1) RECOMMEND PRODUCT — HOMEPAGE
+        // =============================================================
+        [HttpGet("browse/products")]
         [Authorize]
-        public async Task<IActionResult> GetBrowse()
+        public async Task<IActionResult> BrowseProducts()
         {
-            var userId = _userManager.GetUserId(User);
-            var data = await _recombeeService.GetBrowseDataAsync(userId);
-            return Ok(data);
-        }
-
-        // ===========================================================
-        // 4️⃣ Gợi ý sản phẩm tương tự
-        // ===========================================================
-        [HttpGet("similar/{productId}")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetSimilarProducts(string productId)
-        {
-            var userId = _userManager.GetUserId(User) ?? "guest";
-            var result = await _recombeeService.GetSimilarItemsAsync(productId, userId);
-            return Ok(result);
-        }
-
-        [HttpGet("by-slug/{slug}")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetBySlug(string slug, [FromServices] RecombeeTrackingService trackingService)
-        {
-            var response = new APIResponse();
+            var res = new APIResponse();
             try
             {
-                var product = await _productService.GetBySlugAsync(slug);
+                var userId = _userManager.GetUserId(User);
 
-                // 🧠 Ghi hành vi xem sản phẩm
-                var userId = _userManager.GetUserId(User) ?? "guest";
-                await trackingService.TrackViewAsync(userId, product.Id);
-
-                response.StatusCode = HttpStatusCode.OK;
-                response.Result = product;
-            }
-            catch (KeyNotFoundException)
-            {
-                response.IsSuccess = false;
-                response.StatusCode = HttpStatusCode.NotFound;
-                response.ErrorMessages.Add("Product not found.");
+                res.StatusCode = HttpStatusCode.OK;
+                res.Result = await _recombee.RecommendProductsForUserAsync(userId);
             }
             catch (Exception ex)
             {
-                response.IsSuccess = false;
-                response.StatusCode = HttpStatusCode.InternalServerError;
-                response.ErrorMessages.Add(ex.Message);
+                res.IsSuccess = false;
+                res.ErrorMessages.Add(ex.Message);
+                res.StatusCode = HttpStatusCode.InternalServerError;
             }
-            return StatusCode((int)response.StatusCode, response);
+            return StatusCode((int)res.StatusCode, res);
         }
 
+        // =============================================================
+        // 2) RECOMMEND COURSE — HOMEPAGE
+        // =============================================================
+        [HttpGet("browse/courses")]
+        [Authorize]
+        public async Task<IActionResult> BrowseCourses()
+        {
+            var res = new APIResponse();
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+
+                res.StatusCode = HttpStatusCode.OK;
+                res.Result = await _recombee.RecommendCoursesForUserAsync(userId);
+            }
+            catch (Exception ex)
+            {
+                res.IsSuccess = false;
+                res.ErrorMessages.Add(ex.Message);
+                res.StatusCode = HttpStatusCode.InternalServerError;
+            }
+            return StatusCode((int)res.StatusCode, res);
+        }
+
+        // =============================================================
+        // 3) RECOMMEND PRODUCT — ITEM-TO-ITEM SIMILARITY
+        // =============================================================
+        [HttpGet("product/{slug}/recommend")]
+        [AllowAnonymous]
+        public async Task<IActionResult> RecommendProductsForProduct(string slug)
+        {
+            var res = new APIResponse();
+
+            try
+            {
+                var product = await _productService.GetBySlugAsync(slug);
+                var userId = _userManager.GetUserId(User) ?? "guest";
+
+                // Ghi tracking xem sản phẩm
+                await _tracking.TrackViewAsync(userId, product.Id);
+
+                res.StatusCode = HttpStatusCode.OK;
+                res.Result = await _recombee.GetSimilarProductsFullAsync(product.Id, userId);
+            }
+            catch (Exception ex)
+            {
+                res.IsSuccess = false;
+                res.ErrorMessages.Add(ex.Message);
+                res.StatusCode = HttpStatusCode.BadRequest;
+            }
+
+            return StatusCode((int)res.StatusCode, res);
+        }
+
+        // =============================================================
+        // 4) RECOMMEND COURSE — ITEM-TO-ITEM SIMILARITY
+        // =============================================================
+        [HttpGet("course/{slug}/recommend")]
+        [AllowAnonymous]
+        public async Task<IActionResult> RecommendCoursesForCourse(string slug)
+        {
+            var res = new APIResponse();
+
+            try
+            {
+                var course = await _courseService.GetCourseBySlugAsync(slug);
+                var userId = _userManager.GetUserId(User) ?? "guest";
+
+                // track view khóa học
+                await _tracking.TrackViewAsync(userId, course.Id);
+
+                res.StatusCode = HttpStatusCode.OK;
+                res.Result = await _recombee.GetSimilarCoursesFullAsync(course.Id, userId);
+            }
+            catch (Exception ex)
+            {
+                res.IsSuccess = false;
+                res.ErrorMessages.Add(ex.Message);
+                res.StatusCode = HttpStatusCode.BadRequest;
+            }
+
+            return StatusCode((int)res.StatusCode, res);
+        }
     }
 }

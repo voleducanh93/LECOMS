@@ -514,6 +514,31 @@ namespace LECOMS.Service.Services
                     OrderIndex = l.OrderIndex
                 });
         }
+        public async Task<CourseDTO> GetCourseBySlugAsync(string slug)
+        {
+            var course = await _unitOfWork.Courses.GetAsync(
+                c => c.Slug == slug && c.Active == 1,
+                includeProperties: "Category,Shop"
+            );
+
+            if (course == null)
+                throw new KeyNotFoundException("Course not found.");
+
+            return new CourseDTO
+            {
+                Id = course.Id,
+                Title = course.Title,
+                Slug = course.Slug,
+                Summary = course.Summary,
+                CategoryId = course.CategoryId,
+                CategoryName = course.Category?.Name,
+                ShopId = course.ShopId,
+                ShopName = course.Shop?.Name,
+                ShopAvatar = course.Shop?.ShopAvatar,
+                CourseThumbnail = course.CourseThumbnail,
+                Active = course.Active
+            };
+        }
 
     }
 }
