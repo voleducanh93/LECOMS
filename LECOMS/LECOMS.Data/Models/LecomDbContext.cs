@@ -76,6 +76,7 @@ namespace LECOMS.Data.Models
 
         public DbSet<Booster> Boosters { get; set; }
         public DbSet<UserBooster> UserBoosters { get; set; }
+        public DbSet<UserLessonProgress> UserLessonProgresses { get; set; }
 
         // =====================================================================
         // ==== MODEL CONFIGURATION ====

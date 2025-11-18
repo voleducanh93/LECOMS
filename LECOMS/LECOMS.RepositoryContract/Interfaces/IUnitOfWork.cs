@@ -57,6 +57,7 @@ namespace LECOMS.RepositoryContract.Interfaces
         IUserBoosterRepository UserBoosters { get; }
         IPointWalletRepository PointWallets { get; }
         IPointLedgerRepository PointLedgers { get; }
+        IUserLessonProgressRepository UserLessonProgresses { get; }
 
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();

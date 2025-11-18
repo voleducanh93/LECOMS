@@ -59,7 +59,7 @@ namespace LECOMS.Repository
             services.AddTransient<IVoucherRepository, VoucherRepository>();
             services.AddTransient<IUserVoucherRepository, UserVoucherRepository>();
             services.AddTransient<IRankTierRepository, RankTierRepository>();
-
+            services.AddTransient<IUserLessonProgressRepository, UserLessonProgressRepository>();
             //DI Unit Of Work
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             return services;

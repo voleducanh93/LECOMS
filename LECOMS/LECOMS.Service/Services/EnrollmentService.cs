@@ -3,6 +3,7 @@ using LECOMS.Data.DTOs.Course;
 using LECOMS.Data.Entities;
 using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Threading.Tasks;
 
@@ -98,6 +99,119 @@ namespace LECOMS.Service.Services
                 CategoryName = e.Course.Category?.Name,
                 CourseThumbnail = e.Course.CourseThumbnail
             });
+        }
+        public async Task<object> GetLearningDetailAsync(string userId, string courseId)
+        {
+            var enrollment = await _uow.Enrollments.GetAsync(
+                e => e.UserId == userId && e.CourseId == courseId,
+                includeProperties: "Course,Course.Shop,Course.Category"
+            );
+
+            if (enrollment == null)
+                throw new KeyNotFoundException("User is not enrolled in this course.");
+
+            var course = enrollment.Course;
+
+            // Load Section + Lesson separately (DO NOT USE includeProperties with deep include)
+            var sections = await _uow.Sections.Query()
+                .Where(s => s.CourseId == courseId)
+                .Include(s => s.Lessons)
+                .ToListAsync();
+
+            course.Sections = sections;
+
+            // Load lesson progress
+            var progressList = await _uow.UserLessonProgresses.Query()
+                .Where(lp => lp.UserId == userId)
+                .ToListAsync();
+
+            var allLessons = sections.SelectMany(s => s.Lessons).ToList();
+
+            int totalLessons = allLessons.Count;
+            int completedLessons = allLessons.Count(l =>
+                progressList.Any(p => p.LessonId == l.Id && p.IsCompleted));
+
+            double percent = totalLessons == 0 ? 0 : (completedLessons * 100.0 / totalLessons);
+
+            var resultSections = sections
+                .OrderBy(s => s.OrderIndex)
+                .Select(s => new
+                {
+                    id = s.Id,
+                    title = s.Title,
+                    orderIndex = s.OrderIndex,
+                    lessons = s.Lessons.OrderBy(l => l.OrderIndex)
+                        .Select(l =>
+                        {
+                            var lp = progressList.FirstOrDefault(p => p.LessonId == l.Id);
+                            return new
+                            {
+                                id = l.Id,
+                                title = l.Title,
+                                type = l.Type.ToString(),
+                                durationSeconds = l.DurationSeconds,
+                                contentUrl = l.ContentUrl,
+                                orderIndex = l.OrderIndex,
+                                isCompleted = lp?.IsCompleted ?? false,
+                                xpReward = lp?.XpEarned ?? 0
+                            };
+                        })
+                });
+
+            return new
+            {
+                course = new
+                {
+                    id = course.Id,
+                    title = course.Title,
+                    summary = course.Summary,
+                    thumbnail = course.CourseThumbnail,
+                    shopName = course.Shop?.Name,
+                    categoryName = course.Category?.Name
+                },
+                progress = new
+                {
+                    totalLessons,
+                    completedLessons,
+                    percent
+                },
+                sections = resultSections
+            };
+        }
+
+        public async Task<bool> CompleteLessonAsync(string userId, string lessonId)
+        {
+            var lesson = await _uow.Lessons.GetAsync(l => l.Id == lessonId);
+            if (lesson == null)
+                throw new KeyNotFoundException("Lesson not found.");
+
+            var progress = await _uow.UserLessonProgresses.GetProgressAsync(userId, lessonId);
+
+            if (progress == null)
+            {
+                progress = new UserLessonProgress
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    UserId = userId,
+                    LessonId = lessonId,
+                    IsCompleted = true,
+                    CompletedAt = DateTime.UtcNow,
+                    XpEarned = 5 // XP mặc định
+                };
+
+                await _uow.UserLessonProgresses.AddAsync(progress);
+            }
+            else
+            {
+                progress.IsCompleted = true;
+                progress.CompletedAt = DateTime.UtcNow;
+                progress.XpEarned = 5;
+
+                await _uow.UserLessonProgresses.UpdateAsync(progress);
+            }
+
+            await _uow.CompleteAsync();
+            return true;
         }
 
     }

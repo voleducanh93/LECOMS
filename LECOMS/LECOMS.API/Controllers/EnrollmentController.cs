@@ -122,6 +122,48 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+        [HttpGet("{courseId}/learn")]
+        public async Task<IActionResult> GetLearningDetail(string courseId)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                var data = await _enrollmentService.GetLearningDetailAsync(userId, courseId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = data;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
+        [HttpPost("lessons/{lessonId}/complete")]
+        public async Task<IActionResult> CompleteLesson(string lessonId)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                var ok = await _enrollmentService.CompleteLessonAsync(userId, lessonId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = ok;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
 
     }
 }

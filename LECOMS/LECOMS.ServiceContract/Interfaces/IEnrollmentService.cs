@@ -8,6 +8,8 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<EnrollmentDTO> EnrollAsync(string userId, string courseId);
         Task<EnrollmentDTO?> GetEnrollmentAsync(string userId, string courseId);
         Task<IEnumerable<EnrollmentDTO>> GetUserEnrollmentsAsync(string userId);
+        Task<object> GetLearningDetailAsync(string userId, string courseId);
+        Task<bool> CompleteLessonAsync(string userId, string lessonId);
 
     }
 }
