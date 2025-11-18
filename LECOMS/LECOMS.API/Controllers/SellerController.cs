@@ -52,10 +52,10 @@ namespace LECOMS.API.Controllers
                 // ✅ Gán role Seller cho user
                 var user = await _userManager.FindByIdAsync(userId);
                 // ⚙️ Nếu user đang là Customer → remove luôn
-                if (await _userManager.IsInRoleAsync(user, "Customer"))
-                {
-                    await _userManager.RemoveFromRoleAsync(user, "Customer");
-                }
+                //if (await _userManager.IsInRoleAsync(user, "Customer"))
+                //{
+                //    await _userManager.RemoveFromRoleAsync(user, "Customer");
+                //}
 
                 // ✅ Thêm role Seller (nếu chưa có)
                 if (!await _userManager.IsInRoleAsync(user, "Seller"))
