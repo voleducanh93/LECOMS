@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using LECOMS.Data.DTOs.Course;
 using LECOMS.Data.DTOs.Product;
+using LECOMS.Data.DTOs.Recombee;
 using LECOMS.Data.Entities;
 using LECOMS.RepositoryContract.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -26,24 +27,18 @@ namespace LECOMS.Service.Services
             _mapper = mapper;
         }
 
-        // ===========================================================
-        // 1️⃣ Đồng bộ toàn bộ PRODUCT
-        // ===========================================================
+        // ===========================================================================
+        // 1️⃣ SYNC PRODUCTS TO RECOMBEE
+        // ===========================================================================
         public async Task<int> SyncProductsAsync()
         {
-            var products = await _uow.Products.Query()
-                .Include(p => p.Category)
-                .Include(p => p.Shop)
-                .Include(p => p.Images)
-                .ToListAsync();
-
-            int count = 0;
+            var products = await _uow.Products.GetAllAsync(includeProperties: "Category,Shop,Images");
+            int synced = 0;
 
             foreach (var p in products)
             {
-                var values = new Dictionary<string, object>
+                var itemValues = new Dictionary<string, object>
                 {
-                    ["type"] = "product",
                     ["name"] = p.Name,
                     ["slug"] = p.Slug,
                     ["categoryId"] = p.CategoryId,
@@ -55,150 +50,93 @@ namespace LECOMS.Service.Services
                     ["status"] = p.Status.ToString()
                 };
 
-                await _client.SendAsync(new SetItemValues(p.Id, values, cascadeCreate: true));
-                count++;
+                await _client.SendAsync(new SetItemValues(p.Id, itemValues, cascadeCreate: true));
+                synced++;
             }
 
-            return count;
+            return synced;
         }
 
-        // ===========================================================
-        // 2️⃣ Đồng bộ COURSE
-        // ===========================================================
-        public async Task<int> SyncCoursesAsync()
+        // ===========================================================================
+        // 2️⃣ HOMEPAGE BROWSE → RECOMMENDED + CATEGORY + BEST SELLER
+        // ===========================================================================
+        public async Task<BrowseResultDTO> GetBrowseDataAsync(string userId)
         {
-            var courses = await _uow.Courses.Query()
-                .Include(c => c.Category)
-                .Include(c => c.Shop)
-                .ToListAsync();
-
-            int count = 0;
-
-            foreach (var c in courses)
-            {
-                var values = new Dictionary<string, object>
-                {
-                    ["type"] = "course",
-                    ["name"] = c.Title,
-                    ["slug"] = c.Slug,
-                    ["categoryId"] = c.CategoryId,
-                    ["categoryName"] = c.Category?.Name,
-                    ["shopId"] = c.ShopId,
-                    ["shopName"] = c.Shop?.Name,
-                    ["thumbnailUrl"] = c.CourseThumbnail
-                };
-
-                await _client.SendAsync(new SetItemValues(c.Id, values, cascadeCreate: true));
-                count++;
-            }
-
-            return count;
-        }
-
-        // ===========================================================
-        // 3️⃣ Recommend sản phẩm FULL DTO
-        // ===========================================================
-        public async Task<IEnumerable<ProductDTO>> GetSimilarProductsFullAsync(string productId, string userId)
-        {
-            var rec = await _client.SendAsync(
-                new RecommendItemsToItem(productId, userId, 10, cascadeCreate: true)
-            );
-
-            var ids = rec.Recomms.Select(r => r.Id).ToList();
-
-            var products = await _uow.Products.Query()
-                .Include(x => x.Images)
-                .Include(x => x.Category)
-                .Include(x => x.Shop)
-                .Where(x => ids.Contains(x.Id))
-                .ToListAsync();
-
-            return _mapper.Map<IEnumerable<ProductDTO>>(products);
-        }
-
-        // ===========================================================
-        // 4️⃣ Recommend khóa học FULL DTO
-        // ===========================================================
-        public async Task<IEnumerable<CourseDTO>> GetSimilarCoursesFullAsync(string itemId, string userId)
-        {
-            var rec = await _client.SendAsync(
-                new RecommendItemsToItem(itemId, userId, 10, cascadeCreate: true)
-            );
-
-            var ids = rec.Recomms.Select(r => r.Id).ToList();
-
-            var courses = await _uow.Courses.Query()
-                .Include(x => x.Category)
-                .Include(x => x.Shop)
-                .Where(x => ids.Contains(x.Id))
-                .ToListAsync();
-
-            return _mapper.Map<IEnumerable<CourseDTO>>(courses);
-        }
-
-        // ===========================================================
-        // 5️⃣ Recommend PRODUCTS + COURSES cho USER (homepage)
-        // ===========================================================
-        public async Task<object> RecommendForUserAsync(string userId)
-        {
+            // Recommend items from Recombee
             var rec = await _client.SendAsync(
                 new RecommendItemsToUser(userId, 20, cascadeCreate: true)
             );
 
-            var ids = rec.Recomms.Select(r => r.Id).ToList();
+            var recIds = rec.Recomms.Select(r => r.Id).ToList();
 
-            var products = await _uow.Products.Query()
-                .Include(x => x.Images)
-                .Include(x => x.Category)
-                .Include(x => x.Shop)
-                .Where(x => ids.Contains(x.Id))
+            var recommendedProducts = await _uow.Products.Query()
+                .Include(p => p.Images)
+                .Include(p => p.Category)
+                .Include(p => p.Shop)
+                .Where(p => recIds.Contains(p.Id))
                 .ToListAsync();
 
-            var courses = await _uow.Courses.Query()
-                .Include(x => x.Category)
-                .Include(x => x.Shop)
-                .Where(x => ids.Contains(x.Id))
-                .ToListAsync();
+            var recommendedCategories = recommendedProducts
+                .GroupBy(p => p.CategoryId)
+                .Select(g => new
+                {
+                    id = g.Key,
+                    name = g.First().Category.Name,
+                    products = _mapper.Map<IEnumerable<ProductDTO>>(g.Take(4))
+                })
+                .ToList();
 
-            return new
-            {
-                recommendedProducts = _mapper.Map<IEnumerable<ProductDTO>>(products),
-                recommendedCourses = _mapper.Map<IEnumerable<CourseDTO>>(courses)
-            };
-        }
-
-        // ===========================================================
-        // 6️⃣ Browse feed FULL
-        // ===========================================================
-        public async Task<object> GetBrowseFullDataAsync(string userId)
-        {
-            var recommended = await RecommendForUserAsync(userId);
-
-            // Best seller (top sold)
-            var bestSellerIds = await _uow.OrderDetails.Query()
+            var bestIds = await _uow.OrderDetails.Query()
                 .GroupBy(o => o.ProductId)
                 .OrderByDescending(g => g.Count())
                 .Take(10)
                 .Select(g => g.Key)
                 .ToListAsync();
 
-            var bestSellers = await _uow.Products.Query()
+            var bestSellerProducts = await _uow.Products.Query()
                 .Include(p => p.Images)
                 .Include(p => p.Category)
                 .Include(p => p.Shop)
-                .Where(p => bestSellerIds.Contains(p.Id))
+                .Where(p => bestIds.Contains(p.Id))
                 .ToListAsync();
 
-            return new
+            return new BrowseResultDTO
             {
-                recommended,
-                bestSellers = _mapper.Map<IEnumerable<ProductDTO>>(bestSellers)
+                RecommendedProducts = _mapper.Map<IEnumerable<ProductDTO>>(recommendedProducts),
+                RecommendedCategories = recommendedCategories,
+                BestSellerProducts = _mapper.Map<IEnumerable<ProductDTO>>(bestSellerProducts)
             };
         }
-        public async Task<IEnumerable<CourseDTO>> RecommendCoursesForUserAsync(string userId)
+
+
+        // ===========================================================================
+        // 3️⃣ SIMILAR PRODUCTS (ITEM → ITEM)
+        // ===========================================================================
+        public async Task<IEnumerable<ProductDTO>> GetSimilarProductsFullAsync(string productId, string userId)
         {
             var rec = await _client.SendAsync(
-                new RecommendItemsToUser(userId, 20, cascadeCreate: true)
+                new RecommendItemsToItem(productId, userId, 20, cascadeCreate: true)
+            );
+
+            var ids = rec.Recomms.Select(r => r.Id).ToList();
+
+            var products = await _uow.Products.Query()
+                .Include(p => p.Images)
+                .Include(p => p.Category)
+                .Include(p => p.Shop)
+                .Where(p => ids.Contains(p.Id))
+                .ToListAsync();
+
+            return _mapper.Map<IEnumerable<ProductDTO>>(products);
+        }
+
+        // ===========================================================================
+        // 4️⃣ SIMILAR COURSES (PRODUCT → COURSE)
+        // ===========================================================================
+        public async Task<IEnumerable<CourseDTO>> GetSimilarCoursesFullAsync(string itemId, string userId)
+        {
+            var rec = await _client.SendAsync(
+                new RecommendItemsToItem(itemId, userId, 20, cascadeCreate: true)
             );
 
             var ids = rec.Recomms.Select(r => r.Id).ToList();
@@ -211,6 +149,10 @@ namespace LECOMS.Service.Services
 
             return _mapper.Map<IEnumerable<CourseDTO>>(courses);
         }
+
+        // ===========================================================================
+        // 5️⃣ RECOMMEND PRODUCTS FOR USER (FULL DTO)
+        // ===========================================================================
         public async Task<IEnumerable<ProductDTO>> RecommendProductsForUserAsync(string userId)
         {
             var rec = await _client.SendAsync(
@@ -229,6 +171,24 @@ namespace LECOMS.Service.Services
             return _mapper.Map<IEnumerable<ProductDTO>>(products);
         }
 
+        // ===========================================================================
+        // 6️⃣ RECOMMEND COURSES FOR USER (FULL DTO)
+        // ===========================================================================
+        public async Task<IEnumerable<CourseDTO>> RecommendCoursesForUserAsync(string userId)
+        {
+            var rec = await _client.SendAsync(
+                new RecommendItemsToUser(userId, 20, cascadeCreate: true)
+            );
 
+            var ids = rec.Recomms.Select(r => r.Id).ToList();
+
+            var courses = await _uow.Courses.Query()
+                .Include(c => c.Category)
+                .Include(c => c.Shop)
+                .Where(c => ids.Contains(c.Id))
+                .ToListAsync();
+
+            return _mapper.Map<IEnumerable<CourseDTO>>(courses);
+        }
     }
 }

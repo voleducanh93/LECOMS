@@ -15,27 +15,27 @@ namespace LECOMS.API.Controllers
     {
         private readonly RecombeeService _recombee;
         private readonly RecombeeTrackingService _tracking;
-        private readonly UserManager<User> _userManager;
         private readonly IProductService _productService;
         private readonly ISellerCourseService _courseService;
+        private readonly UserManager<User> _userManager;
 
         public RecombeeBrowseController(
             RecombeeService recombee,
             RecombeeTrackingService tracking,
-            UserManager<User> userManager,
             IProductService productService,
-            ISellerCourseService courseService)
+            ISellerCourseService courseService,
+            UserManager<User> userManager)
         {
             _recombee = recombee;
             _tracking = tracking;
-            _userManager = userManager;
             _productService = productService;
             _courseService = courseService;
+            _userManager = userManager;
         }
 
-        // =============================================================
-        // 1) RECOMMEND PRODUCT — HOMEPAGE
-        // =============================================================
+        // --------------------------------------------------------------
+        // 1) HOMEPAGE → RECOMMEND PRODUCTS
+        // --------------------------------------------------------------
         [HttpGet("browse/products")]
         [Authorize]
         public async Task<IActionResult> BrowseProducts()
@@ -57,9 +57,9 @@ namespace LECOMS.API.Controllers
             return StatusCode((int)res.StatusCode, res);
         }
 
-        // =============================================================
-        // 2) RECOMMEND COURSE — HOMEPAGE
-        // =============================================================
+        // --------------------------------------------------------------
+        // 2) HOMEPAGE → RECOMMEND COURSES
+        // --------------------------------------------------------------
         [HttpGet("browse/courses")]
         [Authorize]
         public async Task<IActionResult> BrowseCourses()
@@ -81,21 +81,19 @@ namespace LECOMS.API.Controllers
             return StatusCode((int)res.StatusCode, res);
         }
 
-        // =============================================================
-        // 3) RECOMMEND PRODUCT — ITEM-TO-ITEM SIMILARITY
-        // =============================================================
+        // --------------------------------------------------------------
+        // 3) PRODUCT DETAIL → SIMILAR PRODUCTS
+        // --------------------------------------------------------------
         [HttpGet("product/{slug}/recommend")]
         [AllowAnonymous]
         public async Task<IActionResult> RecommendProductsForProduct(string slug)
         {
             var res = new APIResponse();
-
             try
             {
                 var product = await _productService.GetBySlugAsync(slug);
                 var userId = _userManager.GetUserId(User) ?? "guest";
 
-                // Ghi tracking xem sản phẩm
                 await _tracking.TrackViewAsync(userId, product.Id);
 
                 res.StatusCode = HttpStatusCode.OK;
@@ -107,25 +105,22 @@ namespace LECOMS.API.Controllers
                 res.ErrorMessages.Add(ex.Message);
                 res.StatusCode = HttpStatusCode.BadRequest;
             }
-
             return StatusCode((int)res.StatusCode, res);
         }
 
-        // =============================================================
-        // 4) RECOMMEND COURSE — ITEM-TO-ITEM SIMILARITY
-        // =============================================================
+        // --------------------------------------------------------------
+        // 4) COURSE DETAIL → SIMILAR COURSES
+        // --------------------------------------------------------------
         [HttpGet("course/{slug}/recommend")]
         [AllowAnonymous]
         public async Task<IActionResult> RecommendCoursesForCourse(string slug)
         {
             var res = new APIResponse();
-
             try
             {
                 var course = await _courseService.GetCourseBySlugAsync(slug);
                 var userId = _userManager.GetUserId(User) ?? "guest";
 
-                // track view khóa học
                 await _tracking.TrackViewAsync(userId, course.Id);
 
                 res.StatusCode = HttpStatusCode.OK;
@@ -137,7 +132,6 @@ namespace LECOMS.API.Controllers
                 res.ErrorMessages.Add(ex.Message);
                 res.StatusCode = HttpStatusCode.BadRequest;
             }
-
             return StatusCode((int)res.StatusCode, res);
         }
     }
