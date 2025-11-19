@@ -1,4 +1,5 @@
-﻿using LECOMS.API.Hubs;
+﻿using AutoMapper;
+using LECOMS.API.Hubs;
 using LECOMS.Common.Helper;
 using LECOMS.Data.DTOs.Chat;
 using LECOMS.Data.Entities;
@@ -13,102 +14,208 @@ namespace LECOMS.API.Controllers
 {
     [ApiController]
     [Route("api/chat")]
-    [Authorize]  // Buyer hoặc Seller đều cần login
+    [Authorize]
     public class ChatController : ControllerBase
     {
         private readonly IChatService _chatService;
         private readonly UserManager<User> _userManager;
         private readonly IHubContext<ChatHub> _hub;
+        private readonly IMapper _mapper;
 
         public ChatController(
             IChatService chatService,
             UserManager<User> userManager,
-            IHubContext<ChatHub> hub)
+            IHubContext<ChatHub> hub,
+            IMapper mapper)
         {
             _chatService = chatService;
             _userManager = userManager;
             _hub = hub;
+            _mapper = mapper;
         }
 
-        // ================================================
-        // START SELLER CHAT
-        // ================================================
+        // --------------------------
+        // START CHAT WITH SELLER
+        // --------------------------
         [HttpPost("seller/start")]
         public async Task<IActionResult> StartSellerChat([FromBody] StartChatDTO dto)
         {
-            var userId = _userManager.GetUserId(User);
+            var response = new APIResponse();
 
-            var conv = await _chatService.StartSellerConversation(userId, dto.ProductId);
-            return Ok(conv);
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                var conv = await _chatService.StartSellerConversation(userId, dto.ProductId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = conv;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
-        // ================================================
-        // START AI CHAT
-        // ================================================
+        // --------------------------
+        // START CHAT WITH AI
+        // --------------------------
         [HttpPost("ai/start")]
         public async Task<IActionResult> StartAIChat([FromBody] StartChatDTO dto)
         {
-            var userId = _userManager.GetUserId(User);
+            var response = new APIResponse();
 
-            var conv = await _chatService.StartAIConversation(userId, dto.ProductId);
-            return Ok(conv);
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                var conv = await _chatService.StartAIConversation(userId, dto.ProductId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = conv;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
-        // ================================================
-        // SEND MESSAGE TO SELLER
-        // ================================================
+        // --------------------------
+        // SEND MESSAGE (BUYER <-> SELLER)
+        // --------------------------
         [HttpPost("{conversationId}/message")]
         public async Task<IActionResult> SendMessage(Guid conversationId, [FromBody] SendMessageDTO dto)
         {
-            var userId = _userManager.GetUserId(User);
+            var response = new APIResponse();
 
-            var msg = await _chatService.SendSellerMessage(conversationId, userId, dto.Content); // hoặc rename thành SendMessage
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                var msg = await _chatService.SendSellerMessage(conversationId, userId, dto.Content);
 
-            await _hub.Clients.Group(conversationId.ToString())
-                .SendAsync("ReceiveMessage", msg);
+                await _hub.Clients.Group(conversationId.ToString())
+                    .SendAsync("ReceiveMessage", msg);
 
-            return Ok(msg);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = msg;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
-
-        // ================================================
-        // SEND MESSAGE TO AI (AI auto reply)
-        // ================================================
+        // --------------------------
+        // SEND MESSAGE TO AI
+        // --------------------------
         [HttpPost("ai/{conversationId}/message")]
         public async Task<IActionResult> SendAIMessage(Guid conversationId, [FromBody] SendMessageDTO dto)
         {
-            var userId = _userManager.GetUserId(User);
+            var response = new APIResponse();
 
-            var aiMsg = await _chatService.SendAIMessage(conversationId, userId, dto.Content);
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                var aiMsg = await _chatService.SendAIMessage(conversationId, userId, dto.Content);
 
-            return Ok(aiMsg);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = aiMsg;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
-        // ================================================
-        // GET ALL MESSAGES
-        // ================================================
+        // --------------------------
+        // GET MESSAGES
+        // --------------------------
         [HttpGet("{conversationId}/messages")]
         public async Task<IActionResult> GetMessages(Guid conversationId)
         {
-            var msgs = await _chatService.GetMessages(conversationId);
-            return Ok(msgs);
+            var response = new APIResponse();
+
+            try
+            {
+                var msgs = await _chatService.GetMessages(conversationId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = msgs;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
+        // --------------------------
+        // GET USER’S CONVERSATIONS
+        // --------------------------
         [HttpGet("user")]
         public async Task<IActionResult> GetUserConversations()
         {
-            var userId = User.FindFirst("uid")?.Value;
-            var data = await _chatService.GetUserConversationsAsync(userId);
-            return Ok(data);
+            var response = new APIResponse();
+
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                var data = await _chatService.GetUserConversationsAsync(userId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = _mapper.Map<IEnumerable<ConversationDTO>>(data);
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
         }
 
+        // --------------------------
+        // GET SELLER’S CONVERSATIONS
+        // --------------------------
         [HttpGet("seller")]
         public async Task<IActionResult> GetSellerConversations()
         {
-            var sellerId = User.FindFirst("uid")?.Value;
-            var data = await _chatService.GetSellerConversationsAsync(sellerId);
-            return Ok(data);
-        }
+            var response = new APIResponse();
 
+            try
+            {
+                var sellerId = _userManager.GetUserId(User);
+                var data = await _chatService.GetSellerConversationsAsync(sellerId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = _mapper.Map<IEnumerable<ConversationDTO>>(data);
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
     }
 }

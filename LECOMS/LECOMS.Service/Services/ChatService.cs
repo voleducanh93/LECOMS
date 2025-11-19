@@ -93,7 +93,7 @@ namespace LECOMS.Service.Services
             {
                 Id = Guid.NewGuid(),
                 BuyerId = buyerId,
-                SellerId = null,       // 🔥 Không có seller
+                SellerId = null,
                 ProductId = productId,
                 IsAIChat = true,
                 LastMessage = "",
@@ -103,8 +103,15 @@ namespace LECOMS.Service.Services
             await _uow.Conversations.AddAsync(conv);
             await _uow.CompleteAsync();
 
-            return _mapper.Map<ConversationDTO>(conv);
+            // 🔥 LOAD LẠI CONVERSATION CÓ INCLUDE PRODUCT
+            var loaded = await _uow.Conversations.GetAsync(
+                c => c.Id == conv.Id,
+                includeProperties: "Product,Product.Images"
+            );
+
+            return _mapper.Map<ConversationDTO>(loaded);
         }
+
 
         // ========================================================
         // 3. SEND Message to Seller

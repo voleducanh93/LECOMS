@@ -125,8 +125,13 @@ namespace LECOMS.Common.Helper
                 .ForAllMembers(o => o.Condition((src, dest, srcMember) => srcMember != null));
 
             CreateMap<Product, ProductMiniDTO>()
-                .ForMember(d => d.Thumbnail,
-                    o => o.MapFrom(s => s.Images.FirstOrDefault(i => i.IsPrimary).Url));
+                .ForMember(dest => dest.Thumbnail,
+                    opt => opt.MapFrom(src =>
+                        src.Images != null && src.Images.Any()
+                            ? src.Images.First().Url
+                            : null
+                    ));
+
 
 
             // ============================================================
@@ -219,7 +224,8 @@ namespace LECOMS.Common.Helper
             // CHAT
             // ============================================================
             CreateMap<Message, MessageDTO>();
-            CreateMap<Conversation, ConversationDTO>();
+            CreateMap<Conversation, ConversationDTO>()
+    .ForMember(dest => dest.Product, opt => opt.MapFrom(src => src.Product));
 
 
             // ============================================================
