@@ -106,7 +106,7 @@ namespace LECOMS.Service.Services
             // 🔥 LOAD LẠI CONVERSATION CÓ INCLUDE PRODUCT
             var loaded = await _uow.Conversations.GetAsync(
                 c => c.Id == conv.Id,
-                includeProperties: "Product,Product.Images"
+                includeProperties: "Product,Product.Images,Product.Shop"
             );
 
             return _mapper.Map<ConversationDTO>(loaded);
@@ -229,7 +229,7 @@ namespace LECOMS.Service.Services
         public async Task<IEnumerable<Conversation>> GetUserConversationsAsync(string userId)
         {
             return await _uow.Conversations.GetAllAsync(
-                c => c.BuyerId == userId || c.SellerId == userId,
+                c => c.BuyerId == userId,   // ✔ FIX
                 includeProperties: "Product,Buyer,Seller"
             );
         }
