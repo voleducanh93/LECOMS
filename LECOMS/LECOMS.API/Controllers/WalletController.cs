@@ -160,7 +160,7 @@ namespace LECOMS.API.Controllers
         // ============================================================
 
         [HttpGet("customer/balance")]
-        [Authorize(Roles = "Customer")]
+        [Authorize(Roles = "Customer, Seller")]
         public async Task<IActionResult> GetCustomerWalletBalance()
         {
             try
@@ -189,7 +189,7 @@ namespace LECOMS.API.Controllers
         }
 
         [HttpGet("customer/transactions")]
-        [Authorize(Roles = "Customer")]
+        [Authorize(Roles = "Customer, Seller")]
         public async Task<IActionResult> GetCustomerWalletTransactions(int page = 1, int pageSize = 20)
         {
             try
