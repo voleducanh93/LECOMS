@@ -319,6 +319,69 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
-        
+        /// <summary>
+        /// Customer check trạng thái đăng ký shop (bao gồm lý do bị reject nếu có)
+        /// </summary>
+        [HttpGet("register-status")]
+        [Authorize]
+        public async Task<IActionResult> CheckRegisterStatus()
+        {
+            var response = new APIResponse();
+            var userId = _userManager.GetUserId(User);
+
+            try
+            {
+                var shop = await _shopService.GetShopBySellerIdAsync(userId);
+
+                // ❌ Chưa đăng ký
+                if (shop == null)
+                {
+                    response.StatusCode = HttpStatusCode.OK;
+                    response.Result = new { status = "NoShop" };
+                    return Ok(response);
+                }
+
+                // ⏳ Đang chờ duyệt
+                if (shop.Status == "Pending")
+                {
+                    response.StatusCode = HttpStatusCode.OK;
+                    response.Result = new { status = "Pending" };
+                    return Ok(response);
+                }
+
+                // ❌ Bị từ chối (có lý do)
+                if (shop.Status == "Rejected")
+                {
+                    response.StatusCode = HttpStatusCode.OK;
+                    response.Result = new
+                    {
+                        status = "Rejected",
+                        reason = shop.RejectedReason
+                    };
+                    return Ok(response);
+                }
+
+                // ⭐ Nếu đã được duyệt → vẫn chỉ trả Approved, không cần shop info
+                if (shop.Status == "Approved")
+                {
+                    response.StatusCode = HttpStatusCode.OK;
+                    response.Result = new { status = "Approved" };
+                    return Ok(response);
+                }
+
+                // Dự phòng
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = new { status = shop.Status };
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+                return StatusCode((int)response.StatusCode, response);
+            }
+        }
+
     }
 }
