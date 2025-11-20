@@ -228,46 +228,51 @@ namespace LECOMS.API.Controllers
         /// Customer xác nhận đã nhận hàng
         /// POST: api/orders/{id}/confirm-received
         /// </summary>
-        [HttpPost("{id}/confirm-received")]
-        [Authorize(Roles = "Customer, Seller")]
-        public async Task<IActionResult> ConfirmReceived(string id)
+        [HttpPost("{orderId}/confirm")]
+        [Authorize]
+        public async Task<IActionResult> ConfirmReceived(string orderId)
         {
             var response = new APIResponse();
-            try
-            {
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrEmpty(userId))
-                    return Unauthorized();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-                var order = await _orderService.ConfirmReceivedAsync(id, userId);
-
-                response.StatusCode = HttpStatusCode.OK;
-                response.Result = order;
-                response.IsSuccess = true;
-                return Ok(response);
-            }
-            catch (UnauthorizedAccessException ex)
+            if (userId == null)
             {
                 response.IsSuccess = false;
-                response.StatusCode = HttpStatusCode.Forbidden;
-                response.ErrorMessages.Add(ex.Message);
-                return StatusCode(403, response);
+                response.StatusCode = HttpStatusCode.Unauthorized;
+                response.ErrorMessages.Add("Unauthorized.");
+                return Unauthorized(response);
             }
-            catch (Exception ex)
+
+            try
+            {
+                var result = await _orderService.ConfirmReceivedAsync(orderId, userId);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
+                return Ok(response);
+            }
+            catch (InvalidOperationException ex)
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.BadRequest;
                 response.ErrorMessages.Add(ex.Message);
                 return BadRequest(response);
             }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+                return StatusCode((int)response.StatusCode, response);
+            }
         }
-    }
 
-    /// <summary>
-    /// Request DTO cho update status
-    /// </summary>
-    public class UpdateOrderStatusRequest
-    {
-        public string Status { get; set; } = null!;
+
+        /// <summary>
+        /// Request DTO cho update status
+        /// </summary>
+        public class UpdateOrderStatusRequest
+        {
+            public string Status { get; set; } = null!;
+        } 
     }
 }

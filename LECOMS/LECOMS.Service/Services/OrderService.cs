@@ -446,22 +446,44 @@ namespace LECOMS.Service.Services
 
             order.Status = Enum.Parse<OrderStatus>(status);
             await _uow.Orders.UpdateAsync(order);
+            await _uow.CompleteAsync();
 
             return MapToDTO(order);
         }
 
         public async Task<OrderDTO> ConfirmReceivedAsync(string orderId, string userId)
         {
-            var order = await _uow.Orders.GetAsync(o => o.Id == orderId)
-                ?? throw new InvalidOperationException("Order not found");
+            var order = await _uow.Orders.GetAsync(
+                o => o.Id == orderId,
+                includeProperties: "User,Shop")
+                ?? throw new InvalidOperationException("Order not found.");
 
+            // 1️⃣ Kiểm tra quyền sở hữu
+            if (order.UserId != userId)
+                throw new InvalidOperationException("You are not allowed to confirm this order.");
+
+            // 2️⃣ Kiểm tra đã thanh toán chưa
+            if (order.PaymentStatus != PaymentStatus.Paid)
+                throw new InvalidOperationException("Order has not been paid. Cannot confirm receiving.");
+
+            // 3️⃣ Kiểm tra trạng thái có cho phép confirm không
+            if (order.Status != OrderStatus.Shipping && order.Status != OrderStatus.Processing)
+                throw new InvalidOperationException("Order is not in a receivable state.");
+
+            // 4️⃣ Kiểm tra confirm hai lần
+            if (order.Status == OrderStatus.Completed)
+                throw new InvalidOperationException("Order already completed.");
+
+            // 5️⃣ Cập nhật trạng thái
             order.Status = OrderStatus.Completed;
             order.CompletedAt = DateTime.UtcNow;
 
             await _uow.Orders.UpdateAsync(order);
+            await _uow.CompleteAsync();
 
             return MapToDTO(order);
         }
+
 
         // =====================================================================
         // ORDER CODE GEN
