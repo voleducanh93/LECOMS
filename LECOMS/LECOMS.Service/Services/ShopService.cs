@@ -69,6 +69,23 @@ namespace LECOMS.Service.Services
 
             await _uow.Shops.AddAsync(shop);
             await _uow.CompleteAsync();
+
+            var wallet = new ShopWallet
+            {
+                Id = Guid.NewGuid().ToString(),
+                ShopId = shop.Id,
+                AvailableBalance = 0,
+                PendingBalance = 0,
+                TotalEarned = 0,
+                TotalWithdrawn = 0,
+                TotalRefunded = 0,
+                CreatedAt = DateTime.UtcNow,
+                LastUpdated = DateTime.UtcNow
+            };
+
+            await _uow.ShopWallets.AddAsync(wallet);
+            await _uow.CompleteAsync();
+
             shop = await _uow.Shops.GetAsync(s => s.Id == shop.Id, includeProperties: "Category");
 
             return _mapper.Map<ShopDTO>(shop);
