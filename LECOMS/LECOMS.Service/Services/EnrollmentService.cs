@@ -112,7 +112,7 @@ namespace LECOMS.Service.Services
 
             var course = enrollment.Course;
 
-            // Load Section + Lesson separately (DO NOT USE includeProperties with deep include)
+            // Load Sections + Lessons
             var sections = await _uow.Sections.Query()
                 .Where(s => s.CourseId == courseId)
                 .Include(s => s.Lessons)
@@ -120,7 +120,7 @@ namespace LECOMS.Service.Services
 
             course.Sections = sections;
 
-            // Load lesson progress
+            // Load user lesson progress
             var progressList = await _uow.UserLessonProgresses.Query()
                 .Where(lp => lp.UserId == userId)
                 .ToListAsync();
@@ -133,30 +133,56 @@ namespace LECOMS.Service.Services
 
             double percent = totalLessons == 0 ? 0 : (completedLessons * 100.0 / totalLessons);
 
-            var resultSections = sections
-                .OrderBy(s => s.OrderIndex)
-                .Select(s => new
-                {
-                    id = s.Id,
-                    title = s.Title,
-                    orderIndex = s.OrderIndex,
-                    lessons = s.Lessons.OrderBy(l => l.OrderIndex)
-                        .Select(l =>
-                        {
-                            var lp = progressList.FirstOrDefault(p => p.LessonId == l.Id);
-                            return new
-                            {
-                                id = l.Id,
-                                title = l.Title,
-                                type = l.Type.ToString(),
-                                durationSeconds = l.DurationSeconds,
-                                contentUrl = l.ContentUrl,
-                                orderIndex = l.OrderIndex,
-                                isCompleted = lp?.IsCompleted ?? false,
-                                xpReward = lp?.XpEarned ?? 0
-                            };
-                        })
-                });
+            // Build final result with linked products
+            var resultSections = await Task.WhenAll(
+                sections
+                    .OrderBy(s => s.OrderIndex)
+                    .Select(async s => new
+                    {
+                        id = s.Id,
+                        title = s.Title,
+                        orderIndex = s.OrderIndex,
+
+                        lessons = await Task.WhenAll(
+                            s.Lessons
+                                .OrderBy(l => l.OrderIndex)
+                                .Select(async l =>
+                                {
+                                    var lp = progressList.FirstOrDefault(p => p.LessonId == l.Id);
+
+                                    // ⭐ Load linked products
+                                    var linked = await _uow.LessonProducts.GetAllAsync(
+                                        x => x.LessonId == l.Id,
+                                        includeProperties: "Product,Product.Images,Product.Shop"
+                                    );
+
+                                    var linkedProducts = linked.Select(x => new
+                                    {
+                                        id = x.Product.Id,
+                                        name = x.Product.Name,
+                                        price = x.Product.Price,
+                                        thumbnailUrl = x.Product.Images.FirstOrDefault(i => i.IsPrimary)?.Url,
+                                        shopName = x.Product.Shop?.Name
+                                    }).ToList();
+
+                                    return new
+                                    {
+                                        id = l.Id,
+                                        title = l.Title,
+                                        type = l.Type.ToString(),
+                                        durationSeconds = l.DurationSeconds,
+                                        contentUrl = l.ContentUrl,
+                                        orderIndex = l.OrderIndex,
+                                        isCompleted = lp?.IsCompleted ?? false,
+                                        xpReward = lp?.XpEarned ?? 0,
+
+                                        // ⭐ PRODUCTS FOR THIS LESSON
+                                        linkedProducts = linkedProducts.Any() ? linkedProducts : null
+                                    };
+                                })
+                        )
+                    })
+            );
 
             return new
             {
@@ -178,6 +204,7 @@ namespace LECOMS.Service.Services
                 sections = resultSections
             };
         }
+
 
         public async Task<bool> CompleteLessonAsync(string userId, string lessonId)
         {
