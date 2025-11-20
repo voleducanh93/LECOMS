@@ -13,9 +13,6 @@ using System.Threading.Tasks;
 
 namespace LECOMS.API.Controllers
 {
-    /// <summary>
-    /// Controller xử lý Orders
-    /// </summary>
     [ApiController]
     [Route("api/orders")]
     [Authorize]
@@ -35,15 +32,15 @@ namespace LECOMS.API.Controllers
             _userManager = userManager;
         }
 
-        /// <summary>
-        /// Checkout: Tạo order từ cart và payment link
-        /// POST: api/orders/checkout
-        /// </summary>
+        // =====================================================================
+        // CHECKOUT
+        // =====================================================================
         [HttpPost("checkout")]
         [Authorize(Roles = "Customer, Seller")]
         public async Task<IActionResult> Checkout([FromBody] CheckoutRequestDTO dto)
         {
             var response = new APIResponse();
+
             try
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -53,10 +50,10 @@ namespace LECOMS.API.Controllers
                 var result = await _orderService.CreateOrderFromCartAsync(userId, dto);
 
                 response.StatusCode = HttpStatusCode.Created;
-                response.Result = result;
                 response.IsSuccess = true;
+                response.Result = result;
 
-                return StatusCode((int)response.StatusCode, response);
+                return StatusCode((int)HttpStatusCode.Created, response);
             }
             catch (InvalidOperationException ex)
             {
@@ -65,23 +62,23 @@ namespace LECOMS.API.Controllers
                 response.ErrorMessages.Add(ex.Message);
                 return BadRequest(response);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.InternalServerError;
-                response.ErrorMessages.Add("An error occurred while processing your checkout.");
+                response.ErrorMessages.Add("Checkout failed.");
                 return StatusCode(500, response);
             }
         }
 
-        /// <summary>
-        /// Lấy order by ID
-        /// GET: api/orders/{id}
-        /// </summary>
+        // =====================================================================
+        // GET ORDER BY ID
+        // =====================================================================
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(string id)
         {
             var response = new APIResponse();
+
             try
             {
                 var order = await _orderService.GetByIdAsync(id);
@@ -94,55 +91,56 @@ namespace LECOMS.API.Controllers
                     return NotFound(response);
                 }
 
+                response.IsSuccess = true;
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = order;
+
                 return Ok(response);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.InternalServerError;
-                response.ErrorMessages.Add("Error retrieving order.");
+                response.ErrorMessages.Add("Failed to fetch order.");
                 return StatusCode(500, response);
             }
         }
 
-        /// <summary>
-        /// Lấy orders của current user
-        /// GET: api/orders/my?page=1&pageSize=20
-        /// </summary>
+        // =====================================================================
+        // GET ORDERS OF CURRENT USER
+        // =====================================================================
         [HttpGet("my")]
         [Authorize(Roles = "Customer, Seller")]
-        public async Task<IActionResult> MyOrders(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> MyOrders([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var response = new APIResponse();
+
             try
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
-                var orders = await _orderService.GetByUserAsync(userId, page, pageSize);
+                var result = await _orderService.GetByUserAsync(userId, page, pageSize);
 
+                response.IsSuccess = true;
                 response.StatusCode = HttpStatusCode.OK;
-                response.Result = orders;
+                response.Result = result;
+
                 return Ok(response);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.InternalServerError;
-                response.ErrorMessages.Add("Error retrieving orders.");
+                response.ErrorMessages.Add("Failed to load user orders.");
                 return StatusCode(500, response);
             }
         }
 
-        /// <summary>
-        /// Shop lấy orders của mình
-        /// GET: api/orders/shop/my?page=1&pageSize=20
-        /// </summary>
+        // =====================================================================
+        // GET ORDERS OF SHOP
+        // =====================================================================
         [HttpGet("shop/my")]
         [Authorize(Roles = "Seller")]
         public async Task<IActionResult> MyShopOrders(
@@ -150,62 +148,63 @@ namespace LECOMS.API.Controllers
             [FromQuery] int pageSize = 20)
         {
             var response = new APIResponse();
+
             try
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized();
 
-                // Lấy ShopId từ userId
                 var shop = await _userManager.Users
-                    .Where(u => u.Id == userId)
-                    .Select(u => u.Shop)
-                    .FirstOrDefaultAsync();
+                    .Include(u => u.Shop)
+                    .FirstOrDefaultAsync(u => u.Id == userId);
 
-                if (shop == null)
+                if (shop?.Shop == null)
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Shop not found for this user.");
+                    response.ErrorMessages.Add("Shop not found for this seller.");
                     return NotFound(response);
                 }
 
-                var orders = await _orderService.GetByShopAsync(shop.Id, page, pageSize);
+                var result = await _orderService.GetByShopAsync(shop.Shop.Id, page, pageSize);
 
+                response.IsSuccess = true;
                 response.StatusCode = HttpStatusCode.OK;
-                response.Result = orders;
+                response.Result = result;
+
                 return Ok(response);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.InternalServerError;
-                response.ErrorMessages.Add("Error retrieving shop orders.");
+                response.ErrorMessages.Add("Failed to load shop orders.");
                 return StatusCode(500, response);
             }
         }
 
-        /// <summary>
-        /// Shop update order status
-        /// PUT: api/orders/{id}/status
-        /// </summary>
+        // =====================================================================
+        // SELLER UPDATE ORDER STATUS
+        // =====================================================================
         [HttpPut("{id}/status")]
         [Authorize(Roles = "Seller")]
-        public async Task<IActionResult> UpdateStatus(
-            string id,
-            [FromBody] UpdateOrderStatusRequest request)
+        public async Task<IActionResult> UpdateStatus(string id, [FromBody] UpdateOrderStatusRequest request)
         {
             var response = new APIResponse();
+
             try
             {
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrEmpty(userId))
+                var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(sellerId))
                     return Unauthorized();
 
-                var order = await _orderService.UpdateOrderStatusAsync(id, request.Status, userId);
+                var result = await _orderService.UpdateOrderStatusAsync(id, request.Status, sellerId);
 
+                response.IsSuccess = true;
                 response.StatusCode = HttpStatusCode.OK;
-                response.Result = order;
+                response.Result = result;
+
                 return Ok(response);
             }
             catch (UnauthorizedAccessException ex)
@@ -224,30 +223,27 @@ namespace LECOMS.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Customer xác nhận đã nhận hàng
-        /// POST: api/orders/{id}/confirm-received
-        /// </summary>
+        // =====================================================================
+        // CUSTOMER CONFIRM RECEIVED
+        // =====================================================================
         [HttpPost("{orderId}/confirm")]
-        [Authorize]
+        [Authorize(Roles = "Customer, Seller")]
         public async Task<IActionResult> ConfirmReceived(string orderId)
         {
             var response = new APIResponse();
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null)
-            {
-                response.IsSuccess = false;
-                response.StatusCode = HttpStatusCode.Unauthorized;
-                response.ErrorMessages.Add("Unauthorized.");
-                return Unauthorized(response);
-            }
+                return Unauthorized();
 
             try
             {
                 var result = await _orderService.ConfirmReceivedAsync(orderId, userId);
+
+                response.IsSuccess = true;
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = result;
+
                 return Ok(response);
             }
             catch (InvalidOperationException ex)
@@ -262,17 +258,16 @@ namespace LECOMS.API.Controllers
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.InternalServerError;
                 response.ErrorMessages.Add(ex.Message);
-                return StatusCode((int)response.StatusCode, response);
+                return StatusCode(500, response);
             }
         }
 
-
-        /// <summary>
-        /// Request DTO cho update status
-        /// </summary>
+        // =====================================================================
+        // DTO FOR STATUS UPDATE
+        // =====================================================================
         public class UpdateOrderStatusRequest
         {
             public string Status { get; set; } = null!;
-        } 
+        }
     }
 }

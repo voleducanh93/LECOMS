@@ -16,17 +16,22 @@ namespace LECOMS.Service.Services
         private readonly IUnitOfWork _uow;
         private readonly IPaymentService _paymentService;
         private readonly ICustomerWalletService _customerWalletService;
+        private readonly IShopWalletService _shopWalletService;
         private readonly ILogger<OrderService> _logger;
+
+        private const decimal FIXED_SHIPPING_FEE = 30000m;
 
         public OrderService(
             IUnitOfWork uow,
             IPaymentService paymentService,
             ICustomerWalletService customerWalletService,
+            IShopWalletService shopWalletService,
             ILogger<OrderService> logger)
         {
             _uow = uow;
             _paymentService = paymentService;
             _customerWalletService = customerWalletService;
+            _shopWalletService = shopWalletService;
             _logger = logger;
         }
 
@@ -39,7 +44,6 @@ namespace LECOMS.Service.Services
 
             try
             {
-                // GET CART + FULL PRODUCT INCLUDE
                 var cart = await _uow.Carts.GetByUserIdAsync(
                     userId,
                     includeProperties:
@@ -56,20 +60,13 @@ namespace LECOMS.Service.Services
                 if (!selectedItems.Any())
                     throw new InvalidOperationException("No valid products selected.");
 
-                // Group by shop
-                var grouped = selectedItems
-                    .GroupBy(i => i.Product.ShopId)
-                    .ToList();
-
+                // Group theo shop
+                var grouped = selectedItems.GroupBy(i => i.Product.ShopId).ToList();
                 var createdOrders = new List<Order>();
-                decimal grandSubtotal = 0m;
 
-                // ================== Tạo Order cho từng shop ==================
                 foreach (var group in grouped)
                 {
-                    var shopId = group.Key;
                     var items = group.ToList();
-
                     decimal subtotal = 0;
 
                     foreach (var item in items)
@@ -85,14 +82,16 @@ namespace LECOMS.Service.Services
                         Id = Guid.NewGuid().ToString(),
                         OrderCode = await GenerateOrderCodeAsync(),
                         UserId = userId,
-                        ShopId = shopId,
+                        ShopId = group.Key,
                         ShipToName = checkout.ShipToName,
                         ShipToPhone = checkout.ShipToPhone,
                         ShipToAddress = checkout.ShipToAddress,
+
                         Subtotal = subtotal,
-                        ShippingFee = 0,
+                        ShippingFee = FIXED_SHIPPING_FEE,
                         Discount = 0,
-                        Total = subtotal,
+                        Total = subtotal + FIXED_SHIPPING_FEE,
+
                         Status = OrderStatus.Pending,
                         PaymentStatus = PaymentStatus.Pending,
                         BalanceReleased = false,
@@ -103,103 +102,67 @@ namespace LECOMS.Service.Services
 
                     foreach (var item in items)
                     {
-                        var detail = new OrderDetail
+                        await _uow.OrderDetails.AddAsync(new OrderDetail
                         {
                             Id = Guid.NewGuid().ToString(),
                             OrderId = order.Id,
                             ProductId = item.ProductId,
                             Quantity = item.Quantity,
                             UnitPrice = item.Product.Price
-                        };
+                        });
 
-                        await _uow.OrderDetails.AddAsync(detail);
-
-                        // Update stock
                         item.Product.Stock -= item.Quantity;
                         await _uow.Products.UpdateAsync(item.Product);
                     }
 
                     createdOrders.Add(order);
-                    grandSubtotal += subtotal;
                 }
 
-                // ================== Shipping & Discount ==================
-                decimal shippingFee = CalculateShippingFee(
-                    checkout.ShipToAddress,
-                    createdOrders.Count,
-                    grandSubtotal);
+                decimal totalShipping = createdOrders.Count * FIXED_SHIPPING_FEE;
+                decimal grandTotal = createdOrders.Sum(o => o.Total);
 
-                decimal discount = 0m;
-                string? voucherUsed = checkout.VoucherCode;
-
-                decimal remainingShipping = shippingFee;
-                decimal remainingDiscount = discount;
-                decimal grandTotal = 0m;
-
-                foreach (var order in createdOrders)
-                {
-                    decimal ratio = (grandSubtotal == 0)
-                        ? 1
-                        : order.Subtotal / grandSubtotal;
-
-                    decimal shipAlloc = Math.Round(shippingFee * ratio, 0);
-                    decimal discAlloc = Math.Round(discount * ratio, 0);
-
-                    remainingShipping -= shipAlloc;
-                    remainingDiscount -= discAlloc;
-
-                    if (order == createdOrders.Last())
-                    {
-                        shipAlloc += remainingShipping;
-                        discAlloc += remainingDiscount;
-                    }
-
-                    order.ShippingFee = shipAlloc;
-                    order.Discount = discAlloc;
-                    order.Total = order.Subtotal + shipAlloc - discAlloc;
-
-                    grandTotal += order.Total;
-                }
-
-                // ================== Payment ==================
+                string method = (checkout.PaymentMethod ?? "PAYOS").ToUpper();
                 string? paymentUrl = null;
                 decimal walletUsed = 0;
                 decimal payOSRequired = grandTotal;
 
-                switch ((checkout.PaymentMethod ?? "PAYOS").ToUpper())
+                if (method == "WALLET")
                 {
-                    case "WALLET":
-                        await ProcessWalletPaymentAsync(userId, grandTotal, createdOrders);
-                        walletUsed = grandTotal;
-                        payOSRequired = 0;
-                        break;
+                    bool ok = await _customerWalletService.HasSufficientBalanceAsync(userId, grandTotal);
+                    if (!ok)
+                        throw new InvalidOperationException("Insufficient wallet balance.");
 
-                    case "MIXED":
-                        var mixed = await ProcessMixedPaymentAsync(
-                            userId, grandTotal, checkout.WalletAmountToUse, createdOrders);
+                    await _customerWalletService.DeductBalanceAsync(
+                        userId, grandTotal, WalletTransactionType.Payment,
+                        string.Join(",", createdOrders.Select(o => o.Id)),
+                        $"Thanh toán đơn hàng {string.Join(",", createdOrders.Select(o => o.OrderCode))}");
 
-                        walletUsed = mixed.WalletUsed;
-                        payOSRequired = mixed.PayOSRequired;
+                    foreach (var o in createdOrders)
+                        o.PaymentStatus = PaymentStatus.Paid;
 
-                        if (payOSRequired > 0)
-                        {
-                            var txObj = await CreateTransactionAsync(createdOrders, payOSRequired);
-                            paymentUrl =
-                                await _paymentService.CreatePaymentLinkForMultipleOrdersAsync(
-                                    txObj.Id, createdOrders);
-                        }
-                        break;
+                    var txObj = await CreateTransactionAsync(createdOrders, grandTotal);
+                    txObj.Status = TransactionStatus.Completed;
 
-                    default: // PAYOS
-                        var t = await CreateTransactionAsync(createdOrders, grandTotal);
-                        paymentUrl =
-                            await _paymentService.CreatePaymentLinkForMultipleOrdersAsync(t.Id, createdOrders);
-                        break;
+                    // phân bổ doanh thu cho shop (Pending)
+                    await DistributeRevenueToShopsAsync(createdOrders, txObj);
+
+                    walletUsed = grandTotal;
+                    payOSRequired = 0;
+                }
+                else // PAYOS
+                {
+                    var txObj = await CreateTransactionAsync(createdOrders, grandTotal);
+                    paymentUrl =
+                        await _paymentService.CreatePaymentLinkForMultipleOrdersAsync(txObj.Id, createdOrders);
                 }
 
-                // CLEAR CART
+                // Xoá items trong cart
                 foreach (var item in selectedItems)
                     await _uow.CartItems.DeleteAsync(item);
+
+                var user = await _uow.Users.GetAsync(u => u.Id == userId);
+                foreach (var o in createdOrders)
+                    o.User = user;
 
                 await _uow.CompleteAsync();
                 await tx.CommitAsync();
@@ -209,192 +172,18 @@ namespace LECOMS.Service.Services
                     Orders = createdOrders.Select(MapToDTO).ToList(),
                     PaymentUrl = paymentUrl,
                     TotalAmount = grandTotal,
-                    PaymentMethod = checkout.PaymentMethod ?? "PAYOS",
+                    ShippingFee = totalShipping,
+                    PaymentMethod = method,
                     WalletAmountUsed = walletUsed,
                     PayOSAmountRequired = payOSRequired,
-                    DiscountApplied = discount,
-                    ShippingFee = shippingFee,
-                    VoucherCodeUsed = voucherUsed
+                    DiscountApplied = 0,
+                    VoucherCodeUsed = checkout.VoucherCode
                 };
             }
             catch
             {
                 await tx.RollbackAsync();
                 throw;
-            }
-        }
-
-        // =====================================================================
-        // SUPPORT METHODS
-        // =====================================================================
-        private static OrderDTO MapToDTO(Order o)
-        {
-            return new OrderDTO
-            {
-                Id = o.Id,
-                OrderCode = o.OrderCode,
-                UserId = o.UserId,
-                ShopId = o.ShopId,
-                ShopName = o.Shop?.Name,
-                CustomerName = o.User?.FullName,
-                ShipToName = o.ShipToName,
-                ShipToPhone = o.ShipToPhone,
-                ShipToAddress = o.ShipToAddress,
-                Subtotal = o.Subtotal,
-                ShippingFee = o.ShippingFee,
-                Discount = o.Discount,
-                Total = o.Total,
-                Status = o.Status.ToString(),
-                PaymentStatus = o.PaymentStatus.ToString(),
-                BalanceReleased = o.BalanceReleased,
-                CreatedAt = o.CreatedAt,
-                CompletedAt = o.CompletedAt,
-
-                Details = o.Details.Select(d => new OrderDetailDTO
-                {
-                    Id = d.Id,
-                    ProductId = d.ProductId,
-                    ProductName = d.Product?.Name,
-                    ProductImage = d.Product?.Images.FirstOrDefault(i => i.IsPrimary)?.Url,
-                    ProductCategory = d.Product?.Category?.Name,
-                    //ProductSku = null, // Product không có SKU
-                    Quantity = d.Quantity,
-                    UnitPrice = d.UnitPrice
-                }).ToList()
-            };
-        }
-
-        private decimal CalculateShippingFee(string address, int shopCount, decimal subtotal)
-        {
-            if (subtotal >= 500000) return 0;
-            return 30000m + (shopCount - 1) * 10000m;
-        }
-
-        // ================== WALLET PAYMENT ==================
-        private async Task ProcessWalletPaymentAsync(
-            string userId, decimal amount, List<Order> orders)
-        {
-            var ok = await _customerWalletService.HasSufficientBalanceAsync(userId, amount);
-            if (!ok) throw new InvalidOperationException("Insufficient wallet balance.");
-
-            await _customerWalletService.DeductBalanceAsync(
-                userId, amount, WalletTransactionType.Payment,
-                string.Join(",", orders.Select(o => o.Id)),
-                $"Thanh toán đơn hàng {string.Join(",", orders.Select(o => o.OrderCode))}");
-
-            foreach (var o in orders)
-                o.PaymentStatus = PaymentStatus.Paid;
-
-            var tx = await CreateTransactionAsync(orders, amount);
-            tx.Status = TransactionStatus.Completed;
-
-            await DistributeRevenueToShopsAsync(orders, tx);
-        }
-
-        private async Task<(decimal WalletUsed, decimal PayOSRequired)>
-            ProcessMixedPaymentAsync(
-                string userId, decimal total, decimal? walletUse, List<Order> orders)
-        {
-            var balance = await _customerWalletService.GetBalanceAsync(userId);
-
-            decimal walletUsed = Math.Min(walletUse ?? balance, Math.Min(balance, total));
-            decimal payOSRequired = total - walletUsed;
-
-            if (walletUsed > 0)
-            {
-                await _customerWalletService.DeductBalanceAsync(
-                    userId, walletUsed, WalletTransactionType.Payment,
-                    string.Join(",", orders.Select(o => o.Id)),
-                    $"Thanh toán một phần đơn hàng (Wallet: {walletUsed:N0})");
-            }
-
-            return (walletUsed, payOSRequired);
-        }
-
-        private async Task<Transaction> CreateTransactionAsync(List<Order> orders, decimal totalAmount)
-        {
-            var config = await _uow.PlatformConfigs.GetConfigAsync();
-
-            decimal platformFeeAmount = totalAmount *
-                config.DefaultCommissionRate / 100;
-
-            decimal shopAmount = totalAmount - platformFeeAmount;
-
-            var tx = new Transaction
-            {
-                Id = Guid.NewGuid().ToString(),
-                OrderId = string.Join(",", orders.Select(o => o.Id)),
-                TotalAmount = totalAmount,
-                PlatformFeePercent = config.DefaultCommissionRate,
-                PlatformFeeAmount = platformFeeAmount,
-                ShopAmount = shopAmount,
-                Status = TransactionStatus.Pending,
-                PaymentMethod = "PAYOS",
-                CreatedAt = DateTime.UtcNow
-            };
-
-            await _uow.Transactions.AddAsync(tx);
-            await _uow.CompleteAsync();
-
-            return tx;
-        }
-
-        private async Task DistributeRevenueToShopsAsync(List<Order> orders, Transaction tx)
-        {
-            var config = await _uow.PlatformConfigs.GetConfigAsync();
-
-            var groups = orders.GroupBy(o => o.ShopId);
-
-            foreach (var group in groups)
-            {
-                decimal subtotal = group.Sum(o => o.Total);
-                decimal fee = subtotal * config.DefaultCommissionRate / 100;
-                decimal shopReceives = subtotal - fee;
-
-                var wallet = await _uow.ShopWallets.GetByShopIdAsync(group.Key);
-
-                if (wallet == null)
-                {
-                    wallet = new ShopWallet
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        ShopId = group.Key,
-                        AvailableBalance = 0,
-                        PendingBalance = 0,
-                        TotalEarned = 0,
-                        TotalWithdrawn = 0,
-                        TotalRefunded = 0,
-                        CreatedAt = DateTime.UtcNow,
-                        LastUpdated = DateTime.UtcNow
-                    };
-
-                    await _uow.ShopWallets.AddAsync(wallet);
-                }
-
-                decimal before = wallet.PendingBalance;
-
-                wallet.PendingBalance += shopReceives;
-                wallet.TotalEarned += shopReceives;
-                wallet.LastUpdated = DateTime.UtcNow;
-
-                await _uow.ShopWallets.UpdateAsync(wallet);
-
-                var wt = new WalletTransaction
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    ShopWalletId = wallet.Id,
-                    Type = WalletTransactionType.OrderRevenue,
-                    Amount = shopReceives,
-                    BalanceBefore = before,
-                    BalanceAfter = wallet.PendingBalance,
-                    BalanceType = "Pending",
-                    Description = $"Doanh thu đơn hàng {string.Join(",", group.Select(o => o.OrderCode))}",
-                    ReferenceId = tx.Id,
-                    ReferenceType = "Transaction",
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                await _uow.WalletTransactions.AddAsync(wt);
             }
         }
 
@@ -458,23 +247,15 @@ namespace LECOMS.Service.Services
                 includeProperties: "User,Shop")
                 ?? throw new InvalidOperationException("Order not found.");
 
-            // 1️⃣ Kiểm tra quyền sở hữu
             if (order.UserId != userId)
                 throw new InvalidOperationException("You are not allowed to confirm this order.");
 
-            // 2️⃣ Kiểm tra đã thanh toán chưa
             if (order.PaymentStatus != PaymentStatus.Paid)
-                throw new InvalidOperationException("Order has not been paid. Cannot confirm receiving.");
+                throw new InvalidOperationException("Order has not been paid.");
 
-            // 3️⃣ Kiểm tra trạng thái có cho phép confirm không
             if (order.Status != OrderStatus.Shipping && order.Status != OrderStatus.Processing)
                 throw new InvalidOperationException("Order is not in a receivable state.");
 
-            // 4️⃣ Kiểm tra confirm hai lần
-            if (order.Status == OrderStatus.Completed)
-                throw new InvalidOperationException("Order already completed.");
-
-            // 5️⃣ Cập nhật trạng thái
             order.Status = OrderStatus.Completed;
             order.CompletedAt = DateTime.UtcNow;
 
@@ -484,10 +265,96 @@ namespace LECOMS.Service.Services
             return MapToDTO(order);
         }
 
+        // =====================================================================
+        // SUPPORT
+        // =====================================================================
+        private static OrderDTO MapToDTO(Order o)
+        {
+            return new OrderDTO
+            {
+                Id = o.Id,
+                OrderCode = o.OrderCode,
+                UserId = o.UserId,
+                ShopId = o.ShopId,
+                ShopName = o.Shop?.Name,
+                CustomerName = o.User?.FullName,
+                ShipToName = o.ShipToName,
+                ShipToPhone = o.ShipToPhone,
+                ShipToAddress = o.ShipToAddress,
+                Subtotal = o.Subtotal,
+                ShippingFee = o.ShippingFee,
+                Discount = o.Discount,
+                Total = o.Total,
+                Status = o.Status.ToString(),
+                PaymentStatus = o.PaymentStatus.ToString(),
+                BalanceReleased = o.BalanceReleased,
+                CreatedAt = o.CreatedAt,
+                CompletedAt = o.CompletedAt,
+                Details = o.Details.Select(d => new OrderDetailDTO
+                {
+                    Id = d.Id,
+                    ProductId = d.ProductId,
+                    ProductName = d.Product?.Name ?? "",
+                    ProductImage = d.Product?.Images.FirstOrDefault(i => i.IsPrimary)?.Url,
+                    ProductCategory = d.Product?.Category?.Name,
+                    Quantity = d.Quantity,
+                    UnitPrice = d.UnitPrice
+                }).ToList()
+            };
+        }
 
-        // =====================================================================
-        // ORDER CODE GEN
-        // =====================================================================
+        private async Task<Transaction> CreateTransactionAsync(List<Order> orders, decimal totalAmount)
+        {
+            var config = await _uow.PlatformConfigs.GetConfigAsync();
+
+            decimal platformFeeAmount = totalAmount * config.DefaultCommissionRate / 100;
+            decimal shopAmount = totalAmount - platformFeeAmount;
+
+            var tx = new Transaction
+            {
+                Id = Guid.NewGuid().ToString(),
+                OrderId = string.Join(",", orders.Select(o => o.Id)),
+                TotalAmount = totalAmount,
+                PlatformFeePercent = config.DefaultCommissionRate,
+                PlatformFeeAmount = platformFeeAmount,
+                ShopAmount = shopAmount,
+                Status = TransactionStatus.Pending,
+                PaymentMethod = "PAYOS",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _uow.Transactions.AddAsync(tx);
+            await _uow.CompleteAsync(); // cần Id để tạo PayOS link
+
+            return tx;
+        }
+
+        /// <summary>
+        /// Gọi ShopWalletService để cộng PendingBalance cho từng shop
+        /// </summary>
+        private async Task DistributeRevenueToShopsAsync(List<Order> orders, Transaction tx)
+        {
+            var config = await _uow.PlatformConfigs.GetConfigAsync();
+
+            var groups = orders.GroupBy(o => o.ShopId);
+
+            foreach (var group in groups)
+            {
+                decimal subtotal = group.Sum(o => o.Total);
+                decimal fee = subtotal * config.DefaultCommissionRate / 100;
+                decimal shopReceives = subtotal - fee;
+
+                var orderCodes = string.Join(",", group.Select(o => o.OrderCode));
+                var orderIds = string.Join(",", group.Select(o => o.Id));
+
+                await _shopWalletService.AddPendingBalanceAsync(
+                    group.Key,
+                    shopReceives,
+                    orderIds,
+                    $"Doanh thu đơn hàng {orderCodes} (Transaction {tx.Id})");
+            }
+        }
+
         private async Task<string> GenerateOrderCodeAsync()
         {
             var ts = DateTime.UtcNow.ToString("yyyyMMddHHmmss");

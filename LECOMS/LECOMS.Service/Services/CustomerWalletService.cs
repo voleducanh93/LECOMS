@@ -22,6 +22,7 @@ namespace LECOMS.Service.Services
         public async Task<CustomerWallet> GetOrCreateWalletAsync(string customerId)
         {
             var wallet = await _unitOfWork.CustomerWallets.GetByCustomerIdAsync(customerId);
+
             if (wallet == null)
             {
                 wallet = new CustomerWallet
@@ -35,14 +36,13 @@ namespace LECOMS.Service.Services
                     CreatedAt = DateTime.UtcNow,
                     LastUpdated = DateTime.UtcNow
                 };
+
                 await _unitOfWork.CustomerWallets.AddAsync(wallet);
 
-                // Nếu helper tự đứng 1 mình — lưu ngay.
                 if (!_unitOfWork.HasActiveTransaction)
-                {
                     await _unitOfWork.CompleteAsync();
-                }
             }
+
             return wallet;
         }
 
@@ -51,6 +51,18 @@ namespace LECOMS.Service.Services
         {
             return await _unitOfWork.CustomerWallets
                 .GetByCustomerIdAsync(customerId, includeTransactions: true);
+        }
+
+        public async Task<bool> HasSufficientBalanceAsync(string customerId, decimal amount)
+        {
+            var wallet = await _unitOfWork.CustomerWallets.GetByCustomerIdAsync(customerId);
+            return wallet != null && wallet.Balance >= amount;
+        }
+
+        public async Task<decimal> GetBalanceAsync(string customerId)
+        {
+            var wallet = await GetOrCreateWalletAsync(customerId);
+            return wallet.Balance;
         }
 
         public async Task<CustomerWallet> AddBalanceAsync(
@@ -65,9 +77,7 @@ namespace LECOMS.Service.Services
             wallet.TotalRefunded += amount;
             wallet.LastUpdated = DateTime.UtcNow;
 
-            //await _unitOfWork.CustomerWallets.UpdateAsync(wallet);
-
-            var walletTx = new CustomerWalletTransaction
+            var tx = new CustomerWalletTransaction
             {
                 Id = Guid.NewGuid().ToString(),
                 CustomerWalletId = wallet.Id,
@@ -81,13 +91,10 @@ namespace LECOMS.Service.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _unitOfWork.CustomerWalletTransactions.AddAsync(walletTx);
+            await _unitOfWork.CustomerWalletTransactions.AddAsync(tx);
 
-            // Nếu hiện tại KHÔNG có transaction bao ngoài thì tự save luôn.
             if (!_unitOfWork.HasActiveTransaction)
-            {
                 await _unitOfWork.CompleteAsync();
-            }
 
             return wallet;
         }
@@ -101,22 +108,22 @@ namespace LECOMS.Service.Services
         {
             if (amount <= 0) throw new ArgumentException("Amount must be positive", nameof(amount));
 
-            var wallet = await _unitOfWork.CustomerWallets.GetByCustomerIdAsync(customerId);
-            if (wallet == null)
-                throw new InvalidOperationException($"Wallet not found for Customer {customerId}");
-            if (wallet.Balance < amount)
-                throw new InvalidOperationException(
-                    $"Insufficient balance. Available: {wallet.Balance}, Required: {amount}");
+            var wallet = await GetOrCreateWalletAsync(customerId);
 
-            var before = wallet.Balance;
+            if (wallet.Balance < amount)
+                throw new InvalidOperationException("Insufficient balance.");
+
+            decimal before = wallet.Balance;
+
             wallet.Balance -= amount;
-            if (type == WalletTransactionType.Withdrawal) wallet.TotalWithdrawn += amount;
-            else if (type == WalletTransactionType.Payment) wallet.TotalSpent += amount;
+            if (type == WalletTransactionType.Payment)
+                wallet.TotalSpent += amount;
+            else if (type == WalletTransactionType.Withdrawal)
+                wallet.TotalWithdrawn += amount;
+
             wallet.LastUpdated = DateTime.UtcNow;
 
-           // await _unitOfWork.CustomerWallets.UpdateAsync(wallet);
-
-            var walletTx = new CustomerWalletTransaction
+            var tx = new CustomerWalletTransaction
             {
                 Id = Guid.NewGuid().ToString(),
                 CustomerWalletId = wallet.Id,
@@ -130,27 +137,12 @@ namespace LECOMS.Service.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _unitOfWork.CustomerWalletTransactions.AddAsync(walletTx);
+            await _unitOfWork.CustomerWalletTransactions.AddAsync(tx);
 
-            // Nếu không có transaction ngoài (ví dụ gọi lẻ), tự SaveChanges.
             if (!_unitOfWork.HasActiveTransaction)
-            {
                 await _unitOfWork.CompleteAsync();
-            }
 
             return wallet;
-        }
-
-        public async Task<bool> HasSufficientBalanceAsync(string customerId, decimal amount)
-        {
-            var wallet = await _unitOfWork.CustomerWallets.GetByCustomerIdAsync(customerId);
-            return wallet != null && wallet.Balance >= amount;
-        }
-
-        public async Task<decimal> GetBalanceAsync(string customerId)
-        {
-            var wallet = await GetOrCreateWalletAsync(customerId);
-            return wallet.Balance;
         }
     }
 }

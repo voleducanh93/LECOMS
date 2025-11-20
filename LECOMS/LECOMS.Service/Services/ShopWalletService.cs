@@ -4,16 +4,10 @@ using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace LECOMS.Service.Services
 {
-    /// <summary>
-    /// Service implementation cho ShopWallet
-    /// ⚠️ IMPORTANT: Không tạo transaction riêng trong các methods
-    /// Transaction được quản lý bởi caller (PaymentService, OrderService)
-    /// </summary>
     public class ShopWalletService : IShopWalletService
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -25,17 +19,12 @@ namespace LECOMS.Service.Services
             _logger = logger;
         }
 
-        /// <summary>
-        /// Lấy hoặc tạo mới wallet cho shop
-        /// </summary>
         public async Task<ShopWallet> GetOrCreateWalletAsync(int shopId)
         {
             var wallet = await _unitOfWork.ShopWallets.GetByShopIdAsync(shopId);
 
             if (wallet == null)
             {
-                _logger.LogInformation("Creating new wallet for Shop: {ShopId}", shopId);
-
                 wallet = new ShopWallet
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -56,156 +45,99 @@ namespace LECOMS.Service.Services
             return wallet;
         }
 
-        /// <summary>
-        /// Lấy wallet với transactions
-        /// </summary>
-        public async Task<ShopWallet?> GetWalletWithTransactionsAsync(int shopId, int pageNumber = 1, int pageSize = 20)
+        public async Task<ShopWallet?> GetWalletWithTransactionsAsync(
+            int shopId, int pageNumber = 1, int pageSize = 20)
         {
-            return await _unitOfWork.ShopWallets.GetByShopIdAsync(shopId, includeTransactions: true);
+            return await _unitOfWork.ShopWallets
+                .GetByShopIdAsync(shopId, includeTransactions: true);
         }
 
-        /// <summary>
-        /// Cộng tiền vào PendingBalance
-        /// ⚠️ Không tạo transaction riêng
-        /// </summary>
-        public async Task<ShopWallet> AddPendingBalanceAsync(int shopId, decimal amount, string orderId, string description)
+        public async Task<ShopWallet> AddPendingBalanceAsync(
+            int shopId, decimal amount, string orderId, string description)
         {
-            if (amount <= 0)
-                throw new ArgumentException("Amount must be positive", nameof(amount));
+            if (amount <= 0) throw new ArgumentException("Amount must be positive", nameof(amount));
 
-            _logger.LogInformation("Adding {Amount:N0} to PendingBalance for Shop {ShopId}", amount, shopId);
+            var wallet = await GetOrCreateWalletAsync(shopId);
 
-            try
+            decimal before = wallet.PendingBalance;
+
+            wallet.PendingBalance += amount;
+            wallet.TotalEarned += amount;
+            wallet.LastUpdated = DateTime.UtcNow;
+
+            await _unitOfWork.ShopWallets.UpdateAsync(wallet);
+
+            await _unitOfWork.WalletTransactions.AddAsync(new WalletTransaction
             {
-                // 1. Lấy hoặc tạo wallet
-                var wallet = await GetOrCreateWalletAsync(shopId);
+                Id = Guid.NewGuid().ToString(),
+                ShopWalletId = wallet.Id,
+                Type = WalletTransactionType.OrderRevenue,
+                Amount = amount,
+                BalanceBefore = before,
+                BalanceAfter = wallet.PendingBalance,
+                BalanceType = "Pending",
+                Description = description,
+                ReferenceId = orderId,
+                ReferenceType = "Order",
+                CreatedAt = DateTime.UtcNow
+            });
 
-                decimal balanceBefore = wallet.PendingBalance;
-
-                // 2. Cộng tiền vào PendingBalance
-                wallet.PendingBalance += amount;
-                wallet.TotalEarned += amount;
-                wallet.LastUpdated = DateTime.UtcNow;
-
-                await _unitOfWork.ShopWallets.UpdateAsync(wallet);
-
-                // 3. Ghi log WalletTransaction
-                var walletTransaction = new WalletTransaction
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    ShopWalletId = wallet.Id,
-                    Type = WalletTransactionType.OrderRevenue,
-                    Amount = amount,
-                    BalanceBefore = balanceBefore,
-                    BalanceAfter = wallet.PendingBalance,
-                    BalanceType = "Pending",
-                    Description = description,
-                    ReferenceId = orderId,
-                    ReferenceType = "Order",
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                await _unitOfWork.WalletTransactions.AddAsync(walletTransaction);
-                await _unitOfWork.CompleteAsync();
-
-                _logger.LogInformation("✅ Shop {ShopId}: PendingBalance {Before:N0} → {After:N0} (+{Amount:N0})",
-                    shopId, balanceBefore, wallet.PendingBalance, amount);
-
-                return wallet;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Error adding pending balance for Shop {ShopId}", shopId);
-                throw;
-            }
+            await _unitOfWork.CompleteAsync();
+            return wallet;
         }
 
-        /// <summary>
-        /// Release balance: Chuyển từ Pending sang Available
-        /// ⚠️ Không tạo transaction riêng
-        /// </summary>
         public async Task<ShopWallet> ReleaseBalanceAsync(int shopId, decimal amount, string orderId)
         {
-            if (amount <= 0)
-                throw new ArgumentException("Amount must be positive", nameof(amount));
+            if (amount <= 0) throw new ArgumentException("Amount must be positive", nameof(amount));
 
-            _logger.LogInformation("Releasing {Amount:N0} for Shop {ShopId}", amount, shopId);
+            var wallet = await GetOrCreateWalletAsync(shopId);
 
-            try
+            if (wallet.PendingBalance < amount)
+                throw new InvalidOperationException("Insufficient pending balance.");
+
+            decimal beforePending = wallet.PendingBalance;
+            decimal beforeAvailable = wallet.AvailableBalance;
+
+            wallet.PendingBalance -= amount;
+            wallet.AvailableBalance += amount;
+            wallet.LastUpdated = DateTime.UtcNow;
+
+            await _unitOfWork.ShopWallets.UpdateAsync(wallet);
+
+            await _unitOfWork.WalletTransactions.AddAsync(new WalletTransaction
             {
-                var wallet = await _unitOfWork.ShopWallets.GetByShopIdAsync(shopId);
-                if (wallet == null)
-                    throw new InvalidOperationException($"Wallet not found for Shop {shopId}");
+                Id = Guid.NewGuid().ToString(),
+                ShopWalletId = wallet.Id,
+                Type = WalletTransactionType.BalanceRelease,
+                Amount = -amount,
+                BalanceBefore = beforePending,
+                BalanceAfter = wallet.PendingBalance,
+                BalanceType = "Pending",
+                Description = $"Release pending revenue for order {orderId}",
+                ReferenceId = orderId,
+                ReferenceType = "Order",
+                CreatedAt = DateTime.UtcNow
+            });
 
-                if (wallet.PendingBalance < amount)
-                    throw new InvalidOperationException(
-                        $"Insufficient pending balance. Available: {wallet.PendingBalance:N0}, Required: {amount:N0}");
-
-                decimal pendingBefore = wallet.PendingBalance;
-                decimal availableBefore = wallet.AvailableBalance;
-
-                // 1. Trừ từ Pending
-                wallet.PendingBalance -= amount;
-
-                // 2. Cộng vào Available
-                wallet.AvailableBalance += amount;
-                wallet.LastUpdated = DateTime.UtcNow;
-
-                await _unitOfWork.ShopWallets.UpdateAsync(wallet);
-
-                // 3. Ghi log 2 transactions
-                // 3a. Trừ Pending
-                var deductPendingTx = new WalletTransaction
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    ShopWalletId = wallet.Id,
-                    Type = WalletTransactionType.BalanceRelease,
-                    Amount = -amount,
-                    BalanceBefore = pendingBefore,
-                    BalanceAfter = wallet.PendingBalance,
-                    BalanceType = "Pending",
-                    Description = $"Release balance cho đơn hàng {orderId}",
-                    ReferenceId = orderId,
-                    ReferenceType = "Order",
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                // 3b. Cộng Available
-                var addAvailableTx = new WalletTransaction
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    ShopWalletId = wallet.Id,
-                    Type = WalletTransactionType.BalanceRelease,
-                    Amount = amount,
-                    BalanceBefore = availableBefore,
-                    BalanceAfter = wallet.AvailableBalance,
-                    BalanceType = "Available",
-                    Description = $"Nhận tiền từ đơn hàng {orderId}",
-                    ReferenceId = orderId,
-                    ReferenceType = "Order",
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                await _unitOfWork.WalletTransactions.AddAsync(deductPendingTx);
-                await _unitOfWork.WalletTransactions.AddAsync(addAvailableTx);
-                await _unitOfWork.CompleteAsync();
-
-                _logger.LogInformation("✅ Shop {ShopId}: Balance released. Pending: {Pending:N0}, Available: {Available:N0}",
-                    shopId, wallet.PendingBalance, wallet.AvailableBalance);
-
-                return wallet;
-            }
-            catch (Exception ex)
+            await _unitOfWork.WalletTransactions.AddAsync(new WalletTransaction
             {
-                _logger.LogError(ex, "❌ Error releasing balance for Shop {ShopId}", shopId);
-                throw;
-            }
+                Id = Guid.NewGuid().ToString(),
+                ShopWalletId = wallet.Id,
+                Type = WalletTransactionType.BalanceRelease,
+                Amount = amount,
+                BalanceBefore = beforeAvailable,
+                BalanceAfter = wallet.AvailableBalance,
+                BalanceType = "Available",
+                Description = $"Revenue available for order {orderId}",
+                ReferenceId = orderId,
+                ReferenceType = "Order",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _unitOfWork.CompleteAsync();
+            return wallet;
         }
 
-        /// <summary>
-        /// Trừ tiền từ wallet
-        /// ⚠️ Không tạo transaction riêng
-        /// </summary>
         public async Task<ShopWallet> DeductBalanceAsync(
             int shopId,
             decimal amount,
@@ -213,169 +145,118 @@ namespace LECOMS.Service.Services
             string referenceId,
             string description)
         {
-            if (amount <= 0)
-                throw new ArgumentException("Amount must be positive", nameof(amount));
+            if (amount <= 0) throw new ArgumentException("Amount must be positive", nameof(amount));
 
-            _logger.LogInformation("Deducting {Amount:N0} from Shop {ShopId} for {Type}", amount, shopId, type);
+            var wallet = await GetOrCreateWalletAsync(shopId);
 
-            try
+            decimal availableBefore = wallet.AvailableBalance;
+            decimal pendingBefore = wallet.PendingBalance;
+
+            decimal deductAvailable = Math.Min(amount, wallet.AvailableBalance);
+            decimal deductPending = amount - deductAvailable;
+
+            if (deductPending > wallet.PendingBalance)
+                throw new InvalidOperationException("Insufficient balance.");
+
+            wallet.AvailableBalance -= deductAvailable;
+            wallet.PendingBalance -= deductPending;
+            wallet.LastUpdated = DateTime.UtcNow;
+
+            await _unitOfWork.ShopWallets.UpdateAsync(wallet);
+
+            if (deductAvailable > 0)
             {
-                var wallet = await _unitOfWork.ShopWallets.GetByShopIdAsync(shopId);
-                if (wallet == null)
-                    throw new InvalidOperationException($"Wallet not found for Shop {shopId}");
-
-                decimal totalBalance = wallet.AvailableBalance + wallet.PendingBalance;
-                if (totalBalance < amount)
-                    throw new InvalidOperationException(
-                        $"Insufficient balance. Total: {totalBalance:N0}, Required: {amount:N0}");
-
-                // Ưu tiên trừ từ Available, sau đó Pending
-                decimal deductFromAvailable = Math.Min(amount, wallet.AvailableBalance);
-                decimal deductFromPending = amount - deductFromAvailable;
-
-                if (deductFromAvailable > 0)
-                {
-                    decimal availableBefore = wallet.AvailableBalance;
-                    wallet.AvailableBalance -= deductFromAvailable;
-
-                    var tx = new WalletTransaction
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        ShopWalletId = wallet.Id,
-                        Type = type,
-                        Amount = -deductFromAvailable,
-                        BalanceBefore = availableBefore,
-                        BalanceAfter = wallet.AvailableBalance,
-                        BalanceType = "Available",
-                        Description = description,
-                        ReferenceId = referenceId,
-                        ReferenceType = type.ToString(),
-                        CreatedAt = DateTime.UtcNow
-                    };
-
-                    await _unitOfWork.WalletTransactions.AddAsync(tx);
-                }
-
-                if (deductFromPending > 0)
-                {
-                    decimal pendingBefore = wallet.PendingBalance;
-                    wallet.PendingBalance -= deductFromPending;
-
-                    var tx = new WalletTransaction
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        ShopWalletId = wallet.Id,
-                        Type = type,
-                        Amount = -deductFromPending,
-                        BalanceBefore = pendingBefore,
-                        BalanceAfter = wallet.PendingBalance,
-                        BalanceType = "Pending",
-                        Description = description,
-                        ReferenceId = referenceId,
-                        ReferenceType = type.ToString(),
-                        CreatedAt = DateTime.UtcNow
-                    };
-
-                    await _unitOfWork.WalletTransactions.AddAsync(tx);
-                }
-
-                // Update statistics
-                if (type == WalletTransactionType.Refund)
-                {
-                    wallet.TotalRefunded += amount;
-                }
-                else if (type == WalletTransactionType.Withdrawal)
-                {
-                    wallet.TotalWithdrawn += amount;
-                }
-
-                wallet.LastUpdated = DateTime.UtcNow;
-                await _unitOfWork.ShopWallets.UpdateAsync(wallet);
-                await _unitOfWork.CompleteAsync();
-
-                _logger.LogInformation("✅ Deducted {Amount:N0} from Shop {ShopId}", amount, shopId);
-
-                return wallet;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Error deducting balance for Shop {ShopId}", shopId);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Cộng tiền vào AvailableBalance
-        /// ⚠️ Không tạo transaction riêng
-        /// </summary>
-        public async Task<ShopWallet> AddAvailableBalanceAsync(int shopId, decimal amount, string referenceId, string description)
-        {
-            if (amount <= 0)
-                throw new ArgumentException("Amount must be positive", nameof(amount));
-
-            _logger.LogInformation("Adding {Amount:N0} to AvailableBalance for Shop {ShopId}", amount, shopId);
-
-            try
-            {
-                var wallet = await GetOrCreateWalletAsync(shopId);
-
-                decimal balanceBefore = wallet.AvailableBalance;
-
-                wallet.AvailableBalance += amount;
-                wallet.LastUpdated = DateTime.UtcNow;
-
-                await _unitOfWork.ShopWallets.UpdateAsync(wallet);
-
-                var walletTransaction = new WalletTransaction
+                await _unitOfWork.WalletTransactions.AddAsync(new WalletTransaction
                 {
                     Id = Guid.NewGuid().ToString(),
                     ShopWalletId = wallet.Id,
-                    Type = WalletTransactionType.Refund,
-                    Amount = amount,
-                    BalanceBefore = balanceBefore,
+                    Type = type,
+                    Amount = -deductAvailable,
+                    BalanceBefore = availableBefore,
                     BalanceAfter = wallet.AvailableBalance,
                     BalanceType = "Available",
                     Description = description,
                     ReferenceId = referenceId,
-                    ReferenceType = "RefundRequest",
+                    ReferenceType = type.ToString(),
                     CreatedAt = DateTime.UtcNow
-                };
-
-                await _unitOfWork.WalletTransactions.AddAsync(walletTransaction);
-                await _unitOfWork.CompleteAsync();
-
-                _logger.LogInformation("✅ Added {Amount:N0} to AvailableBalance for Shop {ShopId}", amount, shopId);
-
-                return wallet;
+                });
             }
-            catch (Exception ex)
+
+            if (deductPending > 0)
             {
-                _logger.LogError(ex, "❌ Error adding available balance for Shop {ShopId}", shopId);
-                throw;
+                await _unitOfWork.WalletTransactions.AddAsync(new WalletTransaction
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ShopWalletId = wallet.Id,
+                    Type = type,
+                    Amount = -deductPending,
+                    BalanceBefore = pendingBefore,
+                    BalanceAfter = wallet.PendingBalance,
+                    BalanceType = "Pending",
+                    Description = description,
+                    ReferenceId = referenceId,
+                    ReferenceType = type.ToString(),
+                    CreatedAt = DateTime.UtcNow
+                });
             }
+
+            if (type == WalletTransactionType.Refund)
+                wallet.TotalRefunded += amount;
+            else if (type == WalletTransactionType.Withdrawal)
+                wallet.TotalWithdrawn += amount;
+
+            await _unitOfWork.CompleteAsync();
+            return wallet;
         }
 
-        /// <summary>
-        /// Kiểm tra shop có đủ balance để rút tiền không
-        /// </summary>
+        public async Task<ShopWallet> AddAvailableBalanceAsync(
+            int shopId, decimal amount, string referenceId, string description)
+        {
+            if (amount <= 0)
+                throw new ArgumentException("Amount must be positive", nameof(amount));
+
+            var wallet = await GetOrCreateWalletAsync(shopId);
+
+            decimal before = wallet.AvailableBalance;
+
+            wallet.AvailableBalance += amount;
+            wallet.LastUpdated = DateTime.UtcNow;
+
+            await _unitOfWork.ShopWallets.UpdateAsync(wallet);
+
+            await _unitOfWork.WalletTransactions.AddAsync(new WalletTransaction
+            {
+                Id = Guid.NewGuid().ToString(),
+                ShopWalletId = wallet.Id,
+                Type = WalletTransactionType.Refund,
+                Amount = amount,
+                BalanceBefore = before,
+                BalanceAfter = wallet.AvailableBalance,
+                BalanceType = "Available",
+                Description = description,
+                ReferenceId = referenceId,
+                ReferenceType = "RefundRequest",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _unitOfWork.CompleteAsync();
+            return wallet;
+        }
+
         public async Task<bool> CanWithdrawAsync(int shopId, decimal amount)
         {
-            var wallet = await _unitOfWork.ShopWallets.GetByShopIdAsync(shopId);
-            return wallet != null && wallet.AvailableBalance >= amount;
+            var wallet = await GetOrCreateWalletAsync(shopId);
+            return wallet.AvailableBalance >= amount;
         }
 
-        /// <summary>
-        /// Lấy wallet summary
-        /// </summary>
         public async Task<WalletSummaryDto> GetWalletSummaryAsync(int shopId)
         {
             var wallet = await GetOrCreateWalletAsync(shopId);
 
-            // Count pending orders
             var pendingOrdersCount = await _unitOfWork.Orders.CountAsync(
-                o => o.ShopId == shopId
-                    && o.PaymentStatus == PaymentStatus.Paid
-                    && !o.BalanceReleased);
+                o => o.ShopId == shopId &&
+                     o.PaymentStatus == PaymentStatus.Paid &&
+                     !o.BalanceReleased);
 
             return new WalletSummaryDto
             {

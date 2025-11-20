@@ -1,4 +1,5 @@
-﻿using LECOMS.Data.Enum;
+﻿using LECOMS.Common.Helper;
+using LECOMS.Data.Enum;
 using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,6 @@ using System.Linq;
 using System.Net;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using LECOMS.Common.Helper;
 
 namespace LECOMS.API.Controllers
 {
@@ -35,7 +35,8 @@ namespace LECOMS.API.Controllers
             _logger = logger;
         }
 
-        // Helper method for success API response
+        // ----------------- Helpers -----------------
+
         private IActionResult Success(object data, HttpStatusCode statusCode = HttpStatusCode.OK)
         {
             return StatusCode((int)statusCode, new APIResponse
@@ -46,7 +47,6 @@ namespace LECOMS.API.Controllers
             });
         }
 
-        // Helper method for error API response
         private IActionResult Error(string message, HttpStatusCode statusCode)
         {
             return StatusCode((int)statusCode, new APIResponse
@@ -103,6 +103,9 @@ namespace LECOMS.API.Controllers
         {
             try
             {
+                if (page <= 0) page = 1;
+                if (pageSize <= 0) pageSize = 20;
+
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrEmpty(userId))
                     return Error("Unauthorized", HttpStatusCode.Unauthorized);
@@ -115,18 +118,15 @@ namespace LECOMS.API.Controllers
                 if (wallet == null)
                     return Error("Wallet not found", HttpStatusCode.NotFound);
 
-                return Success(new
-                {
-                    walletId = wallet.Id,
-                    shopId = shop.Id,
-                    shopName = shop.Name,
-                    availableBalance = wallet.AvailableBalance,
-                    pendingBalance = wallet.PendingBalance,
-                    totalEarned = wallet.TotalEarned,
-                    totalWithdrawn = wallet.TotalWithdrawn,
-                    totalRefunded = wallet.TotalRefunded,
-                    lastUpdated = wallet.LastUpdated,
-                    transactions = wallet.Transactions.Select(t => new
+                // paginate trên bộ Transactions đã include
+                var query = wallet.Transactions
+                    .OrderByDescending(t => t.CreatedAt);
+
+                var totalItems = query.Count();
+                var items = query
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(t => new
                     {
                         id = t.Id,
                         type = t.Type.ToString(),
@@ -139,12 +139,26 @@ namespace LECOMS.API.Controllers
                         referenceType = t.ReferenceType,
                         createdAt = t.CreatedAt,
                         performedBy = t.PerformedBy
-                    }),
+                    });
+
+                return Success(new
+                {
+                    walletId = wallet.Id,
+                    shopId = shop.Id,
+                    shopName = shop.Name,
+                    availableBalance = wallet.AvailableBalance,
+                    pendingBalance = wallet.PendingBalance,
+                    totalEarned = wallet.TotalEarned,
+                    totalWithdrawn = wallet.TotalWithdrawn,
+                    totalRefunded = wallet.TotalRefunded,
+                    lastUpdated = wallet.LastUpdated,
+                    transactions = items,
                     pagination = new
                     {
                         currentPage = page,
-                        pageSize = pageSize,
-                        totalItems = wallet.Transactions.Count
+                        pageSize,
+                        totalItems,
+                        totalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
                     }
                 });
             }
@@ -194,6 +208,9 @@ namespace LECOMS.API.Controllers
         {
             try
             {
+                if (page <= 0) page = 1;
+                if (pageSize <= 0) pageSize = 20;
+
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrEmpty(userId))
                     return Error("Unauthorized", HttpStatusCode.Unauthorized);
@@ -202,16 +219,14 @@ namespace LECOMS.API.Controllers
                 if (wallet == null)
                     return Error("Wallet not found", HttpStatusCode.NotFound);
 
-                return Success(new
-                {
-                    walletId = wallet.Id,
-                    customerId = userId,
-                    balance = wallet.Balance,
-                    totalRefunded = wallet.TotalRefunded,
-                    totalSpent = wallet.TotalSpent,
-                    totalWithdrawn = wallet.TotalWithdrawn,
-                    lastUpdated = wallet.LastUpdated,
-                    transactions = wallet.Transactions.Select(t => new
+                var query = wallet.Transactions
+                    .OrderByDescending(t => t.CreatedAt);
+
+                var totalItems = query.Count();
+                var items = query
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(t => new
                     {
                         id = t.Id,
                         type = t.Type.ToString(),
@@ -223,12 +238,24 @@ namespace LECOMS.API.Controllers
                         referenceType = t.ReferenceType,
                         createdAt = t.CreatedAt,
                         performedBy = t.PerformedBy
-                    }),
+                    });
+
+                return Success(new
+                {
+                    walletId = wallet.Id,
+                    customerId = userId,
+                    balance = wallet.Balance,
+                    totalRefunded = wallet.TotalRefunded,
+                    totalSpent = wallet.TotalSpent,
+                    totalWithdrawn = wallet.TotalWithdrawn,
+                    lastUpdated = wallet.LastUpdated,
+                    transactions = items,
                     pagination = new
                     {
                         currentPage = page,
-                        pageSize = pageSize,
-                        totalItems = wallet.Transactions.Count
+                        pageSize,
+                        totalItems,
+                        totalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
                     }
                 });
             }
@@ -240,7 +267,7 @@ namespace LECOMS.API.Controllers
         }
 
         // ============================================================
-        // =============== ADMIN — Platform Statistics ==================
+        // =============== ADMIN — Platform Statistics =================
         // ============================================================
 
         [HttpGet("admin/platform-statistics")]
@@ -262,7 +289,6 @@ namespace LECOMS.API.Controllers
 
                 var pendingShopWithdrawals = await _unitOfWork.WithdrawalRequests.GetPendingRequestsAsync();
                 var pendingCustomerWithdrawals = await _unitOfWork.CustomerWithdrawalRequests.GetPendingRequestsAsync();
-
                 var pendingRefunds = await _unitOfWork.RefundRequests.GetByStatusAsync(RefundStatus.PendingShopApproval);
 
                 decimal platformAvailableBalance =
@@ -328,6 +354,8 @@ namespace LECOMS.API.Controllers
         {
             try
             {
+                if (limit <= 0) limit = 10;
+
                 var allWallets = await _unitOfWork.ShopWallets.GetAllAsync(includeProperties: "Shop");
 
                 var topShops = allWallets
@@ -361,6 +389,8 @@ namespace LECOMS.API.Controllers
         {
             try
             {
+                if (limit <= 0) limit = 10;
+
                 var wallets = await _unitOfWork.CustomerWallets.GetWalletsWithBalanceAsync(1, limit);
 
                 return Success(wallets.Select(w => new
