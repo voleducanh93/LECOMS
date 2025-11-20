@@ -150,10 +150,9 @@ namespace LECOMS.Service.Services
                                 {
                                     var lp = progressList.FirstOrDefault(p => p.LessonId == l.Id);
 
-                                    // ⭐ Load linked products
                                     var linked = await _uow.LessonProducts.GetAllAsync(
                                         x => x.LessonId == l.Id,
-                                        includeProperties: "Product,Product.Images,Product.Shop"
+                                        includeProperties: "Product,Product.Category,Product.Images,Product.Shop"
                                     );
 
                                     var linkedProducts = linked.Select(x => new
@@ -161,9 +160,16 @@ namespace LECOMS.Service.Services
                                         id = x.Product.Id,
                                         name = x.Product.Name,
                                         price = x.Product.Price,
-                                        thumbnailUrl = x.Product.Images.FirstOrDefault(i => i.IsPrimary)?.Url,
+                                        slug = x.Product.Slug,
+                                        categoryId = x.Product.CategoryId,
+                                        categoryName = x.Product.Category?.Name,
+                                        categorySlug = x.Product.Category?.Slug,
+                                        thumbnailUrl = x.Product.Images
+                                                         .OrderBy(i => i.OrderIndex)
+                                                         .FirstOrDefault(i => i.IsPrimary)?.Url,
                                         shopName = x.Product.Shop?.Name
                                     }).ToList();
+
 
                                     return new
                                     {
@@ -208,7 +214,12 @@ namespace LECOMS.Service.Services
 
         public async Task<bool> CompleteLessonAsync(string userId, string lessonId)
         {
-            var lesson = await _uow.Lessons.GetAsync(l => l.Id == lessonId);
+            // ⬅ Load Lesson + Section
+            var lesson = await _uow.Lessons.GetAsync(
+                l => l.Id == lessonId,
+                includeProperties: "Section"
+            );
+
             if (lesson == null)
                 throw new KeyNotFoundException("Lesson not found.");
 
@@ -223,7 +234,7 @@ namespace LECOMS.Service.Services
                     LessonId = lessonId,
                     IsCompleted = true,
                     CompletedAt = DateTime.UtcNow,
-                    XpEarned = 5 // XP mặc định
+                    XpEarned = 5
                 };
 
                 await _uow.UserLessonProgresses.AddAsync(progress);
@@ -237,9 +248,30 @@ namespace LECOMS.Service.Services
                 await _uow.UserLessonProgresses.UpdateAsync(progress);
             }
 
+            // ⭐ FIXED: Lấy courseId qua Section
+            var courseId = lesson.Section.CourseId;
+
+            var enrollment = await _uow.Enrollments.GetAsync(
+                e => e.UserId == userId && e.CourseId == courseId,
+                includeProperties: "Course,Course.Sections.Lessons"
+            );
+
+            if (enrollment != null)
+            {
+                var allLessons = enrollment.Course.Sections.SelectMany(s => s.Lessons).Count();
+
+                var completedLessons = await _uow.UserLessonProgresses.Query()
+                    .Where(p => p.UserId == userId && p.IsCompleted)
+                    .CountAsync();
+
+                enrollment.Progress = (int)((double)completedLessons / allLessons * 100);
+                await _uow.Enrollments.UpdateAsync(enrollment);
+            }
+
             await _uow.CompleteAsync();
             return true;
         }
+
 
     }
 }
