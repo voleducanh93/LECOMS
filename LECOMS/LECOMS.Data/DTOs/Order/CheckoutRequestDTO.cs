@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace LECOMS.Data.DTOs.Order
@@ -18,40 +17,24 @@ namespace LECOMS.Data.DTOs.Order
 
         // ============ VOUCHER (Optional) ============
 
-        /// <summary>
-        /// Mã voucher/giảm giá (nếu có)
-        /// Hệ thống sẽ validate và tính discount tự động
-        /// </summary>
         [MaxLength(50)]
         public string? VoucherCode { get; set; }
 
         // ============ PRODUCT SELECTION (Optional) ============
 
         /// <summary>
-        /// Danh sách ProductId được chọn
-        /// - NULL/Empty: Checkout toàn bộ cart
-        /// - Có data: Chỉ checkout các sản phẩm này
+        /// NULL / empty: checkout toàn bộ cart
+        /// Có data: checkout các sản phẩm có trong list
         /// </summary>
         public List<string>? SelectedProductIds { get; set; }
 
         // ============ PAYMENT METHOD ============
 
         /// <summary>
-        /// Phương thức thanh toán:
-        /// - "PayOS": Thanh toán qua PayOS (mặc định)
-        /// - "Wallet": Thanh toán bằng CustomerWallet
-        /// - "Mixed": Wallet trước, thiếu thì PayOS
+        /// PAYOS / WALLET
         /// </summary>
         [Required]
-        public string PaymentMethod { get; set; } = "PayOS";
-
-        /// <summary>
-        /// Số tiền muốn dùng từ Wallet (khi PaymentMethod = "Mixed")
-        /// Mặc định: Dùng toàn bộ balance
-        /// </summary>
-        public decimal? WalletAmountToUse { get; set; }
-
-        // ============ NOTE (Optional) ============
+        public string PaymentMethod { get; set; } = "PAYOS";
 
         [MaxLength(500)]
         public string? Note { get; set; }

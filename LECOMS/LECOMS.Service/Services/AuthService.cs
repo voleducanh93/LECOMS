@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using LECOMS.Data.DTOs.Auth;
 using LECOMS.Data.Entities;
+using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -24,19 +25,22 @@ namespace LECOMS.Service.Services
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
         private readonly IEmailService _emailService;
+        private readonly IUnitOfWork _unitOfWork;
 
         public AuthService(
             UserManager<User> userManager,
             RoleManager<IdentityRole> roleManager,
             IConfiguration configuration,
             IMapper mapper,
-            IEmailService emailService)
+            IEmailService emailService,
+            IUnitOfWork unitOfWork)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _configuration = configuration;
             _mapper = mapper;
             _emailService = emailService;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<LoginResponseDTO> LoginAsync(LoginRequestDTO loginRequestDTO)
@@ -135,6 +139,25 @@ namespace LECOMS.Service.Services
 
             // Assign role "Customer" to the user
             await _userManager.AddToRoleAsync(user, defaultRole);
+
+            // ===============================
+            // ⭐ TỰ ĐỘNG TẠO CUSTOMER WALLET
+            // ===============================
+            var wallet = new CustomerWallet
+            {
+                Id = Guid.NewGuid().ToString(),
+                CustomerId = user.Id,
+                Balance = 0,
+                TotalRefunded = 0,
+                TotalSpent = 0,
+                TotalWithdrawn = 0,
+                CreatedAt = DateTime.UtcNow,
+                LastUpdated = DateTime.UtcNow
+            };
+
+            await _unitOfWork.CustomerWallets.AddAsync(wallet);
+            await _unitOfWork.CompleteAsync();
+
 
             // Generate confirmation email token and send email
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
