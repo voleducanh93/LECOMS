@@ -51,133 +51,133 @@ namespace LECOMS.Service.Services
         /// </summary>
         public async Task<string> CreatePaymentLinkAsync(string orderId)
         {
-            _logger.LogInformation("=== START CreatePaymentLink (retry) for Order: {OrderId} ===", orderId);
+            _logger.LogInformation("=== START CreatePaymentLinkAsync (retry/manual) for Order: {OrderId} ===", orderId);
 
-            try
+            // ============================================================
+            // 1) CHECK IF THIS ORDER OR ANY ORDER IN TRANSACTION WAS PAID
+            // ============================================================
+
+            // Lấy transaction chứa orderId (nếu có)
+            var existingTx = await _unitOfWork.Transactions.GetByOrderIdAsync(orderId);
+
+            if (existingTx != null)
             {
-                // 0. Cố gắng tìm transaction hiện có theo orderId (có thể là 1 hoặc nhiều order)
-                var transaction = await _unitOfWork.Transactions.GetByOrderIdAsync(orderId);
+                // Nếu transaction đã Completed → cấm retry
+                if (existingTx.Status == TransactionStatus.Completed)
+                    throw new InvalidOperationException("This order group has already been PAID successfully.");
 
-                List<Order> orders = new List<Order>();
+                // Load toàn bộ orders trong giao dịch
+                var allOrderIds = existingTx.OrderId
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-                if (transaction != null)
+                foreach (var oid in allOrderIds)
                 {
-                    _logger.LogInformation(
-                        "Found existing transaction {TxId} with OrderIds = {OrderIds}, Status = {Status}",
-                        transaction.Id, transaction.OrderId, transaction.Status);
-
-                    if (transaction.Status == TransactionStatus.Completed)
-                    {
-                        throw new InvalidOperationException("This order group has already been paid successfully.");
-                    }
-
-                    // Lấy toàn bộ orders trong transaction (group checkout)
-                    var orderIds = transaction.OrderId
-                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-                    foreach (var oid in orderIds)
-                    {
-                        var o = await _unitOfWork.Orders.GetAsync(
-                            x => x.Id == oid,
-                            includeProperties: "Details.Product,Shop,User");
-
-                        if (o != null) orders.Add(o);
-                        else _logger.LogWarning("Order {OrderId} not found when retry payment", oid);
-                    }
-
-                    if (!orders.Any())
-                    {
-                        throw new InvalidOperationException("No valid orders found for transaction when retrying payment.");
-                    }
-
-                    _logger.LogInformation("Retrying payment for {Count} order(s) in transaction {TxId}",
-                        orders.Count, transaction.Id);
-
-                    // (Optional) Nếu muốn, có thể kiểm tra lại tổng tiền vs transaction.TotalAmount
-
-                    // Reset một số field cho retry
-                    transaction.PayOSOrderCode = null;
-                    transaction.PayOSPaymentUrl = null;
-                    transaction.PayOSTransactionId = null;
-                    transaction.Status = TransactionStatus.Pending;
-                    transaction.Note += $" | Retry at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC";
-
-                    await _unitOfWork.Transactions.UpdateAsync(transaction);
-                    await _unitOfWork.CompleteAsync();
-
-                    // Tạo lại link PayOS cho nhóm orders này
-                    var paymentUrl = await CreatePayOSPaymentAsync(transaction, orders);
-
-                    transaction.PayOSPaymentUrl = paymentUrl;
-                    await _unitOfWork.Transactions.UpdateAsync(transaction);
-                    await _unitOfWork.CompleteAsync();
-
-                    _logger.LogInformation(
-                        "=== ✅ SUCCESS: Retry payment link for transaction {TxId}: {Url} ===",
-                        transaction.Id, paymentUrl);
-
-                    return paymentUrl;
+                    var order = await _unitOfWork.Orders.GetAsync(o => o.Id == oid);
+                    if (order != null && order.PaymentStatus == PaymentStatus.Paid)
+                        throw new InvalidOperationException(
+                            $"Order group already contains PAID order ({order.OrderCode}). Retry forbidden.");
                 }
-                else
+            }
+            else
+            {
+                // Không có transaction → kiểm tra đơn lẻ
+                var order = await _unitOfWork.Orders.GetAsync(o => o.Id == orderId);
+                if (order == null)
+                    throw new InvalidOperationException("Order not found.");
+
+                if (order.PaymentStatus == PaymentStatus.Paid)
+                    throw new InvalidOperationException(
+                        $"Order {order.OrderCode} has already been PAID.");
+            }
+
+            // ============================================================
+            // 2) CASE 1: RETRY PAYMENT (transaction exists)
+            // ============================================================
+            if (existingTx != null)
+            {
+                _logger.LogInformation("Retrying PaymentLink for existing transaction {TxId}", existingTx.Id);
+
+                // Load full list of orders within the transaction
+                var list = new List<Order>();
+                var ids = existingTx.OrderId
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                foreach (var oid in ids)
                 {
-                    // 🔹 Trường hợp KHÔNG có transaction → fallback xử lý 1 order đơn lẻ
-                    // (Use case: admin tạo link thủ công cho một order không thông qua checkout group)
-
-                    _logger.LogInformation("No transaction found for Order {OrderId}. Creating SINGLE-order transaction.", orderId);
-
-                    var order = await _unitOfWork.Orders.GetAsync(
-                        o => o.Id == orderId,
+                    var o = await _unitOfWork.Orders.GetAsync(
+                        x => x.Id == oid,
                         includeProperties: "Details.Product,Shop,User");
 
-                    if (order == null)
-                    {
-                        throw new InvalidOperationException($"Order {orderId} not found");
-                    }
-
-                    // Lấy config
-                    var config = await _unitOfWork.PlatformConfigs.GetConfigAsync()
-                        ?? throw new InvalidOperationException("Platform configuration not found");
-
-                    decimal orderTotal = order.Total;
-                    decimal platformFeeAmount = orderTotal * config.DefaultCommissionRate / 100;
-                    decimal shopAmount = orderTotal - platformFeeAmount;
-
-                    // Tạo transaction mới cho 1 order
-                    var newTx = new Transaction
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        OrderId = orderId,
-                        TotalAmount = orderTotal,
-                        PlatformFeePercent = config.DefaultCommissionRate,
-                        PlatformFeeAmount = platformFeeAmount,
-                        ShopAmount = shopAmount,
-                        Status = TransactionStatus.Pending,
-                        PaymentMethod = "PayOS",
-                        CreatedAt = DateTime.UtcNow,
-                        Note = $"Payment for order {order.OrderCode}"
-                    };
-
-                    await _unitOfWork.Transactions.AddAsync(newTx);
-                    await _unitOfWork.CompleteAsync();
-
-                    var paymentUrl = await CreatePayOSPaymentAsync(newTx, new List<Order> { order });
-
-                    newTx.PayOSPaymentUrl = paymentUrl;
-                    await _unitOfWork.Transactions.UpdateAsync(newTx);
-                    await _unitOfWork.CompleteAsync();
-
-                    _logger.LogInformation(
-                        "=== ✅ SUCCESS: Payment link for single order {OrderCode}: {Url} ===",
-                        order.OrderCode, paymentUrl);
-
-                    return paymentUrl;
+                    if (o != null) list.Add(o);
                 }
+
+                if (!list.Any())
+                    throw new InvalidOperationException("Transaction contains no valid orders.");
+
+                // Reset PayOS data for retry
+                existingTx.PayOSOrderCode = null;
+                existingTx.PayOSPaymentUrl = null;
+                existingTx.PayOSTransactionId = null;
+                existingTx.Status = TransactionStatus.Pending;
+                existingTx.Note += $" | Retry at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}";
+
+                await _unitOfWork.Transactions.UpdateAsync(existingTx);
+                await _unitOfWork.CompleteAsync();
+
+                // Generate new PayOS link
+                var url = await CreatePayOSPaymentAsync(existingTx, list);
+
+                existingTx.PayOSPaymentUrl = url;
+                await _unitOfWork.Transactions.UpdateAsync(existingTx);
+                await _unitOfWork.CompleteAsync();
+
+                return url;
             }
-            catch (Exception ex)
+
+            // ============================================================
+            // 3) CASE 2: NEW MANUAL PAYMENT LINK FOR A SINGLE ORDER
+            // ============================================================
+
+            _logger.LogInformation("No existing transaction → create NEW single-order transaction.");
+
+            var singleOrder = await _unitOfWork.Orders.GetAsync(
+                o => o.Id == orderId,
+                includeProperties: "Details.Product,Shop,User");
+
+            if (singleOrder == null)
+                throw new InvalidOperationException("Order not found.");
+
+            var cfg = await _unitOfWork.PlatformConfigs.GetConfigAsync()
+                      ?? throw new InvalidOperationException("Platform config missing.");
+
+            decimal total = singleOrder.Total;
+            decimal fee = total * cfg.DefaultCommissionRate / 100;
+            decimal shopAmount = total - fee;
+
+            var newTx = new Transaction
             {
-                _logger.LogError(ex, "=== ❌ ERROR in CreatePaymentLinkAsync for Order {OrderId} ===", orderId);
-                throw;
-            }
+                Id = Guid.NewGuid().ToString(),
+                OrderId = orderId,
+                TotalAmount = total,
+                PlatformFeePercent = cfg.DefaultCommissionRate,
+                PlatformFeeAmount = fee,
+                ShopAmount = shopAmount,
+                Status = TransactionStatus.Pending,
+                PaymentMethod = "PAYOS",
+                CreatedAt = DateTime.UtcNow,
+                Note = $"Manual payment for {singleOrder.OrderCode}"
+            };
+
+            await _unitOfWork.Transactions.AddAsync(newTx);
+            await _unitOfWork.CompleteAsync();
+
+            var paymentUrlNew = await CreatePayOSPaymentAsync(newTx, new List<Order> { singleOrder });
+
+            newTx.PayOSPaymentUrl = paymentUrlNew;
+            await _unitOfWork.Transactions.UpdateAsync(newTx);
+            await _unitOfWork.CompleteAsync();
+
+            return paymentUrlNew;
         }
 
 

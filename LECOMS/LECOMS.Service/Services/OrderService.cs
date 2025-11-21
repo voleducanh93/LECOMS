@@ -36,7 +36,7 @@ namespace LECOMS.Service.Services
         }
 
         // =====================================================================
-        // CHECKOUT
+        // CHECKOUT (CART)
         // =====================================================================
         public async Task<CheckoutResultDTO> CreateOrderFromCartAsync(string userId, CheckoutRequestDTO checkout)
         {
@@ -126,6 +126,7 @@ namespace LECOMS.Service.Services
                 decimal walletUsed = 0;
                 decimal payOSRequired = grandTotal;
 
+                // ==================== WALLET ====================
                 if (method == "WALLET")
                 {
                     bool ok = await _customerWalletService.HasSufficientBalanceAsync(userId, grandTotal);
@@ -140,26 +141,31 @@ namespace LECOMS.Service.Services
                     foreach (var o in createdOrders)
                         o.PaymentStatus = PaymentStatus.Paid;
 
-                    var txObj = await CreateTransactionAsync(createdOrders, grandTotal);
+                    // Tạo transaction WALLET
+                    var txObj = await CreateTransactionAsync(createdOrders, grandTotal, "WALLET");
                     txObj.Status = TransactionStatus.Completed;
 
-                    // phân bổ doanh thu cho shop (Pending)
+                    await _uow.Transactions.UpdateAsync(txObj);
+                    await _uow.CompleteAsync();
+
                     await DistributeRevenueToShopsAsync(createdOrders, txObj);
 
                     walletUsed = grandTotal;
                     payOSRequired = 0;
                 }
-                else // PAYOS
+                else
                 {
-                    var txObj = await CreateTransactionAsync(createdOrders, grandTotal);
-                    paymentUrl =
-                        await _paymentService.CreatePaymentLinkForMultipleOrdersAsync(txObj.Id, createdOrders);
+                    // ==================== PAYOS ====================
+                    var txObj = await CreateTransactionAsync(createdOrders, grandTotal, "PAYOS");
+
+                    paymentUrl = await _paymentService.CreatePaymentLinkForMultipleOrdersAsync(txObj.Id, createdOrders);
                 }
 
-                // Xoá items trong cart
+                // Xóa cart items
                 foreach (var item in selectedItems)
                     await _uow.CartItems.DeleteAsync(item);
 
+                // Load lại User để có FullName => tránh CustomerName = null
                 var user = await _uow.Users.GetAsync(u => u.Id == userId);
                 foreach (var o in createdOrders)
                     o.User = user;
@@ -230,8 +236,13 @@ namespace LECOMS.Service.Services
 
         public async Task<OrderDTO> UpdateOrderStatusAsync(string orderId, string status, string userId)
         {
-            var order = await _uow.Orders.GetAsync(o => o.Id == orderId)
-                ?? throw new InvalidOperationException("Order not found");
+            var order = await _uow.Orders.GetAsync(
+                o => o.Id == orderId,
+                includeProperties: "Shop,User,Details,Details.Product,Details.Product.Images,Details.Product.Category"
+            );
+
+            if (order == null)
+                throw new InvalidOperationException("Order not found");
 
             order.Status = Enum.Parse<OrderStatus>(status);
             await _uow.Orders.UpdateAsync(order);
@@ -239,6 +250,7 @@ namespace LECOMS.Service.Services
 
             return MapToDTO(order);
         }
+
 
         public async Task<OrderDTO> ConfirmReceivedAsync(string orderId, string userId)
         {
@@ -260,6 +272,16 @@ namespace LECOMS.Service.Services
             order.CompletedAt = DateTime.UtcNow;
 
             await _uow.Orders.UpdateAsync(order);
+
+            // ⭐ UPDATE TRANSACTION (Fix)
+            var tx = await _uow.Transactions.GetByOrderIdAsync(orderId);
+            if (tx != null)
+            {
+                tx.Status = TransactionStatus.Completed;
+                tx.CompletedAt = DateTime.UtcNow;
+                await _uow.Transactions.UpdateAsync(tx);
+            }
+
             await _uow.CompleteAsync();
 
             return MapToDTO(order);
@@ -303,7 +325,8 @@ namespace LECOMS.Service.Services
             };
         }
 
-        private async Task<Transaction> CreateTransactionAsync(List<Order> orders, decimal totalAmount)
+        // ⭐ FIXED: truyền PaymentMethod vào
+        private async Task<Transaction> CreateTransactionAsync(List<Order> orders, decimal totalAmount, string method)
         {
             var config = await _uow.PlatformConfigs.GetConfigAsync();
 
@@ -319,19 +342,16 @@ namespace LECOMS.Service.Services
                 PlatformFeeAmount = platformFeeAmount,
                 ShopAmount = shopAmount,
                 Status = TransactionStatus.Pending,
-                PaymentMethod = "PAYOS",
+                PaymentMethod = method,
                 CreatedAt = DateTime.UtcNow
             };
 
             await _uow.Transactions.AddAsync(tx);
-            await _uow.CompleteAsync(); // cần Id để tạo PayOS link
+            await _uow.CompleteAsync();
 
             return tx;
         }
 
-        /// <summary>
-        /// Gọi ShopWalletService để cộng PendingBalance cho từng shop
-        /// </summary>
         private async Task DistributeRevenueToShopsAsync(List<Order> orders, Transaction tx)
         {
             var config = await _uow.PlatformConfigs.GetConfigAsync();
