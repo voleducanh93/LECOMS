@@ -17,11 +17,14 @@ namespace LECOMS.API.Controllers
         private readonly IUserService _userService;
         private readonly APIResponse _response;
         private readonly UserManager<User> _userManager;
-        public AdminUserController(IUserService userService, APIResponse response, UserManager<User> userManager)
+        private readonly RoleManager<IdentityRole> _roleManager;
+
+        public AdminUserController(IUserService userService, APIResponse response, UserManager<User> userManager, RoleManager<IdentityRole> roleManager)
         {
             _userService = userService;
             _response = response;
             _userManager = userManager;
+            _roleManager = roleManager; // ⭐ bổ sung dòng này
         }
 
         [HttpGet("all")]
@@ -105,5 +108,78 @@ namespace LECOMS.API.Controllers
             _response.Result = users;
             return Ok(_response);
         }
+        // ====================== ROLE MANAGEMENT ======================
+
+        // Tạo Role mới (ví dụ: Moderator)
+        [HttpPost("role/create")]
+        public async Task<IActionResult> CreateRole([FromBody] string roleName)
+        {
+            if (await _roleManager.RoleExistsAsync(roleName))
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages.Add("Role already exists");
+                return BadRequest(_response);
+            }
+
+            var result = await _roleManager.CreateAsync(new IdentityRole(roleName));
+            _response.StatusCode = result.Succeeded ? HttpStatusCode.OK : HttpStatusCode.BadRequest;
+            _response.Result = new { Message = $"Role '{roleName}' created" };
+            return Ok(_response);
+        }
+
+        // Lấy danh sách roles
+        [HttpGet("role/all")]
+        public IActionResult GetAllRoles()
+        {
+            _response.StatusCode = HttpStatusCode.OK;
+            _response.Result = _roleManager.Roles.Select(r => r.Name).ToList();
+            return Ok(_response);
+        }
+
+        // Gán role cho user
+        [HttpPost("role/assign")]
+        public async Task<IActionResult> AssignRole([FromBody] AssignRoleDTO dto)
+        {
+            var user = await _userManager.FindByIdAsync(dto.UserId);
+            if (user == null)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages.Add("User not found");
+                return NotFound(_response);
+            }
+
+            if (!await _roleManager.RoleExistsAsync(dto.Role))
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages.Add("Role not found");
+                return NotFound(_response);
+            }
+
+            await _userManager.AddToRoleAsync(user, dto.Role);
+
+            _response.StatusCode = HttpStatusCode.OK;
+            _response.Result = new { Message = $"Added role '{dto.Role}' to user '{user.UserName}'" };
+            return Ok(_response);
+        }
+
+        // Gỡ role của user
+        [HttpPost("role/remove")]
+        public async Task<IActionResult> RemoveRole([FromBody] AssignRoleDTO dto)
+        {
+            var user = await _userManager.FindByIdAsync(dto.UserId);
+            if (user == null)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages.Add("User not found");
+                return NotFound(_response);
+            }
+
+            await _userManager.RemoveFromRoleAsync(user, dto.Role);
+
+            _response.StatusCode = HttpStatusCode.OK;
+            _response.Result = new { Message = $"Removed role '{dto.Role}' from '{user.UserName}'" };
+            return Ok(_response);
+        }
+
     }
 }

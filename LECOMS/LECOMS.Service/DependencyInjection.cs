@@ -45,8 +45,9 @@
                 services.AddScoped<IRefundService, RefundService>();
                 services.AddScoped<IWithdrawalService, WithdrawalService>();
                 services.AddScoped<ICustomerWithdrawalService, CustomerWithdrawalService>();
-                // Chat System
-                services.AddScoped<IChatService, ChatService>();
+                services.AddScoped<ICommunityService, CommunityService>();
+            // Chat System
+            services.AddScoped<IChatService, ChatService>();
 
             // AI Chat (Gemini)
             services.AddHttpClient<IAIProductChatService, AIProductChatService>();

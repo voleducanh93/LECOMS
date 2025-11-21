@@ -25,6 +25,7 @@ namespace LECOMS.Service.Services
 
         /// <summary>
         /// Lấy tất cả sản phẩm thuộc shop (bao gồm Category và Images)
+        /// Seller nhìn được cả pending/rejected
         /// </summary>
         public async Task<IEnumerable<ProductDTO>> GetAllByShopAsync(int shopId)
         {
@@ -43,7 +44,7 @@ namespace LECOMS.Service.Services
         {
             var product = await _uow.Products.GetAsync(
                 p => p.Id == id,
-                    includeProperties: "Category,Images,Shop"
+                includeProperties: "Category,Images,Shop"
             );
 
             if (product == null)
@@ -53,38 +54,37 @@ namespace LECOMS.Service.Services
         }
 
         /// <summary>
-        /// Seller tạo sản phẩm mới (kèm nhiều ảnh)
+        /// Seller tạo sản phẩm mới (pendding duyệt)
         /// </summary>
         public async Task<ProductDTO> CreateAsync(int shopId, ProductCreateDTO dto)
         {
             using var transaction = await _uow.BeginTransactionAsync();
-
             try
             {
-                // ✅ Kiểm tra Shop và Category hợp lệ
                 var shop = await _uow.Shops.GetAsync(s => s.Id == shopId)
                            ?? throw new InvalidOperationException("Shop not found.");
 
                 var category = await _uow.ProductCategories.GetAsync(c => c.Id == dto.CategoryId)
                                ?? throw new InvalidOperationException("Category not found.");
 
-                // ✅ Sinh slug
                 var slug = GenerateSlug(dto.Name);
                 if (await _uow.Products.ExistsSlugAsync(slug))
-                    throw new InvalidOperationException("Slug already exists for another product.");
+                    throw new InvalidOperationException("Slug already exists.");
 
-                // ✅ Tạo Product entity
                 var product = _mapper.Map<Product>(dto);
                 product.Id = Guid.NewGuid().ToString();
                 product.Slug = slug;
-                product.ShopId = shopId; // ✅ Gán ShopId tại đây
+                product.ShopId = shopId;
                 product.LastUpdatedAt = DateTime.UtcNow;
-                product.Status = dto.Status ?? Data.Enum.ProductStatus.Draft;
+
+                // 🔥 Pending duyệt
+                product.Status = ProductStatus.Draft;
+                product.ApprovalStatus = ApprovalStatus.Pending;
+                product.ModeratorNote = null;
 
                 await _uow.Products.AddAsync(product);
 
-                // ✅ Nếu có ảnh -> lưu ProductImage
-                if (dto.Images != null && dto.Images.Count > 0)
+                if (dto.Images != null)
                 {
                     foreach (var img in dto.Images)
                     {
@@ -104,7 +104,6 @@ namespace LECOMS.Service.Services
                 var loaded = await _uow.Products.GetAsync(
                     p => p.Id == product.Id,
                     includeProperties: "Category,Images,Shop"
-
                 );
 
                 return _mapper.Map<ProductDTO>(loaded);
@@ -117,32 +116,34 @@ namespace LECOMS.Service.Services
         }
 
         /// <summary>
-        /// Cập nhật thông tin sản phẩm (có thể thay thế toàn bộ ảnh)
+        /// Seller update → luôn reset về Pending duyệt
         /// </summary>
         public async Task<ProductDTO> UpdateAsync(string id, ProductUpdateDTO dto)
         {
             var product = await _uow.Products.GetAsync(p => p.Id == id, includeProperties: "Images");
             if (product == null) throw new KeyNotFoundException("Product not found.");
 
-            // ✅ Cập nhật dữ liệu cơ bản
             if (!string.IsNullOrEmpty(dto.Name))
             {
                 product.Name = dto.Name.Trim();
                 product.Slug = GenerateSlug(dto.Name);
             }
+
             if (!string.IsNullOrEmpty(dto.Description)) product.Description = dto.Description;
             if (!string.IsNullOrEmpty(dto.CategoryId)) product.CategoryId = dto.CategoryId;
             if (dto.Price.HasValue) product.Price = dto.Price.Value;
             if (dto.Stock.HasValue) product.Stock = dto.Stock.Value;
-            if (dto.Status.HasValue) product.Status = dto.Status.Value;
+
+            // 🔥 Seller sửa → Pending duyệt lại
+            product.ApprovalStatus = ApprovalStatus.Pending;
+            product.ModeratorNote = null;
 
             product.LastUpdatedAt = DateTime.UtcNow;
 
-            // ✅ Nếu có danh sách ảnh mới, xoá ảnh cũ trước
             if (dto.Images != null)
             {
                 await _uow.ProductImages.DeleteAllByProductIdAsync(product.Id);
-                await _uow.CompleteAsync(); // đảm bảo xoá thành công trước khi thêm mới
+                await _uow.CompleteAsync();
 
                 foreach (var img in dto.Images)
                 {
@@ -163,6 +164,7 @@ namespace LECOMS.Service.Services
                 p => p.Id == id,
                 includeProperties: "Category,Images"
             );
+
             return _mapper.Map<ProductDTO>(loaded);
         }
 
@@ -176,12 +178,11 @@ namespace LECOMS.Service.Services
 
             await _uow.ProductImages.DeleteAllByProductIdAsync(product.Id);
             await _uow.Products.DeleteAsync(product);
-
             await _uow.CompleteAsync();
+
             return true;
         }
 
-        // Helper: sinh slug SEO-friendly
         private static string GenerateSlug(string input)
         {
             if (string.IsNullOrWhiteSpace(input)) return string.Empty;
@@ -189,9 +190,9 @@ namespace LECOMS.Service.Services
             s = System.Text.RegularExpressions.Regex.Replace(s, @"[^a-z0-9]+", "-").Trim('-');
             return s;
         }
+
         /// <summary>
-        /// Lấy danh sách sản phẩm public (cho trang search + homepage)
-        /// Hỗ trợ: search, filter, sort, pagination
+        /// Public list → chỉ Approved + Published
         /// </summary>
         public async Task<object> GetPublicProductsAsync(
             string? search = null,
@@ -203,14 +204,16 @@ namespace LECOMS.Service.Services
             decimal? maxPrice = null
         )
         {
-            // Base query
             IQueryable<Product> query = _uow.Products.Query()
                 .Include(p => p.Category)
                 .Include(p => p.Images)
                 .Include(p => p.Shop)
-                .Where(p => p.Active == 1 && p.Status == ProductStatus.Published);
+                .Where(p =>
+                    p.Active == 1 &&
+                    p.Status == ProductStatus.Published &&      // FE muốn xem product đã publish
+                    p.ApprovalStatus == ApprovalStatus.Approved // ⭐ moderator đã duyệt
+                );
 
-            // 🔍 Search theo tên sản phẩm, mô tả, hoặc shop name
             if (!string.IsNullOrWhiteSpace(search))
             {
                 string lower = search.ToLower();
@@ -221,7 +224,6 @@ namespace LECOMS.Service.Services
                 );
             }
 
-            // 🏷️ Lọc theo category slug
             if (!string.IsNullOrEmpty(category))
             {
                 var cat = await _uow.ProductCategories.GetAsync(c => c.Slug == category && c.Active == 1);
@@ -229,13 +231,11 @@ namespace LECOMS.Service.Services
                     query = query.Where(p => p.CategoryId == cat.Id);
             }
 
-            // 💰 Lọc theo khoảng giá
             if (minPrice.HasValue)
                 query = query.Where(p => p.Price >= minPrice.Value);
             if (maxPrice.HasValue)
                 query = query.Where(p => p.Price <= maxPrice.Value);
 
-            // 🔽 Sort
             query = sort?.ToLower() switch
             {
                 "price_asc" => query.OrderBy(p => p.Price),
@@ -243,20 +243,17 @@ namespace LECOMS.Service.Services
                 "name_asc" => query.OrderBy(p => p.Name),
                 "name_desc" => query.OrderByDescending(p => p.Name),
                 "oldest" => query.OrderBy(p => p.LastUpdatedAt),
-                _ => query.OrderByDescending(p => p.LastUpdatedAt) // default newest
+                _ => query.OrderByDescending(p => p.LastUpdatedAt)
             };
 
-            // 📄 Pagination
             int totalItems = await query.CountAsync();
             var products = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
-            // ✅ Map sang DTO
             var items = _mapper.Map<IEnumerable<ProductDTO>>(products);
 
-            // ✅ Trả về object chứa meta-data
             return new
             {
                 totalItems,
@@ -266,10 +263,17 @@ namespace LECOMS.Service.Services
                 items
             };
         }
+
+        /// <summary>
+        /// Lấy sản phẩm theo slug (chỉ Approved + Published)
+        /// </summary>
         public async Task<ProductDTO> GetBySlugAsync(string slug)
         {
             var product = await _uow.Products.GetAsync(
-                p => p.Slug == slug && p.Active == 1,
+                p => p.Slug == slug
+                  && p.Active == 1
+                  && p.Status == ProductStatus.Published
+                  && p.ApprovalStatus == ApprovalStatus.Approved,
                 includeProperties: "Category,Images,Shop"
             );
 
@@ -278,6 +282,5 @@ namespace LECOMS.Service.Services
 
             return _mapper.Map<ProductDTO>(product);
         }
-
     }
 }

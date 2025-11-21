@@ -112,7 +112,7 @@ namespace LECOMS.API.Controllers
                 if (shop == null)
                     throw new InvalidOperationException("Shop not found.");
 
-                // ✅ gọi service có xử lý images, status, lastUpdatedAt
+                // 🔥 Service sẽ auto: Pending + Draft
                 var product = await _productService.CreateAsync(shop.Id, dto);
 
                 response.StatusCode = HttpStatusCode.Created;
@@ -139,6 +139,7 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+
 
         /// <summary>
         /// Seller cập nhật sản phẩm (bao gồm trạng thái, nhiều hình ảnh)

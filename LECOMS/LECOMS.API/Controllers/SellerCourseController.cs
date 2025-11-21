@@ -40,7 +40,7 @@ namespace LECOMS.API.Controllers
                 if (shop == null)
                     throw new InvalidOperationException("Shop not found.");
 
-                // ✅ Tự gán shopId cho DTO
+                // 🔥 gán shopId
                 dto.ShopId = shop.Id;
 
                 var course = await _service.CreateCourseAsync(dto);
@@ -55,6 +55,7 @@ namespace LECOMS.API.Controllers
             }
             return StatusCode((int)response.StatusCode, response);
         }
+
 
         /// <summary>
         /// Seller tạo Section (phần trong khóa học)

@@ -1,4 +1,5 @@
-﻿using Org.BouncyCastle.Tls;
+﻿using LECOMS.Data.Enum;
+using Org.BouncyCastle.Tls;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -25,6 +26,8 @@ namespace LECOMS.Data.Entities
         [Required] public int ShopId { get; set; }
         [ForeignKey(nameof(ShopId))] public Shop Shop { get; set; } = null!;
         public byte Active { get; set; } = 1;
+        public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Pending;
+        public string? ModeratorNote { get; set; }
 
         public ICollection<CourseSection> Sections { get; set; } = new List<CourseSection>();
         public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();

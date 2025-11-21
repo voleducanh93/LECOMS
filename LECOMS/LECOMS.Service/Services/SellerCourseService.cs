@@ -32,14 +32,14 @@ namespace LECOMS.Service.Services
             if (string.IsNullOrWhiteSpace(dto.Title))
                 throw new InvalidOperationException("Course title is required.");
 
-            // ✅ BE đảm bảo ShopId được gán từ Controller
-            var shopId = dto.ShopId ?? throw new InvalidOperationException("ShopId is missing. Must be provided by system.");
+            // 🔥 ShopId do controller gán
+            var shopId = dto.ShopId ?? throw new InvalidOperationException("ShopId is missing.");
 
             var shop = await _unitOfWork.Shops.GetAsync(s => s.Id == shopId);
             if (shop == null)
                 throw new InvalidOperationException("Shop not found.");
 
-            // ✅ Sinh slug unique
+            // 🔥 Sinh slug unique
             var baseSlug = GenerateSlug(dto.Title);
             var slug = await GenerateUniqueSlugAsync(baseSlug);
 
@@ -52,7 +52,11 @@ namespace LECOMS.Service.Services
                 CategoryId = dto.CategoryId,
                 ShopId = shopId,
                 CourseThumbnail = dto.CourseThumbnail,
-                Active = 1
+                Active = 1,
+
+                // ⭐ trạng thái duyệt mặc định
+                ApprovalStatus = ApprovalStatus.Pending,
+                ModeratorNote = null
             };
 
             await _unitOfWork.Courses.AddAsync(course);
@@ -239,19 +243,24 @@ namespace LECOMS.Service.Services
             s = System.Text.RegularExpressions.Regex.Replace(s, @"[^a-z0-9]+", "-").Trim('-');
             return s;
         }
+
+        /// <summary>
+        /// Lấy danh sách khóa học public (search/filter/sort/paging)
+        /// Chỉ trả về course đã được duyệt (Approved)
+        /// </summary>
         public async Task<object> GetPublicCoursesAsync(
-    string? search = null,
-    string? category = null,
-    string? sort = null,
-    int page = 1,
-    int pageSize = 10
-)
+            string? search = null,
+            string? category = null,
+            string? sort = null,
+            int page = 1,
+            int pageSize = 10
+        )
         {
-            // Base query
+            // Base query: CHỈ lấy Active + Approved
             IQueryable<Course> query = _unitOfWork.Courses.Query()
                 .Include(c => c.Category)
                 .Include(c => c.Shop)
-                .Where(c => c.Active == 1);
+                .Where(c => c.Active == 1 && c.ApprovalStatus == ApprovalStatus.Approved);
 
             // 🔍 Search theo tiêu đề, mô tả, hoặc tên shop
             if (!string.IsNullOrWhiteSpace(search))
@@ -331,9 +340,7 @@ namespace LECOMS.Service.Services
                 .Where(c => c.ShopId == shop.Id)
                 .ToListAsync();
 
-
-
-
+            // Seller thấy tất cả course của mình (kể cả Pending/Rejected)
             return courses.Select(c => new CourseDTO
             {
                 Id = c.Id,
@@ -424,6 +431,7 @@ namespace LECOMS.Service.Services
             await _unitOfWork.CompleteAsync();
             return true;
         }
+
         private async Task<string> GenerateUniqueSlugAsync(string baseSlug)
         {
             string slug = baseSlug;
@@ -436,6 +444,7 @@ namespace LECOMS.Service.Services
 
             return slug;
         }
+
         public async Task<IEnumerable<SectionDTO>> GetSectionsByCourseAsync(string courseId)
         {
             var sections = await _unitOfWork.Sections.GetAllAsync(
@@ -473,7 +482,6 @@ namespace LECOMS.Service.Services
                         ShopName = lp.Product.Shop?.Name
                     }).ToList();
 
-
                     sectionDto.Lessons.Add(new LessonDto
                     {
                         Id = lesson.Id,
@@ -484,7 +492,6 @@ namespace LECOMS.Service.Services
                         ContentUrl = lesson.ContentUrl,
                         OrderIndex = lesson.OrderIndex,
 
-                        // 🔹 Gán vào DTO — nếu không có thì trả null
                         LinkedProducts = linkedProducts.Any() ? linkedProducts : null
                     });
                 }
@@ -514,10 +521,16 @@ namespace LECOMS.Service.Services
                     OrderIndex = l.OrderIndex
                 });
         }
+
+        /// <summary>
+        /// Lấy course public theo slug (chỉ Approved)
+        /// </summary>
         public async Task<CourseDTO> GetCourseBySlugAsync(string slug)
         {
             var course = await _unitOfWork.Courses.GetAsync(
-                c => c.Slug == slug && c.Active == 1,
+                c => c.Slug == slug
+                  && c.Active == 1
+                  && c.ApprovalStatus == ApprovalStatus.Approved,
                 includeProperties: "Category,Shop"
             );
 
@@ -539,6 +552,5 @@ namespace LECOMS.Service.Services
                 Active = course.Active
             };
         }
-
     }
 }

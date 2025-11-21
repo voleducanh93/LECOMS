@@ -38,5 +38,8 @@ namespace LECOMS.Data.Entities
 
         // Liên kết cũ với course, sẽ bỏ sau
         public ICollection<CourseProduct> CourseProducts { get; set; } = new List<CourseProduct>();
+        public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Pending;
+        public string? ModeratorNote { get; set; }
+
     }
 }

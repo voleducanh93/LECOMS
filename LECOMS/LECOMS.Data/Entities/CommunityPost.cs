@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LECOMS.Data.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -19,6 +20,10 @@ namespace LECOMS.Data.Entities
         [Required] public string Body { get; set; } = null!;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Pending;
+        public string? ModeratorNote { get; set; }
+
         public ICollection<Comment> Comments { get; set; } = new List<Comment>();
     }
+
 }
