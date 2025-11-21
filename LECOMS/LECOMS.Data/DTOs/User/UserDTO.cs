@@ -16,7 +16,7 @@ namespace LECOMS.Data.DTOs.User
         public string Address { get; set; }
         public DateTime? DateOfBirth { get; set; }
         public bool IsActive { get; set; }
-        public string Role { get; set; } // Thêm trường Role vào DTO
+        public List<string> Roles { get; set; } = new();
 
     }
 }

@@ -46,7 +46,7 @@ namespace LECOMS.API.Controllers
                     Address = u.Address,
                     DateOfBirth = u.DateOfBirth,
                     IsActive = u.IsActive,
-                    Role = roles.FirstOrDefault()
+                    Roles = roles.ToList()   // ⭐ Trả tất cả role
                 });
             }
 
