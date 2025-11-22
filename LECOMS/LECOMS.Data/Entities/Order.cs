@@ -111,6 +111,10 @@ namespace LECOMS.Data.Entities
         /// </summary>
         public bool BalanceReleased { get; set; } = false;
 
+        /// <summary>Voucher áp dụng cho đơn (nếu có)</summary>
+        [MaxLength(50)]
+        public string? VoucherCodeUsed { get; set; }
+
         // ============ NAVIGATION PROPERTIES ============
 
         public ICollection<OrderDetail> Details { get; set; } = new List<OrderDetail>();

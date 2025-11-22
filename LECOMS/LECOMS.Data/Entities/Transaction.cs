@@ -171,5 +171,8 @@ namespace LECOMS.Data.Entities
         /// </summary>
         [MaxLength(500)]
         public string? Note { get; set; }
+
+        [MaxLength(50)]
+        public string? VoucherCode { get; set; }
     }
 }

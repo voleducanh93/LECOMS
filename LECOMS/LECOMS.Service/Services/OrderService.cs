@@ -1,4 +1,5 @@
 ﻿using LECOMS.Data.DTOs.Order;
+using LECOMS.Data.DTOs.Voucher;
 using LECOMS.Data.Entities;
 using LECOMS.Data.Enum;
 using LECOMS.RepositoryContract.Interfaces;
@@ -17,6 +18,7 @@ namespace LECOMS.Service.Services
         private readonly IPaymentService _paymentService;
         private readonly ICustomerWalletService _customerWalletService;
         private readonly IShopWalletService _shopWalletService;
+        private readonly IVoucherService _voucherService;
         private readonly ILogger<OrderService> _logger;
 
         private const decimal FIXED_SHIPPING_FEE = 30000m;
@@ -26,12 +28,14 @@ namespace LECOMS.Service.Services
             IPaymentService paymentService,
             ICustomerWalletService customerWalletService,
             IShopWalletService shopWalletService,
+            IVoucherService voucherService,
             ILogger<OrderService> logger)
         {
             _uow = uow;
             _paymentService = paymentService;
             _customerWalletService = customerWalletService;
             _shopWalletService = shopWalletService;
+            _voucherService = voucherService;
             _logger = logger;
         }
 
@@ -118,8 +122,36 @@ namespace LECOMS.Service.Services
                     createdOrders.Add(order);
                 }
 
-                decimal totalShipping = createdOrders.Count * FIXED_SHIPPING_FEE;
+                // ===========================
+                // APPLY VOUCHER (nếu có)
+                // ===========================
+                VoucherApplyResultDTO? voucherResult = null;
+                var voucherCode = (checkout.VoucherCode ?? string.Empty).Trim();
+
+                if (!string.IsNullOrWhiteSpace(voucherCode))
+                {
+                    voucherResult = await _voucherService.ValidateAndPreviewAsync(userId, voucherCode, createdOrders);
+
+                    if (!voucherResult.IsValid)
+                    {
+                        throw new InvalidOperationException(
+                            voucherResult.ErrorMessage ?? "Voucher is not valid.");
+                    }
+
+                    // gán Discount cho từng order
+                    foreach (var od in createdOrders)
+                    {
+                        var discount = voucherResult.OrderDiscounts
+                            .FirstOrDefault(x => x.OrderId == od.Id)?.DiscountAmount ?? 0m;
+
+                        od.Discount = discount;
+                        od.Total = od.Subtotal + od.ShippingFee - od.Discount;
+                    }
+                }
+
+                decimal totalShipping = createdOrders.Sum(o => o.ShippingFee);
                 decimal grandTotal = createdOrders.Sum(o => o.Total);
+                decimal totalDiscount = createdOrders.Sum(o => o.Discount);
 
                 string method = (checkout.PaymentMethod ?? "PAYOS").ToUpper();
                 string? paymentUrl = null;
@@ -142,7 +174,12 @@ namespace LECOMS.Service.Services
                         o.PaymentStatus = PaymentStatus.Paid;
 
                     // Tạo transaction WALLET
-                    var txObj = await CreateTransactionAsync(createdOrders, grandTotal, "WALLET");
+                    var txObj = await CreateTransactionAsync(
+                        createdOrders,
+                        grandTotal,
+                        "WALLET",
+                        string.IsNullOrWhiteSpace(voucherCode) ? null : voucherCode);
+
                     txObj.Status = TransactionStatus.Completed;
 
                     await _uow.Transactions.UpdateAsync(txObj);
@@ -150,13 +187,27 @@ namespace LECOMS.Service.Services
 
                     await DistributeRevenueToShopsAsync(createdOrders, txObj);
 
+                    // Mark voucher used luôn (vì wallet không qua webhook)
+                    if (!string.IsNullOrWhiteSpace(voucherCode) && voucherResult != null && voucherResult.IsValid)
+                    {
+                        await _voucherService.MarkVoucherUsedAsync(
+                            userId,
+                            voucherCode,
+                            createdOrders,
+                            $"WALLET-{txObj.Id}");
+                    }
+
                     walletUsed = grandTotal;
                     payOSRequired = 0;
                 }
                 else
                 {
                     // ==================== PAYOS ====================
-                    var txObj = await CreateTransactionAsync(createdOrders, grandTotal, "PAYOS");
+                    var txObj = await CreateTransactionAsync(
+                        createdOrders,
+                        grandTotal,
+                        "PAYOS",
+                        string.IsNullOrWhiteSpace(voucherCode) ? null : voucherCode);
 
                     paymentUrl = await _paymentService.CreatePaymentLinkForMultipleOrdersAsync(txObj.Id, createdOrders);
                 }
@@ -182,8 +233,8 @@ namespace LECOMS.Service.Services
                     PaymentMethod = method,
                     WalletAmountUsed = walletUsed,
                     PayOSAmountRequired = payOSRequired,
-                    DiscountApplied = 0,
-                    VoucherCodeUsed = checkout.VoucherCode
+                    DiscountApplied = totalDiscount,
+                    VoucherCodeUsed = string.IsNullOrWhiteSpace(voucherCode) ? null : voucherCode
                 };
             }
             catch
@@ -250,7 +301,6 @@ namespace LECOMS.Service.Services
 
             return MapToDTO(order);
         }
-
 
         public async Task<OrderDTO> ConfirmReceivedAsync(string orderId, string userId)
         {
@@ -325,8 +375,12 @@ namespace LECOMS.Service.Services
             };
         }
 
-        // ⭐ FIXED: truyền PaymentMethod vào
-        private async Task<Transaction> CreateTransactionAsync(List<Order> orders, decimal totalAmount, string method)
+        // ⭐ Thêm voucherCode vào transaction
+        private async Task<Transaction> CreateTransactionAsync(
+            List<Order> orders,
+            decimal totalAmount,
+            string method,
+            string? voucherCode = null)
         {
             var config = await _uow.PlatformConfigs.GetConfigAsync();
 
@@ -343,7 +397,8 @@ namespace LECOMS.Service.Services
                 ShopAmount = shopAmount,
                 Status = TransactionStatus.Pending,
                 PaymentMethod = method,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                VoucherCode = voucherCode  // ⭐ NEW
             };
 
             await _uow.Transactions.AddAsync(tx);

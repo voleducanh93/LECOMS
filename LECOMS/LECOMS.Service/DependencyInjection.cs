@@ -55,7 +55,10 @@
             // ⭐ Gamification Service
             services.AddTransient<IGamificationService, GamificationService>();
 
-                return services;
+            services.AddTransient<IVoucherService, VoucherService>();
+            services.AddTransient<IGamificationAdminService, GamificationAdminService>();
+
+            return services;
             }
         }
     }

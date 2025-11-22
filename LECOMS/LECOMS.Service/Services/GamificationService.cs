@@ -8,6 +8,7 @@ using LECOMS.ServiceContract.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -61,7 +62,7 @@ namespace LECOMS.Service.Services
                 CurrentXP = wallet.CurrentXP,
                 XpToNextLevel = CalcXpToNextLevel(wallet.Level),
                 Coins = wallet.Balance,
-                DailyStreak = 0, // sau này bạn có thể thêm entity Streak riêng
+                DailyStreak = 0,
                 DailyQuests = questDtos.Where(q => q.Period == QuestPeriod.Daily.ToString()).ToList(),
                 WeeklyQuests = questDtos.Where(q => q.Period == QuestPeriod.Weekly.ToString()).ToList(),
                 MonthlyQuests = questDtos.Where(q => q.Period == QuestPeriod.Monthly.ToString()).ToList()
@@ -141,8 +142,19 @@ namespace LECOMS.Service.Services
         public async Task<object> GetRewardsStoreAsync(string userId)
         {
             var wallet = await _uow.PointWallets.GetByUserIdAsync(userId);
+
             var boosters = await _uow.Boosters.GetAllAsync(b => b.Active);
-            var vouchers = await _uow.Vouchers.GetAllAsync(v => v.Active == 1);
+            var now = DateTime.UtcNow;
+
+            var vouchers = await _uow.Vouchers.GetAllAsync(v =>
+                v.IsActive &&
+                v.StartDate <= now &&
+                (!v.EndDate.HasValue || v.EndDate.Value >= now) &&
+                v.QuantityAvailable > 0
+            );
+
+            // ⭐ lấy danh sách RedeemRule
+            var redeemRules = await _uow.RedeemRules.GetAllAsync(r => r.Active);
 
             var boosterDtos = boosters.Select(b => new RewardItemDTO
             {
@@ -152,20 +164,25 @@ namespace LECOMS.Service.Services
                 Description = b.Description ?? "",
                 CostPoints = b.CostPoints,
                 ExtraInfo = b.Duration.HasValue
-                    ? $"Active for {b.Duration.Value.TotalHours} hours"
+                    ? $"Hoạt động {b.Duration.Value.TotalHours} giờ"
                     : "One-time use"
             }).ToList();
 
-            var voucherDtos = vouchers.Select(v => new RewardItemDTO
+            var voucherDtos = vouchers.Select(v =>
             {
-                Id = v.Id,
-                Type = "Voucher",
-                Name = v.Code,
-                Description = BuildVoucherDescription(v),
-                CostPoints = 0, // nếu bạn dùng RedeemRule để map chi phí thì sau add
-                ExtraInfo = v.ExpiresAt.HasValue
-                    ? $"Valid until {v.ExpiresAt.Value:dd/MM/yyyy}"
-                    : "No expiry"
+                var rule = redeemRules.FirstOrDefault(r => r.Reward == v.Code);
+
+                return new RewardItemDTO
+                {
+                    Id = v.Id,
+                    Type = "Voucher",
+                    Name = v.Code,
+                    Description = BuildVoucherDescription(v),
+                    CostPoints = rule?.CostPoints ?? 0, // ⭐ FIX 100%
+                    ExtraInfo = v.EndDate.HasValue
+                        ? $"HSD đến {v.EndDate.Value:dd/MM/yyyy}"
+                        : "Không giới hạn"
+                };
             }).ToList();
 
             return new
@@ -176,17 +193,27 @@ namespace LECOMS.Service.Services
             };
         }
 
+
         private string BuildVoucherDescription(Voucher v)
         {
             var parts = new List<string>();
-            if (v.DiscountAmount.HasValue)
-                parts.Add($"₫{v.DiscountAmount.Value:0}");
-            if (v.DiscountPercent.HasValue)
-                parts.Add($"{v.DiscountPercent.Value}% off");
-            return string.Join(" ", parts);
+
+            if (v.DiscountType == DiscountType.Percentage)
+                parts.Add($"{v.DiscountValue}% off");
+
+            if (v.DiscountType == DiscountType.FixedAmount)
+                parts.Add($"Giảm ₫{v.DiscountValue:N0}");
+
+            if (v.MinOrderAmount.HasValue)
+                parts.Add($"ĐH tối thiểu ₫{v.MinOrderAmount.Value:N0}");
+
+            return string.Join(" • ", parts);
         }
 
         #endregion
+
+        #region Event + Leaderboard
+
         public async Task HandleEventAsync(string userId, GamificationEventDTO dto)
         {
             // 1. Tìm EarnRule theo Action
@@ -208,7 +235,7 @@ namespace LECOMS.Service.Services
                 await _uow.CompleteAsync();
             }
 
-            // 3. Cộng điểm & XP (giả sử Points = cả coin + XP cho đơn giản)
+            // 3. Cộng điểm & XP
             wallet.Balance += rule.Points;
             wallet.LifetimeEarned += rule.Points;
             wallet.CurrentXP += rule.Points;
@@ -229,7 +256,7 @@ namespace LECOMS.Service.Services
             // 5. Update quests liên quan (QuestDefinition.Code = Action)
             await UpdateUserQuestsOnEvent(userId, dto.Action);
 
-            // 6. Update leaderboard (ví dụ dùng leaderboard code "GLOBAL_WEEKLY", "GLOBAL_MONTHLY")
+            // 6. Update leaderboard
             await UpdateLeaderboardsOnEvent(userId, rule.Points);
 
             await _uow.PointWallets.UpdateAsync(wallet);
@@ -260,6 +287,7 @@ namespace LECOMS.Service.Services
                 await _uow.UserQuestProgresses.UpdateAsync(p);
             }
         }
+
         private async Task UpdateLeaderboardsOnEvent(string userId, int deltaScore)
         {
             var now = DateTime.UtcNow;
@@ -277,7 +305,8 @@ namespace LECOMS.Service.Services
 
         private async Task<Leaderboard> GetOrCreateLeaderboardAsync(string code, string period, DateTime start, DateTime end)
         {
-            var lb = await _uow.Leaderboards.GetAsync(l => l.Code == code && l.StartAt <= DateTime.UtcNow && l.EndAt >= DateTime.UtcNow);
+            var lb = await _uow.Leaderboards.GetAsync(
+                l => l.Code == code && l.StartAt <= DateTime.UtcNow && l.EndAt >= DateTime.UtcNow);
             if (lb != null) return lb;
 
             lb = new Leaderboard
@@ -330,6 +359,7 @@ namespace LECOMS.Service.Services
             }
             await _uow.CompleteAsync();
         }
+
         public async Task<LeaderboardDTO> GetLeaderboardAsync(string userId, string period)
         {
             period = period?.ToLower() ?? "weekly";
@@ -339,17 +369,20 @@ namespace LECOMS.Service.Services
 
             if (period == "weekly")
             {
-                lb = await _uow.Leaderboards.GetAsync(l => l.Code == "GLOBAL_WEEKLY" && l.StartAt <= now && l.EndAt >= now,
+                lb = await _uow.Leaderboards.GetAsync(
+                    l => l.Code == "GLOBAL_WEEKLY" && l.StartAt <= now && l.EndAt >= now,
                     includeProperties: "Entries,Entries.User");
             }
             else if (period == "monthly")
             {
-                lb = await _uow.Leaderboards.GetAsync(l => l.Code == "GLOBAL_MONTHLY" && l.StartAt <= now && l.EndAt >= now,
+                lb = await _uow.Leaderboards.GetAsync(
+                    l => l.Code == "GLOBAL_MONTHLY" && l.StartAt <= now && l.EndAt >= now,
                     includeProperties: "Entries,Entries.User");
             }
             else // all time
             {
-                lb = await _uow.Leaderboards.GetAsync(l => l.Code == "GLOBAL_ALL",
+                lb = await _uow.Leaderboards.GetAsync(
+                    l => l.Code == "GLOBAL_ALL",
                     includeProperties: "Entries,Entries.User");
             }
 
@@ -383,6 +416,11 @@ namespace LECOMS.Service.Services
                 CurrentUser = current
             };
         }
+
+        #endregion
+
+        #region Redeem (Booster + Voucher)
+
         public async Task<RedeemResponseDTO> RedeemAsync(string userId, RedeemRequestDTO dto)
         {
             var wallet = await _uow.PointWallets.GetByUserIdAsync(userId)
@@ -445,6 +483,8 @@ namespace LECOMS.Service.Services
                 NewBalance = wallet.Balance
             };
         }
+
+        #endregion
 
     }
 }
