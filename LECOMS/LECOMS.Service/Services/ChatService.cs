@@ -43,9 +43,9 @@ namespace LECOMS.Service.Services
             var sellerId = product.Shop.SellerId;
 
             if (buyerId == sellerId)
-                throw new InvalidOperationException("Seller cannot start conversation as buyer for own product.");
+                throw new InvalidOperationException("Seller cannot chat with themselves.");
 
-            // Check nếu đã có conversation này rồi
+            // Check nếu đã tồn tại cuộc trò chuyện
             var existing = await _uow.Conversations.GetByKeyAsync(
                 buyerId,
                 sellerId,
@@ -103,7 +103,6 @@ namespace LECOMS.Service.Services
             await _uow.Conversations.AddAsync(conv);
             await _uow.CompleteAsync();
 
-            // 🔥 LOAD LẠI CONVERSATION CÓ INCLUDE PRODUCT
             var loaded = await _uow.Conversations.GetAsync(
                 c => c.Id == conv.Id,
                 includeProperties: "Product,Product.Images,Product.Shop"
@@ -112,9 +111,8 @@ namespace LECOMS.Service.Services
             return _mapper.Map<ConversationDTO>(loaded);
         }
 
-
         // ========================================================
-        // 3. SEND Message to Seller
+        // 3. SEND MESSAGE TO SELLER
         // ========================================================
         public async Task<MessageDTO> SendSellerMessage(Guid conversationId, string senderId, string content)
         {
@@ -127,9 +125,8 @@ namespace LECOMS.Service.Services
                 throw new KeyNotFoundException("Conversation not found.");
 
             if (conversation.IsAIChat)
-                throw new InvalidOperationException("This is an AI conversation. Use SendAIMessage instead.");
+                throw new InvalidOperationException("This conversation is AI chat.");
 
-            // 🔒 Check user có thuộc cuộc chat không
             if (conversation.BuyerId != senderId && conversation.SellerId != senderId)
                 throw new UnauthorizedAccessException("You are not part of this conversation.");
 
@@ -150,28 +147,29 @@ namespace LECOMS.Service.Services
 
             await _uow.CompleteAsync();
 
-            return _mapper.Map<MessageDTO>(message);
+            var dto = _mapper.Map<MessageDTO>(message);
+            dto.IsMe = message.SenderId == senderId;
+
+            return dto;
         }
-    
 
         // ========================================================
-        // 4. SEND Message to AI (AI auto responds)
+        // 4. SEND MESSAGE TO AI
         // ========================================================
         public async Task<MessageDTO> SendAIMessage(Guid conversationId, string senderId, string content)
         {
             var conversation = await _uow.Conversations.GetAsync(
                 c => c.Id == conversationId,
-                includeProperties: "Product,Product.Shop,Product.Images");
+                includeProperties: "Product,Product.Shop,Product.Images"
+            );
 
             if (conversation == null)
                 throw new KeyNotFoundException("Conversation not found.");
 
             if (!conversation.IsAIChat)
-                throw new InvalidOperationException("This is a seller chat. Use SendSellerMessage.");
+                throw new InvalidOperationException("This is not an AI chat.");
 
-            // ------------------------------
-            // Lưu message của USER
-            // ------------------------------
+            // Save user message
             var userMsg = new Message
             {
                 Id = Guid.NewGuid(),
@@ -183,15 +181,10 @@ namespace LECOMS.Service.Services
 
             await _uow.Messages.AddAsync(userMsg);
 
-            // ------------------------------
-            // AI tạo câu trả lời
-            // ------------------------------
+            // AI response
             var aiResponseText =
                 await _ai.GetProductAnswerAsync(conversation.Product, content);
 
-            // ------------------------------
-            // Lưu message AI
-            // ------------------------------
             var aiMsg = new Message
             {
                 Id = Guid.NewGuid(),
@@ -204,37 +197,56 @@ namespace LECOMS.Service.Services
 
             await _uow.Messages.AddAsync(aiMsg);
 
-            // Update conversation info
             conversation.LastMessage = aiResponseText;
             conversation.LastMessageAt = DateTime.UtcNow;
 
             await _uow.CompleteAsync();
 
-            return _mapper.Map<MessageDTO>(aiMsg);
+            var dto = _mapper.Map<MessageDTO>(aiMsg);
+            dto.IsMe = false;
+
+            return dto;
         }
 
         // ========================================================
-        // 5. GET ALL Messages
+        // 5. GET ALL MESSAGES
         // ========================================================
         public async Task<IEnumerable<MessageDTO>> GetMessages(Guid conversationId)
         {
-            var conv = await _uow.Conversations.GetAsync(c => c.Id == conversationId);
+            var conv = await _uow.Conversations.GetAsync(
+                c => c.Id == conversationId
+            );
 
             if (conv == null)
                 throw new KeyNotFoundException("Conversation not found.");
 
             var messages = await _uow.Messages.GetByConversationAsync(conversationId);
-            return _mapper.Map<IEnumerable<MessageDTO>>(messages);
+
+
+            var dtoList = _mapper.Map<IEnumerable<MessageDTO>>(messages);
+
+            foreach (var dto in dtoList)
+            {
+                dto.IsMe = dto.SenderId == conv.BuyerId || dto.SenderId == conv.SellerId;
+            }
+
+            return dtoList;
         }
+
+        // ========================================================
+        // 6. GET USER CONVERSATIONS (BUYER ONLY)
+        // ========================================================
         public async Task<IEnumerable<Conversation>> GetUserConversationsAsync(string userId)
         {
             return await _uow.Conversations.GetAllAsync(
-                c => c.BuyerId == userId,   // ✔ FIX
+                c => c.BuyerId == userId,
                 includeProperties: "Product,Buyer,Seller"
             );
         }
 
-
+        // ========================================================
+        // 7. GET SELLER CONVERSATIONS
+        // ========================================================
         public async Task<IEnumerable<Conversation>> GetSellerConversationsAsync(string sellerId)
         {
             return await _uow.Conversations.GetAllAsync(
@@ -242,6 +254,5 @@ namespace LECOMS.Service.Services
                 includeProperties: "Product,Buyer,Seller"
             );
         }
-
     }
 }
