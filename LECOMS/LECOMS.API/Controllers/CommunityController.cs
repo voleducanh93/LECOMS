@@ -236,5 +236,34 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+        [AllowAnonymous]
+        [HttpGet("{postId}")]
+        public async Task<IActionResult> GetPostById(string postId)
+        {
+            var response = new APIResponse();
+
+            try
+            {
+                var post = await _service.GetPostByIdAsync(postId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = post;
+            }
+            catch (KeyNotFoundException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
+
     }
 }

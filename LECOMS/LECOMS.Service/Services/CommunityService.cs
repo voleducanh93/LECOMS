@@ -1,4 +1,5 @@
-﻿using LECOMS.Data.Entities;
+﻿using LECOMS.Data.DTOs.Community;
+using LECOMS.Data.Entities;
 using LECOMS.Data.Enum;
 using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
@@ -36,17 +37,53 @@ namespace LECOMS.Service.Services
             return post;
         }
 
-        public async Task<IEnumerable<CommunityPost>> GetPublicPostsAsync()
+        public async Task<IEnumerable<CommunityPostDTO>> GetPublicPostsAsync()
         {
             var posts = await _uow.CommunityPosts.GetAllAsync(
                 p => p.ApprovalStatus == ApprovalStatus.Approved,
-                includeProperties: "User,Comments"
+                includeProperties: "User,Comments.User"
             );
-            return posts;
+
+            return posts.Select(p => new CommunityPostDTO
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Body = p.Body,
+                CreatedAt = p.CreatedAt,
+
+                User = new UserSimpleDTO    
+                {
+                    Id = p.User.Id,
+                    UserName = p.User.UserName,
+                    Avatar = p.User.ImageUrl   // ✔ FIX Ở ĐÂY
+                },
+
+                Comments = p.Comments.Select(c => new CommentDTO
+                {
+                    Id = c.Id,
+                    Body = c.Body,
+                    CreatedAt = c.CreatedAt,
+                    User = new UserSimpleDTO
+                    {
+                        Id = c.User.Id,
+                        UserName = c.User.UserName,
+                        Avatar = c.User.ImageUrl
+                    }
+                }).ToList()
+            });
         }
 
-        public async Task<Comment> CreateCommentAsync(string userId, string postId, string body)
+
+        public async Task<CommentDTO> CreateCommentAsync(string userId, string postId, string body)
         {
+            var user = await _uow.Users.GetAsync(u => u.Id == userId);
+            if (user == null)
+                throw new InvalidOperationException("User not found.");
+
+            var post = await _uow.CommunityPosts.GetAsync(p => p.Id == postId);
+            if (post == null)
+                throw new InvalidOperationException("Post not found.");
+
             var comment = new Comment
             {
                 Id = Guid.NewGuid().ToString(),
@@ -58,8 +95,65 @@ namespace LECOMS.Service.Services
             await _uow.Comments.AddAsync(comment);
             await _uow.CompleteAsync();
 
-            return comment;
+            // Load lại kèm user
+            var loaded = await _uow.Comments.GetAsync(
+                c => c.Id == comment.Id,
+                includeProperties: "User"
+            );
+
+            return new CommentDTO
+            {
+                Id = loaded.Id,
+                Body = loaded.Body,
+                CreatedAt = loaded.CreatedAt,
+                User = new UserSimpleDTO
+                {
+                    Id = user.Id,
+                    UserName = user.UserName,
+                    Avatar = user.ImageUrl
+                }
+            };
         }
+        public async Task<CommunityPostDTO> GetPostByIdAsync(string postId)
+        {
+            var post = await _uow.CommunityPosts.GetAsync(
+                p => p.Id == postId && p.ApprovalStatus == ApprovalStatus.Approved,
+                includeProperties: "User,Comments.User"
+            );
+
+            if (post == null)
+                throw new KeyNotFoundException("Post not found.");
+
+            return new CommunityPostDTO
+            {
+                Id = post.Id,
+                Title = post.Title,
+                Body = post.Body,
+                CreatedAt = post.CreatedAt,
+
+                User = new UserSimpleDTO
+                {
+                    Id = post.User.Id,
+                    UserName = post.User.UserName,
+                    Avatar = post.User.ImageUrl // avatar null → FE xử lý mặc định
+                },
+
+                Comments = post.Comments.Select(c => new CommentDTO
+                {
+                    Id = c.Id,
+                    Body = c.Body,
+                    CreatedAt = c.CreatedAt,
+
+                    User = new UserSimpleDTO
+                    {
+                        Id = c.User.Id,
+                        UserName = c.User.UserName,
+                        Avatar = c.User.ImageUrl
+                    }
+                }).ToList()
+            };
+        }
+
     }
 
 }
