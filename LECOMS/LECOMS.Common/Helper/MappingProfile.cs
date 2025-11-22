@@ -251,7 +251,11 @@ namespace LECOMS.Common.Helper
             // ============================================================
             // CHAT
             // ============================================================
-            CreateMap<Message, MessageDTO>();
+            CreateMap<Message, MessageDTO>()
+                .ForMember(dest => dest.SenderName,
+                    opt => opt.MapFrom(src => src.Sender.FullName))
+                .ForMember(dest => dest.SenderAvatar,
+                    opt => opt.MapFrom(src => src.Sender.ImageUrl));
             CreateMap<Conversation, ConversationDTO>()
     .ForMember(dest => dest.Product, opt => opt.MapFrom(src => src.Product));
 

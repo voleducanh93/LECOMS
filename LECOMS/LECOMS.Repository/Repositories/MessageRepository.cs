@@ -23,6 +23,7 @@ namespace LECOMS.Repository.Repositories
         {
             return await _db.Messages
                 .Where(m => m.ConversationId == conversationId)
+                .Include(m => m.Sender)
                 .OrderBy(m => m.CreatedAt)
                 .ToListAsync();
         }
