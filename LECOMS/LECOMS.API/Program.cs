@@ -77,14 +77,45 @@ builder.Services.AddSingleton(sp =>
 
 builder.Services.AddQuartz(q =>
 {
-    var jobKey = new JobKey("RecombeeSyncJob");
-    q.AddJob<RecombeeSyncJob>(opts => opts.WithIdentity(jobKey));
+    var recombeeJobKey = new JobKey("RecombeeSyncJob");
+    q.AddJob<RecombeeSyncJob>(opts => opts.WithIdentity(recombeeJobKey));
 
     // Chạy mỗi ngày 3h sáng
     q.AddTrigger(opts => opts
-        .ForJob(jobKey)
+        .ForJob(recombeeJobKey)
         .WithIdentity("RecombeeSyncJob-trigger")
         .WithCronSchedule("0 0 3 * * ?"));
+
+    // ===========================
+    // VOUCHER EXPIRE JOB
+    // ===========================
+    var voucherExpireJobKey = new JobKey("VoucherExpireJob");
+    q.AddJob<VoucherExpireJob>(o => o.WithIdentity(voucherExpireJobKey));
+
+    q.AddTrigger(t => t
+        .ForJob(voucherExpireJobKey)
+        .WithIdentity("VoucherExpireJob-trigger")
+        .WithSimpleSchedule(x => x
+            .WithIntervalInHours(1) // chạy mỗi 1 giờ
+            .RepeatForever()
+        )
+    );
+
+    // ===============================
+    // USER VOUCHER EXPIRE JOB
+    // ===============================
+    var uvJobKey = new JobKey("UserVoucherExpireJob");
+    q.AddJob<UserVoucherExpireJob>(o => o.WithIdentity(uvJobKey));
+
+    q.AddTrigger(t => t
+        .ForJob(uvJobKey)
+        .WithIdentity("UserVoucherExpireJob-trigger")
+        .WithSimpleSchedule(x => x
+            .WithIntervalInHours(1)
+            .RepeatForever()
+        )
+    );
+
 });
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
