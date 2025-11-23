@@ -166,14 +166,19 @@ namespace LECOMS.Common.Helper
                     o => o.MapFrom(s => s.Product.Images.FirstOrDefault(i => i.IsPrimary).Url))
                 .ForMember(d => d.ProductCategory,
                     o => o.MapFrom(s => s.Product.Category.Name));
-               
+
 
 
             // ============================================================
             // TRANSACTION
             // ============================================================
             CreateMap<Transaction, TransactionDTO>()
-                .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()));
+               .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()))
+               .ForMember(d => d.OrderIds,
+                   o => o.MapFrom(s => s.TransactionOrders.Select(to => to.OrderId)))
+               .ForMember(d => d.OrderCodes,
+                   o => o.MapFrom(s => s.TransactionOrders.Select(to => to.Order.OrderCode)));
+
 
 
             // ============================================================

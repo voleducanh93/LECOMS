@@ -377,35 +377,74 @@ namespace LECOMS.Service.Services
 
         // ⭐ Thêm voucherCode vào transaction
         private async Task<Transaction> CreateTransactionAsync(
-            List<Order> orders,
-            decimal totalAmount,
-            string method,
-            string? voucherCode = null)
+    List<Order> orders,
+    decimal totalAmount,
+    string method,
+    string? voucherCode = null)
         {
             var config = await _uow.PlatformConfigs.GetConfigAsync();
 
-            decimal platformFeeAmount = totalAmount * config.DefaultCommissionRate / 100;
-            decimal shopAmount = totalAmount - platformFeeAmount;
+            decimal platformFeePercent = config.DefaultCommissionRate;
+            decimal totalPlatformFee = totalAmount * platformFeePercent / 100;
+            decimal totalShopAmount = totalAmount - totalPlatformFee;
 
+            // ==========================
+            // 1) Tạo TRANSACTION (master)
+            // ==========================
             var tx = new Transaction
             {
                 Id = Guid.NewGuid().ToString(),
-                OrderId = string.Join(",", orders.Select(o => o.Id)),
                 TotalAmount = totalAmount,
-                PlatformFeePercent = config.DefaultCommissionRate,
-                PlatformFeeAmount = platformFeeAmount,
-                ShopAmount = shopAmount,
+                PlatformFeePercent = platformFeePercent,
+                PlatformFeeAmount = totalPlatformFee,
+                ShopAmount = totalShopAmount,
                 Status = TransactionStatus.Pending,
                 PaymentMethod = method,
+                VoucherCode = voucherCode,
                 CreatedAt = DateTime.UtcNow,
-                VoucherCode = voucherCode  // ⭐ NEW
             };
 
             await _uow.Transactions.AddAsync(tx);
             await _uow.CompleteAsync();
 
+            // ==========================
+            // 2) Mapping nhiều Order vào TransactionOrder
+            // ==========================
+            foreach (var order in orders)
+            {
+                var mapping = new TransactionOrder
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    TransactionId = tx.Id,
+                    OrderId = order.Id
+                };
+
+                await _uow.TransactionOrders.AddAsync(mapping);
+
+                // ================================
+                // 3) Breakdown theo từng Order
+                // ================================
+                decimal orderTotal = order.Total;
+                decimal orderFee = orderTotal * platformFeePercent / 100;
+                decimal orderShopAmount = orderTotal - orderFee;
+
+                var breakdown = new TransactionOrderBreakdown
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    TransactionOrderId = mapping.Id,
+                    TotalAmount = orderTotal,
+                    PlatformFeeAmount = orderFee,
+                    ShopAmount = orderShopAmount,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _uow.TransactionOrderBreakdowns.AddAsync(breakdown);
+            }
+
+            await _uow.CompleteAsync();
             return tx;
         }
+
 
         private async Task DistributeRevenueToShopsAsync(List<Order> orders, Transaction tx)
         {

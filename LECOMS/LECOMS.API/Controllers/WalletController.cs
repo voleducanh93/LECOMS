@@ -421,7 +421,8 @@ namespace LECOMS.API.Controllers
                 var toDate = to ?? DateTime.UtcNow;
 
                 var totalPlatformFee = await _unitOfWork.Transactions.GetTotalPlatformFeeAsync(fromDate, toDate);
-                var transactions = await _unitOfWork.Transactions.GetByDateRangeAsync(fromDate, toDate);
+                var transactions = await _unitOfWork.Transactions
+                    .GetByDateRangeAsync(fromDate, toDate, includeProperties: "TransactionOrders,TransactionOrders.Order");
 
                 return Success(new
                 {
@@ -443,7 +444,17 @@ namespace LECOMS.API.Controllers
                     transactions = transactions.Select(t => new
                     {
                         id = t.Id,
-                        orderId = t.OrderId,
+
+                        // ⭐ NEW: Dùng mapping table để lấy mọi order liên quan
+                        orderIds = t.TransactionOrders
+                            .Select(to => to.OrderId)
+                            .ToList(),
+
+                        orderCodes = t.TransactionOrders
+                            .Select(to => to.Order.OrderCode)
+                            .ToList(),
+
+                        // Original fields
                         totalAmount = t.TotalAmount,
                         platformFee = t.PlatformFeeAmount,
                         shopAmount = t.ShopAmount,
@@ -458,5 +469,6 @@ namespace LECOMS.API.Controllers
                 return Error("Internal server error", HttpStatusCode.InternalServerError);
             }
         }
+
     }
 }

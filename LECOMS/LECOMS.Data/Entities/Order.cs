@@ -121,5 +121,6 @@ namespace LECOMS.Data.Entities
         public ICollection<Shipment> Shipments { get; set; } = new List<Shipment>();
         public ICollection<Payment> Payments { get; set; } = new List<Payment>();
         public ICollection<RefundRequest> RefundRequests { get; set; } = new List<RefundRequest>();
+        public ICollection<TransactionOrder> TransactionOrders { get; set; } = new List<TransactionOrder>();
     }
 }

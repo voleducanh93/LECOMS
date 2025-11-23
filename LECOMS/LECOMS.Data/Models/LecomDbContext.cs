@@ -57,6 +57,8 @@ namespace LECOMS.Data.Models
         public DbSet<LessonProduct> LessonProducts { get; set; }
         public DbSet<Conversation> Conversations { get; set; }
         public DbSet<Message> Messages { get; set; }
+        public DbSet<TransactionOrder> TransactionOrders { get; set; }
+        public DbSet<TransactionOrderBreakdown> TransactionOrderBreakdowns { get; set; }
 
         // =====================================================================
         // ==== NEW PAYMENT SYSTEM DbSets ⭐ ====
@@ -308,6 +310,15 @@ namespace LECOMS.Data.Models
                 e.Property(x => x.Status).HasConversion<int>();
 
             });
+
+            b.Entity<TransactionOrderBreakdown>(e =>
+            {
+                e.HasOne(b => b.TransactionOrder)
+                 .WithMany()
+                 .HasForeignKey(b => b.TransactionOrderId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
 
             // --- ShopWallet ---
             b.Entity<ShopWallet>(e =>

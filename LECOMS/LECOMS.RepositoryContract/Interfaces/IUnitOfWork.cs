@@ -60,8 +60,11 @@ namespace LECOMS.RepositoryContract.Interfaces
         IUserLessonProgressRepository UserLessonProgresses { get; }
         ICommunityPostRepository CommunityPosts { get; }
         ICommentRepository Comments { get; }
+        ITransactionOrderRepository TransactionOrders { get; }
+        ITransactionOrderBreakdownRepository TransactionOrderBreakdowns { get; }
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
         bool HasActiveTransaction { get; }
+       
     }
 }

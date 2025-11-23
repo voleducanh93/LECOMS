@@ -33,7 +33,7 @@ namespace LECOMS.RepositoryContract.Interfaces
         /// Lấy danh sách transactions trong khoảng thời gian
         /// Dùng cho reconciliation, reporting
         /// </summary>
-        Task<IEnumerable<Transaction>> GetByDateRangeAsync(DateTime fromDate, DateTime toDate);
+        Task<IEnumerable<Transaction>> GetByDateRangeAsync(DateTime fromDate, DateTime toDate, string? includeProperties = null);
 
         /// <summary>
         /// Tính tổng platform fee trong khoảng thời gian

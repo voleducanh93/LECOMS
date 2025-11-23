@@ -190,7 +190,12 @@ namespace LECOMS.API.Controllers
                     data = new
                     {
                         transactionId = transaction.Id,
-                        orderId = transaction.OrderId,
+
+                        // ⭐ FIX: transaction không còn OrderId → dùng mapping table
+                        orderIds = transaction.TransactionOrders
+                            .Select(to => to.OrderId)
+                            .ToList(),
+
                         totalAmount = transaction.TotalAmount,
                         platformFeeAmount = transaction.PlatformFeeAmount,
                         shopAmount = transaction.ShopAmount,
@@ -207,6 +212,7 @@ namespace LECOMS.API.Controllers
                 return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
+
 
         /// <summary>
         /// Cancel payment (nếu PayOS support)

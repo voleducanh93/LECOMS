@@ -55,9 +55,13 @@ namespace LECOMS.Service.Services
             if (tx.Status == TransactionStatus.Completed)
                 throw new InvalidOperationException("Order already paid.");
 
+            // NEW — load orderIds từ mapping table
+            var mapping = await _uow.TransactionOrders.GetByTransactionIdAsync(tx.Id);
+            var orderIds = mapping.Select(m => m.OrderId).ToList();
+
             // Load all orders
             var list = new List<Order>();
-            foreach (var id in tx.OrderId.Split(',', StringSplitOptions.TrimEntries))
+            foreach (var id in orderIds)
             {
                 var o = await _uow.Orders.GetAsync(
                     x => x.Id == id,
@@ -70,7 +74,6 @@ namespace LECOMS.Service.Services
             if (!list.Any())
                 throw new InvalidOperationException("No valid orders.");
 
-            // Reset fields
             tx.PayOSOrderCode = null;
             tx.PayOSPaymentUrl = null;
             tx.PayOSTransactionId = null;
@@ -81,6 +84,7 @@ namespace LECOMS.Service.Services
 
             return await CreatePayOSPaymentAsync(tx, list);
         }
+
 
         // =========================================================
         // 2. CREATE PAYMENT FOR MULTIPLE ORDERS
@@ -115,8 +119,11 @@ namespace LECOMS.Service.Services
                 return true;
 
             // Load all orders
+            var mapping = await _uow.TransactionOrders.GetByTransactionIdAsync(tx.Id);
+            var orderIds = mapping.Select(m => m.OrderId).ToList();
+
             var orders = new List<Order>();
-            foreach (var oid in tx.OrderId.Split(',', StringSplitOptions.TrimEntries))
+            foreach (var oid in orderIds)
             {
                 var o = await _uow.Orders.GetAsync(
                     x => x.Id == oid,
@@ -125,6 +132,7 @@ namespace LECOMS.Service.Services
                 if (o != null)
                     orders.Add(o);
             }
+
 
             if (!orders.Any())
                 return false;
@@ -329,10 +337,11 @@ namespace LECOMS.Service.Services
             var tx = await _uow.Transactions.GetByOrderIdAsync(orderId)
                 ?? throw new InvalidOperationException("Transaction not found.");
 
-            var ids = tx.OrderId.Split(',', StringSplitOptions.TrimEntries);
-            var orders = new List<Order>();
+            var mapping = await _uow.TransactionOrders.GetByTransactionIdAsync(tx.Id);
+            var orderIds = mapping.Select(m => m.OrderId).ToList();
 
-            foreach (var id in ids)
+            var orders = new List<Order>();
+            foreach (var id in orderIds)
             {
                 var o = await _uow.Orders.GetAsync(
                     x => x.Id == id,
@@ -341,6 +350,7 @@ namespace LECOMS.Service.Services
                 if (o != null)
                     orders.Add(o);
             }
+
 
             var url = await CreatePaymentLinkForMultipleOrdersAsync(tx.Id, orders);
 

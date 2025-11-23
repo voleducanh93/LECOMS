@@ -28,11 +28,12 @@ namespace LECOMS.Repository.Repositories
         /// </summary>
         public async Task<Transaction?> GetByOrderIdAsync(string orderId)
         {
-            // ✅ FIXED: Transaction.OrderId là string có thể chứa nhiều IDs
-            // Tìm transaction có chứa orderId này
-            return await dbSet
-                .FirstOrDefaultAsync(t => t.OrderId.Contains(orderId));
+            return await _db.TransactionOrders
+                .Where(to => to.OrderId == orderId)
+                .Select(to => to.Transaction)
+                .FirstOrDefaultAsync();
         }
+
 
         /// <summary>
         /// Lấy transaction theo PayOS Transaction ID
@@ -73,11 +74,15 @@ namespace LECOMS.Repository.Repositories
                 .ToListAsync();
 
             // Filter transactions có chứa ít nhất 1 orderId của shop
-            var filteredTransactions = transactions
-                .Where(t => shopOrderIds.Any(orderId => t.OrderId.Contains(orderId)))
+            var filteredTransactions = await _db.TransactionOrders
+                .Where(to => shopOrderIds.Contains(to.OrderId))
+                .Select(to => to.Transaction)
+                .Distinct()
+                .OrderByDescending(t => t.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .ToList();
+                .ToListAsync();
+
 
             return filteredTransactions;
         }
@@ -85,11 +90,20 @@ namespace LECOMS.Repository.Repositories
         /// <summary>
         /// Lấy danh sách transactions trong khoảng thời gian
         /// </summary>
-        public async Task<IEnumerable<Transaction>> GetByDateRangeAsync(DateTime fromDate, DateTime toDate)
+        public async Task<IEnumerable<Transaction>> GetByDateRangeAsync(DateTime fromDate,DateTime toDate,string? includeProperties = null)
         {
-            return await dbSet
-                // ❌ REMOVED: .Include(t => t.Order)
-                .Where(t => t.CreatedAt >= fromDate && t.CreatedAt <= toDate)
+            IQueryable<Transaction> query = dbSet
+                .Where(t => t.CreatedAt >= fromDate && t.CreatedAt <= toDate);
+
+            if (!string.IsNullOrWhiteSpace(includeProperties))
+            {
+                foreach (var includeProp in includeProperties.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    query = query.Include(includeProp.Trim());
+                }
+            }
+
+            return await query
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
         }
