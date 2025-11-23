@@ -664,6 +664,55 @@ namespace LECOMS.API.Controllers
             });
         }
 
+        // =========================
+        // ADMIN — FORCE RELEASE
+        // =========================
+        [HttpPost("admin/force-release/{orderId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ForceRelease(string orderId)
+        {
+            try
+            {
+                var order = await _unitOfWork.Orders.GetAsync(o => o.Id == orderId);
+                if (order == null)
+                    return Error("Order not found.", HttpStatusCode.NotFound);
+
+                if (order.PaymentStatus != PaymentStatus.Paid)
+                    return Error("Order is not paid.", HttpStatusCode.BadRequest);
+
+                var tx = await _unitOfWork.Transactions.GetByOrderIdAsync(orderId);
+                if (tx == null)
+                    return Error("Transaction not found.", HttpStatusCode.BadRequest);
+
+                if (order.BalanceReleased)
+                    return Error("Balance already released.", HttpStatusCode.BadRequest);
+
+                // Release ngay lập tức (bỏ qua holding days)
+                await _shopWalletService.ReleaseBalanceAsync(
+                    order.ShopId,
+                    tx.ShopAmount,
+                    order.Id
+                );
+
+                // Đánh dấu order đã release
+                order.BalanceReleased = true;
+                await _unitOfWork.Orders.UpdateAsync(order);
+                await _unitOfWork.CompleteAsync();
+
+                return Success(new
+                {
+                    message = "Force release completed.",
+                    orderId = order.Id,
+                    shopId = order.ShopId,
+                    releasedAmount = tx.ShopAmount
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in force release balance");
+                return Error("Internal server error", HttpStatusCode.InternalServerError);
+            }
+        }
 
     }
 }
