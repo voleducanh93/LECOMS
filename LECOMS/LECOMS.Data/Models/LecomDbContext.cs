@@ -504,14 +504,11 @@ namespace LECOMS.Data.Models
             // =====================================================================
             b.Entity<Message>(e =>
             {
-                // Nếu entity Message vẫn có navigation Sender -> ignore nó
-                // (bạn có thể bỏ nếu đã xóa Sender property)
-                // e.Ignore(m => m.Sender);
-
-                e.HasOne(m => m.Conversation)
-                    .WithMany(c => c.Messages)
-                    .HasForeignKey(m => m.ConversationId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(m => m.Sender)
+                 .WithMany()
+                 .HasForeignKey(m => m.SenderId)
+                 .OnDelete(DeleteBehavior.NoAction)
+                 .IsRequired(false);
             });
 
         }
