@@ -1,6 +1,6 @@
-﻿using LECOMS.Data.Entities;
+﻿using LECOMS.Data.DTOs.Refund;
+using LECOMS.Data.Entities;
 using LECOMS.Data.Enum;
-using LECOMS.Data.DTOs.Refund;
 using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -13,397 +13,364 @@ namespace LECOMS.Service.Services
 {
     public class RefundService : IRefundService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IShopWalletService _shopWalletService;
-        private readonly ICustomerWalletService _customerWalletService;
+        private readonly IUnitOfWork _uow;
         private readonly ILogger<RefundService> _logger;
 
-        public RefundService(
-            IUnitOfWork unitOfWork,
-            IShopWalletService shopWalletService,
-            ICustomerWalletService customerWalletService,
-            ILogger<RefundService> logger)
+        public RefundService(IUnitOfWork uow, ILogger<RefundService> logger)
         {
-            _unitOfWork = unitOfWork;
-            _shopWalletService = shopWalletService;
-            _customerWalletService = customerWalletService;
+            _uow = uow;
             _logger = logger;
         }
 
-        public async Task<RefundRequest> CreateRefundRequestAsync(CreateRefundRequestDto dto)
+        // ============================================================
+        // 1. CUSTOMER TẠO YÊU CẦU REFUND
+        // ============================================================
+        public async Task<RefundRequestDTO> CreateAsync(string customerId, CreateRefundRequestDTO dto)
         {
-            _logger.LogInformation(
-                "Customer {CustomerId} creating refund for Order {OrderId}",
-                dto.RequestedBy, dto.OrderId);
+            if (string.IsNullOrWhiteSpace(dto.OrderId))
+                throw new ArgumentException("OrderId is required");
 
-            // 1. Validate order
-            var order = await _unitOfWork.Orders.GetAsync(
+            var order = await _uow.Orders.GetAsync(
                 o => o.Id == dto.OrderId,
                 includeProperties: "Shop,User");
 
             if (order == null)
-                throw new InvalidOperationException($"Order {dto.OrderId} not found");
+                throw new InvalidOperationException("Order not found.");
 
-            if (order.UserId != dto.RequestedBy)
-                throw new UnauthorizedAccessException("You can only refund your own orders");
+            if (order.UserId != customerId)
+                throw new InvalidOperationException("You are not allowed to refund this order.");
 
-            if (order.PaymentStatus != PaymentStatus.Paid &&
-                order.PaymentStatus != PaymentStatus.PartiallyRefunded)
+            if (order.PaymentStatus != PaymentStatus.Paid)
+                throw new InvalidOperationException("Only paid orders can be refunded.");
+
+            if (order.Status == OrderStatus.Cancelled || order.Status == OrderStatus.Refunded)
+                throw new InvalidOperationException("Order is not refundable.");
+
+            // Check refund window
+            var config = await _uow.PlatformConfigs.GetConfigAsync();
+            if (config.MaxRefundDays > 0)
             {
-                throw new InvalidOperationException(
-                    $"Order payment status is {order.PaymentStatus}. Cannot refund unpaid orders.");
+                var baseTime = order.CompletedAt ?? order.CreatedAt;
+                if (baseTime.AddDays(config.MaxRefundDays) < DateTime.UtcNow)
+                    throw new InvalidOperationException("Refund window has expired.");
             }
 
-            // 2. Check order status
-            if (order.Status != OrderStatus.Completed)
+            // tránh duplicate pending refund
+            var existing = await _uow.RefundRequests.GetAsync(r =>
+                r.OrderId == order.Id &&
+                (r.Status == RefundStatus.PendingShop ||
+                 r.Status == RefundStatus.PendingAdmin ||
+                 r.Status == RefundStatus.ShopApproved));
+
+            if (existing != null)
+                throw new InvalidOperationException("There is already a pending refund request.");
+
+            decimal amount = dto.Type == RefundType.Full
+                ? order.Total
+                : Math.Min(dto.RefundAmount, order.Total);
+
+            var refund = new RefundRequest
             {
-                throw new InvalidOperationException(
-                    "Can only refund delivered or completed orders");
-            }
-
-            // 3. Validate amount
-            var refundableAmount = await GetRefundableAmountAsync(dto.OrderId);
-            if (dto.RefundAmount > refundableAmount)
-            {
-                throw new InvalidOperationException(
-                    $"Refund amount {dto.RefundAmount:N0} exceeds refundable amount {refundableAmount:N0}");
-            }
-
-            if (dto.RefundAmount <= 0)
-                throw new ArgumentException("Refund amount must be positive");
-
-            // 4. Check existing pending requests
-            var existingPending = await _unitOfWork.RefundRequests.GetAsync(r =>
-                r.OrderId == dto.OrderId &&
-                r.Status == RefundStatus.PendingShopApproval);
-
-            if (existingPending != null)
-                throw new InvalidOperationException("Already have a pending refund request for this order");
-
-            // 5. Fraud detection
-            var customerStats = await GetCustomerRefundStatisticsAsync(dto.RequestedBy);
-            bool isFlagged = customerStats.RefundRate > 0.30m;
-            string? flagReason = isFlagged ? $"High refund rate: {customerStats.RefundRate:P0}" : null;
-
-            if (customerStats.RefundRate > 0.50m)
-            {
-                throw new InvalidOperationException(
-                    "Your account has been flagged for suspicious refund activity. Please contact support.");
-            }
-
-            // 6. Create RefundRequest
-            var refundRequest = new RefundRequest
-            {
-                Id = Guid.NewGuid().ToString(),
-                OrderId = dto.OrderId,
-                RequestedBy = dto.RequestedBy,
+                OrderId = order.Id,
+                RequestedBy = customerId,
                 ReasonType = dto.ReasonType,
                 ReasonDescription = dto.ReasonDescription,
                 Type = dto.Type,
-                RefundAmount = dto.RefundAmount,
-                Status = RefundStatus.PendingShopApproval,
-                RequestedAt = DateTime.UtcNow,
+                RefundAmount = amount,
                 AttachmentUrls = dto.AttachmentUrls,
-                IsFlagged = isFlagged,
-                FlagReason = flagReason
+                Status = RefundStatus.PendingShop
             };
 
-            await _unitOfWork.RefundRequests.AddAsync(refundRequest);
-            await _unitOfWork.CompleteAsync();
+            await _uow.RefundRequests.AddAsync(refund);
+            await _uow.CompleteAsync();
 
-            _logger.LogInformation(
-                "✅ Refund request created: {RefundId}. Shop can approve/reject anytime.",
-                refundRequest.Id);
+            refund = await _uow.RefundRequests.GetAsync(
+                x => x.Id == refund.Id,
+                includeProperties: "Order,RequestedByUser,ShopResponseByUser,AdminResponseByUser");
 
-            return refundRequest;
+            return MapToDto(refund);
         }
 
-        public async Task<RefundRequest> ShopApproveRefundAsync(string refundId, string shopUserId)
+        // ============================================================
+        // 2. CUSTOMER VIEW REFUNDS
+        // ============================================================
+        public async Task<IEnumerable<RefundRequestDTO>> GetMyAsync(string customerId)
         {
-            _logger.LogInformation(
-                "Shop user {ShopUserId} approving refund {RefundId}",
-                shopUserId, refundId);
+            var list = await _uow.RefundRequests.GetAllAsync(
+                r => r.RequestedBy == customerId,
+                includeProperties: "Order,RequestedByUser");
 
-            var refundRequest = await _unitOfWork.RefundRequests
-                .GetByIdWithDetailsAsync(refundId);
-
-            if (refundRequest == null)
-                throw new InvalidOperationException($"Refund request {refundId} not found");
-
-            // Verify shop ownership
-            var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == shopUserId);
-            if (shop == null || shop.Id != refundRequest.Order.ShopId)
-                throw new UnauthorizedAccessException("You can only respond to your shop's refund requests");
-
-            if (refundRequest.Status != RefundStatus.PendingShopApproval)
-                throw new InvalidOperationException($"Cannot approve. Status: {refundRequest.Status}");
-
-            // Update status
-            refundRequest.Status = RefundStatus.Processing;
-            refundRequest.ShopResponseBy = shopUserId;
-            refundRequest.ShopRespondedAt = DateTime.UtcNow;
-
-            await _unitOfWork.RefundRequests.UpdateAsync(refundRequest);
-            await _unitOfWork.CompleteAsync();
-
-            // Process refund
-            await ProcessRefundAsync(refundId);
-
-            _logger.LogInformation("✅ Shop approved refund {RefundId}. Refund processed.", refundId);
-
-            return refundRequest;
+            return list
+                .OrderByDescending(x => x.RequestedAt)
+                .Select(MapToDto)
+                .ToList();
         }
 
-        public async Task<RefundRequest> ShopRejectRefundAsync(
+        // ============================================================
+        // 3. SHOP VIEW REFUNDS
+        // ============================================================
+        public async Task<IEnumerable<RefundRequestDTO>> GetForShopAsync(string sellerId)
+        {
+            var refunds = await _uow.RefundRequests.GetAllAsync(
+                r => r.Order.Shop.SellerId == sellerId,
+                includeProperties: "Order,RequestedByUser,ShopResponseByUser");
+
+            return refunds
+                .OrderByDescending(x => x.RequestedAt)
+                .Select(MapToDto)
+                .ToList();
+        }
+
+        // ============================================================
+        // 4. SELLER DECISION (Approve / Reject)
+        // ============================================================
+        public async Task<RefundRequestDTO> SellerDecisionAsync(
             string refundId,
-            string shopUserId,
-            string reason)
+            string sellerId,
+            bool approve,
+            string? rejectReason)
         {
-            _logger.LogInformation(
-                "Shop user {ShopUserId} rejecting refund {RefundId}",
-                shopUserId, refundId);
+            var refund = await _uow.RefundRequests.GetAsync(
+                r => r.Id == refundId,
+                includeProperties: "Order,Order.Shop,RequestedByUser");
 
-            if (string.IsNullOrWhiteSpace(reason) || reason.Length < 20)
-                throw new ArgumentException("Reject reason must be at least 20 characters");
+            if (refund == null)
+                throw new InvalidOperationException("Refund not found.");
 
-            var refundRequest = await _unitOfWork.RefundRequests
-                .GetByIdWithDetailsAsync(refundId);
+            if (refund.Status != RefundStatus.PendingShop)
+                throw new InvalidOperationException("Refund not in PendingShop.");
 
-            if (refundRequest == null)
-                throw new InvalidOperationException($"Refund request {refundId} not found");
+            if (refund.Order.Shop.SellerId != sellerId)
+                throw new InvalidOperationException("You are not allowed to process this refund.");
 
-            // Verify shop ownership
-            var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == shopUserId);
-            if (shop == null || shop.Id != refundRequest.Order.ShopId)
-                throw new UnauthorizedAccessException("You can only respond to your shop's refund requests");
+            refund.ShopResponseBy = sellerId;
+            refund.ShopRespondedAt = DateTime.UtcNow;
 
-            if (refundRequest.Status != RefundStatus.PendingShopApproval)
-                throw new InvalidOperationException($"Cannot reject. Status: {refundRequest.Status}");
-
-            // Update status
-            refundRequest.Status = RefundStatus.ShopRejected;
-            refundRequest.ShopResponseBy = shopUserId;
-            refundRequest.ShopRespondedAt = DateTime.UtcNow;
-            refundRequest.ShopRejectReason = reason;
-
-            await _unitOfWork.RefundRequests.UpdateAsync(refundRequest);
-            await _unitOfWork.CompleteAsync();
-
-            _logger.LogInformation(
-                "❌ Shop rejected refund {RefundId}. Customer can review shop.",
-                refundId);
-
-            return refundRequest;
-        }
-
-        public async Task<RefundRequest> CancelRefundRequestAsync(string refundId, string customerId)
-        {
-            var refundRequest = await _unitOfWork.RefundRequests.GetAsync(r => r.Id == refundId);
-
-            if (refundRequest == null)
-                throw new InvalidOperationException($"Refund request {refundId} not found");
-
-            if (refundRequest.RequestedBy != customerId)
-                throw new UnauthorizedAccessException("You can only cancel your own refund requests");
-
-            if (refundRequest.Status != RefundStatus.PendingShopApproval)
-                throw new InvalidOperationException("Can only cancel pending requests");
-
-            refundRequest.Status = RefundStatus.Cancelled;
-            await _unitOfWork.RefundRequests.UpdateAsync(refundRequest);
-            await _unitOfWork.CompleteAsync();
-
-            _logger.LogInformation("Customer cancelled refund {RefundId}", refundId);
-
-            return refundRequest;
-        }
-
-        private async Task ProcessRefundAsync(string refundId)
-        {
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
-            try
+            if (!approve)
             {
-                var refundRequest = await _unitOfWork.RefundRequests
-                    .GetByIdWithDetailsAsync(refundId);
-
-                if (refundRequest == null)
-                    throw new InvalidOperationException($"Refund {refundId} not found");
-
-                var order = refundRequest.Order;
-
-                // Get transaction for platform fee
-                var orderTransaction = await _unitOfWork.Transactions.GetByOrderIdAsync(order.Id);
-                if (orderTransaction == null)
-                    throw new InvalidOperationException($"Transaction not found for Order {order.Id}");
-
-                // Calculate amounts
-                decimal platformFeeRatio = orderTransaction.PlatformFeePercent / 100m;
-                decimal shopDeduction = refundRequest.RefundAmount * (1 - platformFeeRatio);
-
-                _logger.LogInformation(
-                    "Processing refund: Customer +{CustomerAmount:N0}, Shop -{ShopAmount:N0}",
-                    refundRequest.RefundAmount, shopDeduction);
-
-                // Add to CustomerWallet
-                await _customerWalletService.AddBalanceAsync(
-                    order.UserId,
-                    refundRequest.RefundAmount,
-                    refundRequest.Id,
-                    $"Hoàn tiền đơn hàng {order.OrderCode} - {refundRequest.ReasonDescription}");
-
-                // Deduct from ShopWallet
-                await _shopWalletService.DeductBalanceAsync(
-                    order.ShopId,
-                    shopDeduction,
-                    WalletTransactionType.Refund,
-                    refundRequest.Id,
-                    $"Hoàn tiền cho khách - Đơn {order.OrderCode}");
-
-                // Update refund status
-                refundRequest.Status = RefundStatus.Completed;
-                refundRequest.ProcessedAt = DateTime.UtcNow;
-                await _unitOfWork.RefundRequests.UpdateAsync(refundRequest);
-
-                // Update order payment status
-                var totalRefunded = await GetTotalRefundedAmountAsync(order.Id);
-                if (totalRefunded >= order.Total)
-                {
-                    order.PaymentStatus = PaymentStatus.Refunded;
-                }
-                else if (totalRefunded > 0)
-                {
-                    order.PaymentStatus = PaymentStatus.PartiallyRefunded;
-                }
-                await _unitOfWork.Orders.UpdateAsync(order);
-
-                // Update transaction status
-                if (totalRefunded >= orderTransaction.TotalAmount)
-                {
-                    orderTransaction.Status = TransactionStatus.Refunded;
-                }
-                else if (totalRefunded > 0)
-                {
-                    orderTransaction.Status = TransactionStatus.PartiallyRefunded;
-                }
-                await _unitOfWork.Transactions.UpdateAsync(orderTransaction);
-
-                await _unitOfWork.CompleteAsync();
-                await transaction.CommitAsync();
-
-                _logger.LogInformation("✅ Refund {RefundId} processed successfully", refundId);
+                refund.Status = RefundStatus.ShopRejected;
+                refund.ShopRejectReason = rejectReason;
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogError(ex, "❌ Error processing refund {RefundId}", refundId);
-
-                var refundRequest = await _unitOfWork.RefundRequests.GetAsync(r => r.Id == refundId);
-                if (refundRequest != null)
-                {
-                    refundRequest.Status = RefundStatus.Failed;
-                    refundRequest.ProcessNote = $"Error: {ex.Message}";
-                    await _unitOfWork.RefundRequests.UpdateAsync(refundRequest);
-                    await _unitOfWork.CompleteAsync();
-                }
-
-                await transaction.RollbackAsync();
-                throw;
+                refund.Status = RefundStatus.PendingAdmin;
             }
+
+            await _uow.RefundRequests.UpdateAsync(refund);
+            await _uow.CompleteAsync();
+
+            refund = await _uow.RefundRequests.GetAsync(
+                x => x.Id == refundId,
+                includeProperties: "Order,RequestedByUser,ShopResponseByUser");
+
+            return MapToDto(refund);
         }
 
-        // Query methods
-        public async Task<RefundRequest?> GetRefundRequestAsync(string refundId)
+        // ============================================================
+        // 5. ADMIN APPROVE / REJECT — Refund to CUSTOMER WALLET
+        // ============================================================
+        public async Task<RefundRequestDTO> AdminDecisionAsync(
+            string refundId,
+            string adminId,
+            bool approve,
+            string? rejectReason)
         {
-            return await _unitOfWork.RefundRequests.GetByIdWithDetailsAsync(refundId);
+            var refund = await _uow.RefundRequests.GetAsync(
+                r => r.Id == refundId,
+                includeProperties: "Order,RequestedByUser");
+
+            if (refund == null)
+                throw new InvalidOperationException("Refund not found.");
+
+            if (refund.Status != RefundStatus.PendingAdmin)
+                throw new InvalidOperationException("Refund not in PendingAdmin.");
+
+            refund.AdminResponseBy = adminId;
+            refund.AdminRespondedAt = DateTime.UtcNow;
+
+            if (!approve)
+            {
+                refund.Status = RefundStatus.AdminRejected;
+                refund.AdminRejectReason = rejectReason;
+                await _uow.RefundRequests.UpdateAsync(refund);
+                await _uow.CompleteAsync();
+                return MapToDto(refund);
+            }
+
+            // ---------------------------------
+            // REFUND → CUSTOMER WALLET
+            // ---------------------------------
+            var wallet = await _uow.CustomerWallets.GetAsync(w => w.CustomerId == refund.RequestedBy);
+
+            if (wallet == null)
+            {
+                wallet = new CustomerWallet
+                {
+                    CustomerId = refund.RequestedBy,
+                    Balance = 0,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _uow.CustomerWallets.AddAsync(wallet);
+            }
+
+            wallet.Balance += refund.RefundAmount;
+            await _uow.CustomerWallets.UpdateAsync(wallet);
+
+            // Add wallet transaction
+            var tx = new CustomerWalletTransaction
+            {
+                CustomerWalletId = wallet.Id,
+                Amount = refund.RefundAmount,
+                Type = WalletTransactionType.Refund,
+                Description = $"Refund for order {refund.Order.OrderCode}",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _uow.CustomerWalletTransactions.AddAsync(tx);
+
+            // Update refund & order
+            refund.Status = RefundStatus.Refunded;
+            refund.ProcessNote = "Refund sent to Customer Wallet";
+            refund.Order.Status = OrderStatus.Refunded;
+
+            await _uow.RefundRequests.UpdateAsync(refund);
+            await _uow.Orders.UpdateAsync(refund.Order);
+            await _uow.CompleteAsync();
+
+            refund = await _uow.RefundRequests.GetAsync(
+                r => r.Id == refundId,
+                includeProperties: "Order,RequestedByUser,ShopResponseByUser,AdminResponseByUser");
+
+            return MapToDto(refund);
         }
 
-        public async Task<IEnumerable<RefundRequest>> GetRefundRequestsByUserAsync(
-            string userId,
-            int pageNumber = 1,
-            int pageSize = 20)
+        // ============================================================
+        // 6. CUSTOMER THÊM / CẬP NHẬT EVIDENCE (ẢNH/VIDEO)
+        // ============================================================
+        public async Task<RefundRequestDTO> AddEvidenceAsync(string refundId, string customerId, string[] urls)
         {
-            return await _unitOfWork.RefundRequests.GetByRequestedByAsync(userId, pageNumber, pageSize);
+            var refund = await _uow.RefundRequests.GetAsync(
+                r => r.Id == refundId,
+                includeProperties: "Order,RequestedByUser,ShopResponseByUser,AdminResponseByUser");
+
+            if (refund == null)
+                throw new InvalidOperationException("Refund not found.");
+
+            if (refund.RequestedBy != customerId)
+                throw new InvalidOperationException("You are not allowed to modify this refund.");
+
+            // chỉ cho thêm evidence khi refund chưa kết thúc
+            if (refund.Status == RefundStatus.ShopRejected ||
+                refund.Status == RefundStatus.AdminRejected ||
+                refund.Status == RefundStatus.Refunded)
+            {
+                throw new InvalidOperationException("Cannot add evidence to a closed refund.");
+            }
+
+            if (urls == null || urls.Length == 0)
+                return MapToDto(refund);
+
+            var list = new List<string>();
+
+            if (!string.IsNullOrWhiteSpace(refund.AttachmentUrls))
+            {
+                list.AddRange(
+                    refund.AttachmentUrls
+                        .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            }
+
+            list.AddRange(urls.Where(u => !string.IsNullOrWhiteSpace(u)));
+
+            // unique
+            refund.AttachmentUrls = string.Join(";", list.Distinct());
+
+            await _uow.RefundRequests.UpdateAsync(refund);
+            await _uow.CompleteAsync();
+
+            return MapToDto(refund);
         }
 
-        public async Task<IEnumerable<RefundRequest>> GetRefundRequestsByOrderAsync(string orderId)
+        // ============================================================
+        // 7. ADMIN DASHBOARD STATS
+        // ============================================================
+        public async Task<RefundDashboardDTO> GetAdminDashboardAsync()
         {
-            return await _unitOfWork.RefundRequests.GetByOrderIdAsync(orderId);
-        }
+            var list = await _uow.RefundRequests.GetAllAsync();
 
-        public async Task<IEnumerable<RefundRequest>> GetShopPendingRefundsAsync(int shopId)
-        {
-            return await _unitOfWork.RefundRequests.GetByShopIdAsync(shopId, RefundStatus.PendingShopApproval);
-        }
+            var total = list.Count();
+            var pendingShop = list.Count(r => r.Status == RefundStatus.PendingShop);
+            var pendingAdmin = list.Count(r => r.Status == RefundStatus.PendingAdmin);
+            var shopRejected = list.Count(r => r.Status == RefundStatus.ShopRejected);
+            var adminRejected = list.Count(r => r.Status == RefundStatus.AdminRejected);
+            var refunded = list.Count(r => r.Status == RefundStatus.Refunded);
+            var totalAmount = list.Where(r => r.Status == RefundStatus.Refunded)
+                                  .Sum(r => r.RefundAmount);
 
-        public async Task<IEnumerable<RefundRequest>> GetShopRefundHistoryAsync(
-            int shopId,
-            int pageNumber = 1,
-            int pageSize = 20)
-        {
-            var allRefunds = await _unitOfWork.RefundRequests.GetByShopIdAsync(shopId);
-            var skip = (pageNumber - 1) * pageSize;
-            return allRefunds
-                .OrderByDescending(r => r.RequestedAt)
-                .Skip(skip)
-                .Take(pageSize);
-        }
+            var last30 = DateTime.UtcNow.AddDays(-30);
+            var refundedLast30 = list.Where(r =>
+                    r.Status == RefundStatus.Refunded &&
+                    r.AdminRespondedAt.HasValue &&
+                    r.AdminRespondedAt.Value >= last30);
 
-        public async Task<RefundStatistics> GetShopRefundStatisticsAsync(int shopId)
-        {
-            var refunds = (await _unitOfWork.RefundRequests.GetByShopIdAsync(shopId)).ToList();
-
-            var total = refunds.Count;
-            var approved = refunds.Count(r => r.Status == RefundStatus.Completed);
-            var rejected = refunds.Count(r => r.Status == RefundStatus.ShopRejected);
-            var responded = refunds.Count(r => r.ShopRespondedAt.HasValue);
-
-            var responseTimes = refunds
-                .Where(r => r.ShopRespondedAt.HasValue)
-                .Select(r => (r.ShopRespondedAt!.Value - r.RequestedAt).TotalHours);
-
-            return new RefundStatistics
+            return new RefundDashboardDTO
             {
                 TotalRequests = total,
-                ApprovedCount = approved,
-                RejectedCount = rejected,
-                ApprovalRate = total > 0 ? (decimal)approved / total : 0,
-                ResponseRate = total > 0 ? (decimal)responded / total : 0,
-                AverageResponseTimeHours = responseTimes.Any() ? responseTimes.Average() : 0
+                PendingShop = pendingShop,
+                PendingAdmin = pendingAdmin,
+                ShopRejected = shopRejected,
+                AdminRejected = adminRejected,
+                Refunded = refunded,
+                TotalRefundAmount = totalAmount,
+                RefundedLast30DaysCount = refundedLast30.Count(),
+                RefundedLast30DaysAmount = refundedLast30.Sum(r => r.RefundAmount),
+                GeneratedAtUtc = DateTime.UtcNow
             };
         }
 
-        public async Task<CustomerRefundStatistics> GetCustomerRefundStatisticsAsync(string customerId)
+        public async Task<IEnumerable<RefundRequestDTO>> GetPendingAdminAsync()
         {
-            var orders = (await _unitOfWork.Orders.GetAllAsync(o => o.UserId == customerId)).ToList();
-            var refunds = (await _unitOfWork.RefundRequests.GetAllAsync(r => r.RequestedBy == customerId)).ToList();
+            var list = await _uow.RefundRequests.GetAllAsync(
+                r => r.Status == RefundStatus.PendingAdmin,
+                includeProperties: "Order,RequestedByUser,ShopResponseByUser");
 
-            var totalOrders = orders.Count;
-            var totalRefunds = refunds.Count(r => r.Status == RefundStatus.Completed);
-            var refundRate = totalOrders > 0 ? (decimal)totalRefunds / totalOrders : 0;
+            return list.OrderBy(r => r.RequestedAt).Select(MapToDto).ToList();
+        }
 
-            return new CustomerRefundStatistics
+
+        // ============================================================
+        // MAPPER
+        // ============================================================
+        private static RefundRequestDTO MapToDto(RefundRequest r)
+        {
+            return new RefundRequestDTO
             {
-                TotalOrders = totalOrders,
-                TotalRefunds = totalRefunds,
-                RefundRate = refundRate,
-                IsHighRisk = refundRate > 0.30m
+                Id = r.Id,
+                OrderId = r.OrderId,
+                OrderCode = r.Order?.OrderCode,
+
+                RequestedBy = r.RequestedBy,
+                RequestedByName = r.RequestedByUser?.FullName,
+                RequestedAt = r.RequestedAt,
+
+                ReasonType = r.ReasonType,
+                ReasonDescription = r.ReasonDescription,
+                Type = r.Type,
+                RefundAmount = r.RefundAmount,
+                AttachmentUrls = r.AttachmentUrls,
+
+                Status = r.Status,
+
+                ShopResponseBy = r.ShopResponseBy,
+                ShopResponseByName = r.ShopResponseByUser?.FullName,
+                ShopRespondedAt = r.ShopRespondedAt,
+                ShopRejectReason = r.ShopRejectReason,
+
+                ProcessedBy = r.AdminResponseBy,
+                ProcessedByName = r.AdminResponseByUser?.FullName,
+                ProcessedAt = r.AdminRespondedAt,
+                ProcessNote = r.ProcessNote
             };
-        }
-
-        private async Task<decimal> GetRefundableAmountAsync(string orderId)
-        {
-            var order = await _unitOfWork.Orders.GetAsync(o => o.Id == orderId);
-            if (order == null) return 0;
-
-            var totalRefunded = await GetTotalRefundedAmountAsync(orderId);
-            return order.Total - totalRefunded;
-        }
-
-        private async Task<decimal> GetTotalRefundedAmountAsync(string orderId)
-        {
-            var refunds = await _unitOfWork.RefundRequests.GetByOrderIdAsync(orderId);
-            return refunds
-                .Where(r => r.Status == RefundStatus.Completed)
-                .Sum(r => r.RefundAmount);
         }
     }
 }

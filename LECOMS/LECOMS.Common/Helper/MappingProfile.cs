@@ -190,22 +190,50 @@ namespace LECOMS.Common.Helper
 
             CreateMap<WalletTransaction, WalletTransactionDTO>()
                 .ForMember(d => d.Type, o => o.MapFrom(s => s.Type.ToString()));
-
-
             // ============================================================
-            // REFUND
+            // REFUND MAPPING (FINAL, KHỚP 100% DTO HIỆN TẠI)
             // ============================================================
             CreateMap<RefundRequest, RefundRequestDTO>()
-                .ForMember(d => d.OrderCode, o => o.MapFrom(s => s.Order.OrderCode))
-                .ForMember(d => d.ReasonType, o => o.MapFrom(s => s.ReasonType.ToString()))
-                .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()))
+                .ForMember(d => d.OrderCode,
+                    o => o.MapFrom(s => s.Order.OrderCode))
+
+                // CUSTOMER INFO
+                .ForMember(d => d.RequestedBy,
+                    o => o.MapFrom(s => s.RequestedBy))
                 .ForMember(d => d.RequestedByName,
-                    o => o.MapFrom(s => s.RequestedByUser.UserName))
+                    o => o.MapFrom(s =>
+                        s.RequestedByUser != null ? s.RequestedByUser.FullName : null))
+
+                // SHOP RESPONSE
+                .ForMember(d => d.ShopResponseBy,
+                    o => o.MapFrom(s => s.ShopResponseBy))
+                .ForMember(d => d.ShopResponseByName,
+                    o => o.MapFrom(s =>
+                        s.ShopResponseByUser != null ? s.ShopResponseByUser.FullName : null))
+
+                // ADMIN PROCESS (ProcessedBy = AdminResponseBy)
+                .ForMember(d => d.ProcessedBy,
+                    o => o.MapFrom(s => s.AdminResponseBy))
                 .ForMember(d => d.ProcessedByName,
                     o => o.MapFrom(s =>
-                        s.ShopResponseByUser != null
-                            ? s.ShopResponseByUser.UserName
-                            : null));
+                        s.AdminResponseByUser != null ? s.AdminResponseByUser.FullName : null))
+                .ForMember(d => d.ProcessedAt,
+                    o => o.MapFrom(s => s.AdminRespondedAt))
+
+                // DIRECT FIELDS
+                .ForMember(d => d.ReasonType, o => o.MapFrom(s => s.ReasonType))
+                .ForMember(d => d.ReasonDescription, o => o.MapFrom(s => s.ReasonDescription))
+                .ForMember(d => d.Type, o => o.MapFrom(s => s.Type))
+                .ForMember(d => d.RefundAmount, o => o.MapFrom(s => s.RefundAmount))
+                .ForMember(d => d.AttachmentUrls, o => o.MapFrom(s => s.AttachmentUrls))
+
+                .ForMember(d => d.Status, o => o.MapFrom(s => s.Status))
+                .ForMember(d => d.RequestedAt, o => o.MapFrom(s => s.RequestedAt))
+                .ForMember(d => d.ShopRespondedAt, o => o.MapFrom(s => s.ShopRespondedAt))
+                .ForMember(d => d.ShopRejectReason, o => o.MapFrom(s => s.ShopRejectReason))
+                .ForMember(d => d.ProcessNote, o => o.MapFrom(s => s.ProcessNote));
+
+               
 
 
             // ============================================================

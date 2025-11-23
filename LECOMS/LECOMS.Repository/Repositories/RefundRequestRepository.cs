@@ -74,7 +74,7 @@ namespace LECOMS.Repository.Repositories
 
             return await dbSet
                 .Where(r => r.Order.UserId == customerId
-                    && r.Status == RefundStatus.Completed
+                    && r.Status == RefundStatus.Refunded
                     && r.RequestedAt >= startDate
                     && r.RequestedAt < endDate)
                 .CountAsync();
@@ -84,7 +84,7 @@ namespace LECOMS.Repository.Repositories
         {
             return await dbSet
                 .Where(r => r.Order.ShopId == shopId
-                    && r.Status == RefundStatus.Completed
+                    && r.Status == RefundStatus.Refunded
                     && r.RequestedAt >= fromDate
                     && r.RequestedAt <= toDate)
                 .SumAsync(r => r.RefundAmount);

@@ -289,7 +289,7 @@ namespace LECOMS.API.Controllers
 
                 var pendingShopWithdrawals = await _unitOfWork.WithdrawalRequests.GetPendingRequestsAsync();
                 var pendingCustomerWithdrawals = await _unitOfWork.CustomerWithdrawalRequests.GetPendingRequestsAsync();
-                var pendingRefunds = await _unitOfWork.RefundRequests.GetByStatusAsync(RefundStatus.PendingShopApproval);
+                var pendingRefunds = await _unitOfWork.RefundRequests.GetByStatusAsync(RefundStatus.PendingShop);
 
                 decimal platformAvailableBalance =
                     totalPlatformFee - (totalShopAvailableBalance + totalShopPendingBalance + totalCustomerBalance);

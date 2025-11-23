@@ -1,5 +1,4 @@
-﻿// Path: LECOMS/LECOMS.Data/Entities/RefundRequest.cs
-using LECOMS.Data.Enum;
+﻿using LECOMS.Data.Enum;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.ComponentModel.DataAnnotations;
@@ -7,26 +6,24 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LECOMS.Data.Entities
 {
-    /// <summary>
-    /// Yêu cầu hoàn tiền từ Customer
-    /// </summary>
     [Table("RefundRequests")]
     [Index(nameof(OrderId))]
     [Index(nameof(Status))]
     [Index(nameof(RequestedBy))]
-    [Index(nameof(RequestedAt))]
     public class RefundRequest
     {
         [Key]
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
-        // ============ ORDER & CUSTOMER ============
+        // ============ ORDER ============
 
         [Required]
         public string OrderId { get; set; } = null!;
 
         [ForeignKey(nameof(OrderId))]
         public Order Order { get; set; } = null!;
+
+        // ============ CUSTOMER REQUEST ============
 
         [Required]
         public string RequestedBy { get; set; } = null!;
@@ -35,8 +32,6 @@ namespace LECOMS.Data.Entities
         public User RequestedByUser { get; set; } = null!;
 
         public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
-
-        // ============ REFUND INFO ============
 
         public RefundReason ReasonType { get; set; }
 
@@ -48,12 +43,11 @@ namespace LECOMS.Data.Entities
         [Precision(18, 2)]
         public decimal RefundAmount { get; set; }
 
-        [MaxLength(2000)]
         public string? AttachmentUrls { get; set; }
 
         // ============ STATUS ============
 
-        public RefundStatus Status { get; set; } = RefundStatus.PendingShopApproval;
+        public RefundStatus Status { get; set; } = RefundStatus.PendingShop;
 
         // ============ SHOP RESPONSE ============
 
@@ -64,21 +58,25 @@ namespace LECOMS.Data.Entities
 
         public DateTime? ShopRespondedAt { get; set; }
 
-        [MaxLength(500)]
         public string? ShopRejectReason { get; set; }
 
-        // ============ PROCESSING ============
+        // ============ ADMIN RESPONSE ============
 
-        public DateTime? ProcessedAt { get; set; }
+        public string? AdminResponseBy { get; set; }
 
-        [MaxLength(500)]
+        [ForeignKey(nameof(AdminResponseBy))]
+        public User? AdminResponseByUser { get; set; }
+
+        public DateTime? AdminRespondedAt { get; set; }
+
+        public string? AdminRejectReason { get; set; }
+
+        // ============ REFUND PROCESS ============
+
+        public DateTime? RefundedAt { get; set; }
+
+        public string? RefundTransactionId { get; set; } // PayOS hoặc Wallet
+
         public string? ProcessNote { get; set; }
-
-        // ============ FRAUD DETECTION ============
-
-        public bool IsFlagged { get; set; }
-
-        [MaxLength(200)]
-        public string? FlagReason { get; set; }
     }
 }
