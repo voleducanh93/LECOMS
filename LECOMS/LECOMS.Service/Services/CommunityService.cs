@@ -51,25 +51,29 @@ namespace LECOMS.Service.Services
                 Body = p.Body,
                 CreatedAt = p.CreatedAt,
 
-                User = new UserSimpleDTO    
+                User = new UserSimpleDTO
                 {
                     Id = p.User.Id,
                     UserName = p.User.UserName,
-                    Avatar = p.User.ImageUrl   // ✔ FIX Ở ĐÂY
+                    Avatar = p.User.ImageUrl
                 },
 
-                Comments = p.Comments.Select(c => new CommentDTO
-                {
-                    Id = c.Id,
-                    Body = c.Body,
-                    CreatedAt = c.CreatedAt,
-                    User = new UserSimpleDTO
+                // ⭐ lấy 2 comment mới nhất
+                Comments = p.Comments
+                    .OrderByDescending(c => c.CreatedAt)
+                    .Take(2)
+                    .Select(c => new CommentDTO
                     {
-                        Id = c.User.Id,
-                        UserName = c.User.UserName,
-                        Avatar = c.User.ImageUrl
-                    }
-                }).ToList()
+                        Id = c.Id,
+                        Body = c.Body,
+                        CreatedAt = c.CreatedAt,
+                        User = new UserSimpleDTO
+                        {
+                            Id = c.User.Id,
+                            UserName = c.User.UserName,
+                            Avatar = c.User.ImageUrl
+                        }
+                    }).ToList()
             });
         }
 
@@ -135,22 +139,24 @@ namespace LECOMS.Service.Services
                 {
                     Id = post.User.Id,
                     UserName = post.User.UserName,
-                    Avatar = post.User.ImageUrl // avatar null → FE xử lý mặc định
+                    Avatar = post.User.ImageUrl
                 },
 
-                Comments = post.Comments.Select(c => new CommentDTO
-                {
-                    Id = c.Id,
-                    Body = c.Body,
-                    CreatedAt = c.CreatedAt,
-
-                    User = new UserSimpleDTO
+                // ⭐ Lấy ALL comment
+                Comments = post.Comments
+                    .OrderBy(c => c.CreatedAt)
+                    .Select(c => new CommentDTO
                     {
-                        Id = c.User.Id,
-                        UserName = c.User.UserName,
-                        Avatar = c.User.ImageUrl
-                    }
-                }).ToList()
+                        Id = c.Id,
+                        Body = c.Body,
+                        CreatedAt = c.CreatedAt,
+                        User = new UserSimpleDTO
+                        {
+                            Id = c.User.Id,
+                            UserName = c.User.UserName,
+                            Avatar = c.User.ImageUrl
+                        }
+                    }).ToList()
             };
         }
 
