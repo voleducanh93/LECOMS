@@ -148,10 +148,10 @@ namespace LECOMS.API.Controllers
         public async Task<IActionResult> GetMessages(Guid conversationId)
         {
             var response = new APIResponse();
-
             try
             {
-                var msgs = await _chatService.GetMessages(conversationId);
+                var userId = _userManager.GetUserId(User);
+                var msgs = await _chatService.GetMessages(conversationId, userId);
 
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = msgs;
