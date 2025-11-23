@@ -61,7 +61,7 @@ namespace LECOMS.API.Controllers
         /// Customer tạo yêu cầu refund
         /// </summary>
         [HttpPost]
-        [Authorize(Roles = "Customer", AuthenticationSchemes = "Bearer")]
+        [Authorize(Roles = "Customer, Seller", AuthenticationSchemes = "Bearer")]
         public async Task<IActionResult> CreateRefund([FromBody] CreateRefundRequestDTO dto)
         {
             try
@@ -86,7 +86,7 @@ namespace LECOMS.API.Controllers
         /// Customer xem danh sách refund của mình
         /// </summary>
         [HttpGet("my")]
-        [Authorize(Roles = "Customer", AuthenticationSchemes = "Bearer")]
+        [Authorize(Roles = "Customer, Seller", AuthenticationSchemes = "Bearer")]
         public async Task<IActionResult> GetMyRefunds()
         {
             try
@@ -112,7 +112,7 @@ namespace LECOMS.API.Controllers
         /// FE phải upload file lên Cloudinary trước, rồi gửi URL vào đây.
         /// </summary>
         [HttpPost("{refundId}/evidence")]
-        [Authorize(Roles = "Customer", AuthenticationSchemes = "Bearer")]
+        [Authorize(Roles = "Customer, Seller", AuthenticationSchemes = "Bearer")]
         public async Task<IActionResult> UploadEvidence(string refundId, [FromBody] UploadEvidenceDTO dto)
         {
             try
