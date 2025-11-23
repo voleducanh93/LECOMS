@@ -261,32 +261,32 @@ namespace LECOMS.Common.Helper
      .ForMember(dest => dest.SenderAvatar, opt => opt.Ignore());
 
             CreateMap<Conversation, ConversationDTO>()
+     .ForMember(dest => dest.Product,
+         opt => opt.MapFrom(src => src.Product))
 
-  // product mini
-  .ForMember(dest => dest.Product,
-      opt => opt.MapFrom(src => src.Product))
+     // ✔ Hiển thị tên SHOP cho cả buyer & seller
+     .ForMember(dest => dest.DisplayName,
+         opt => opt.MapFrom(src =>
+             src.IsAIChat
+                 ? "AI Assistant"
+                 : src.Product.Shop.Name
+         ))
 
-  // Display name
-  .ForMember(dest => dest.DisplayName,
-      opt => opt.MapFrom(src =>
-          src.IsAIChat
-              ? "AI Assistant"
-              : src.Product.Shop.Name   // ⭐ Shop name
-      ))
+     // ✔ Hiển thị avatar SHOP
+     .ForMember(dest => dest.DisplayAvatar,
+         opt => opt.MapFrom(src =>
+             src.IsAIChat
+                 ? "https://i.ibb.co/8mCVxNd/ai-avatar.png"
+                 : src.Product.Shop.ShopAvatar
+         ))
 
-  // Display avatar
-  .ForMember(dest => dest.DisplayAvatar,
-      opt => opt.MapFrom(src =>
-          src.IsAIChat
-              ? "https://i.ibb.co/8mCVxNd/ai-avatar.png"
-              : src.Product.Shop.ShopAvatar
-      ))
-
-  .ForMember(dest => dest.Role,
-      opt => opt.MapFrom(src =>
-          src.IsAIChat ? "ai"
-          : "seller"
-      ));
+     // role
+     .ForMember(dest => dest.Role,
+         opt => opt.MapFrom(src =>
+             src.IsAIChat ? "ai"
+             : src.SellerId != null ? "seller"
+             : "buyer"
+         ));
 
 
             // ============================================================
