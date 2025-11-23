@@ -217,5 +217,60 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+        // --------------------------
+        // GET 1 CONVERSATION (BUYER)
+        // --------------------------
+        [HttpGet("user/{conversationId}")]
+        public async Task<IActionResult> GetUserConversation(Guid conversationId)
+        {
+            var response = new APIResponse();
+
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+
+                var conv = await _chatService.GetUserConversationById(conversationId, userId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = conv;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+
+        // --------------------------
+        // GET 1 CONVERSATION (SELLER)
+        // --------------------------
+        [HttpGet("seller/{conversationId}")]
+        public async Task<IActionResult> GetSellerConversation(Guid conversationId)
+        {
+            var response = new APIResponse();
+
+            try
+            {
+                var sellerId = _userManager.GetUserId(User);
+
+                var conv = await _chatService.GetSellerConversationById(conversationId, sellerId);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = conv;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
+
     }
 }

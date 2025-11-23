@@ -258,15 +258,23 @@ namespace LECOMS.Service.Services
         // ========================================================
         private async Task<MessageDTO> MapMessageAsync(Message msg)
         {
-            var sender = await _uow.Users.GetAsync(u => u.Id == msg.SenderId);
-
             var dto = _mapper.Map<MessageDTO>(msg);
 
-            dto.SenderName = sender?.FullName ?? "AI Assistant";
-            dto.SenderAvatar = sender?.ImageUrl;
+            if (msg.SenderId == "AI_SYSTEM")
+            {
+                dto.SenderName = "AI Assistant";
+                dto.SenderAvatar = "https://i.ibb.co/8mCVxNd/ai-avatar.png";
+            }
+            else
+            {
+                var user = await _uow.Users.GetAsync(u => u.Id == msg.SenderId);
+                dto.SenderName = user?.FullName;
+                dto.SenderAvatar = user?.ImageUrl;
+            }
 
             return dto;
         }
+
 
         private async Task<IEnumerable<MessageDTO>> MapMessagesAsync(IEnumerable<Message> msgs)
         {
@@ -277,5 +285,31 @@ namespace LECOMS.Service.Services
 
             return list;
         }
+        public async Task<ConversationDTO> GetUserConversationById(Guid conversationId, string userId)
+        {
+            var conv = await _uow.Conversations.GetAsync(
+                c => c.Id == conversationId && c.BuyerId == userId,
+                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller"
+            );
+
+            if (conv == null)
+                throw new UnauthorizedAccessException("You do not own this conversation.");
+
+            return _mapper.Map<ConversationDTO>(conv);
+        }
+
+        public async Task<ConversationDTO> GetSellerConversationById(Guid conversationId, string sellerId)
+        {
+            var conv = await _uow.Conversations.GetAsync(
+                c => c.Id == conversationId && c.SellerId == sellerId && c.IsAIChat == false,
+                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller"
+            );
+
+            if (conv == null)
+                throw new UnauthorizedAccessException("You do not own this conversation.");
+
+            return _mapper.Map<ConversationDTO>(conv);
+        }
+
     }
 }

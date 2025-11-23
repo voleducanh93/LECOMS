@@ -11,17 +11,16 @@ namespace LECOMS.Data.Entities
         public Guid ConversationId { get; set; }
         public Conversation Conversation { get; set; }
 
-        public string SenderId { get; set; }   // string tự do
+        public string SenderId { get; set; }   // chỉ là string, KHÔNG FK
 
         public string Content { get; set; }
-
         public bool IsRead { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // OPTIONAL: Sender không FK
-        [ForeignKey(nameof(SenderId))]
-        public virtual User? Sender { get; set; }   // CHO PHÉP NULL
+        // KHÔNG NAVIGATION TỚI USER
+        public User? Sender { get; set; }   // XÓA thuộc tính này nếu được
     }
+
 
 
 }

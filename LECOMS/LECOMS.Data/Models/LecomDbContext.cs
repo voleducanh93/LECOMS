@@ -504,12 +504,13 @@ namespace LECOMS.Data.Models
             // =====================================================================
             b.Entity<Message>(e =>
             {
-                e.HasOne(m => m.Sender)
-                 .WithMany()
-                 .HasForeignKey(m => m.SenderId)
-                 .OnDelete(DeleteBehavior.NoAction)
-                 .IsRequired(false);
+                e.Ignore(m => m.Sender); // QUAN TRỌNG
+                e.HasOne(m => m.Conversation)
+                 .WithMany(c => c.Messages)
+                 .HasForeignKey(m => m.ConversationId)
+                 .OnDelete(DeleteBehavior.Cascade);
             });
+
 
         }
     }

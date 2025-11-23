@@ -19,6 +19,9 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<IEnumerable<MessageDTO>> GetMessages(Guid conversationId, string currentUserId);
         Task<IEnumerable<Conversation>> GetUserConversationsAsync(string userId);
         Task<IEnumerable<Conversation>> GetSellerConversationsAsync(string sellerId);
+        Task<ConversationDTO> GetUserConversationById(Guid conversationId, string userId);
+        Task<ConversationDTO> GetSellerConversationById(Guid conversationId, string sellerId);
+
 
     }
 }

@@ -257,44 +257,36 @@ namespace LECOMS.Common.Helper
             // CHAT
             // ============================================================
             CreateMap<Message, MessageDTO>()
-                .ForMember(dest => dest.SenderName,
-                    opt => opt.MapFrom(src => src.Sender.FullName))
-                .ForMember(dest => dest.SenderAvatar,
-                    opt => opt.MapFrom(src => src.Sender.ImageUrl));
+     .ForMember(dest => dest.SenderName, opt => opt.Ignore())
+     .ForMember(dest => dest.SenderAvatar, opt => opt.Ignore());
+
             CreateMap<Conversation, ConversationDTO>()
-       // PRODUCT
-       .ForMember(dest => dest.Product,
-           opt => opt.MapFrom(src => src.Product))
 
-       // DISPLAY NAME
-       .ForMember(dest => dest.DisplayName,
-           opt => opt.MapFrom(src =>
-               src.IsAIChat
-                   ? "AI Assistant"
+  // product mini
+  .ForMember(dest => dest.Product,
+      opt => opt.MapFrom(src => src.Product))
 
-                   // Nếu là buyer đang xem → hiển thị SELLER NAME (hoặc SHOP NAME nếu muốn)
-                   : src.Seller != null
-                       ? src.Seller.FullName
-                       : src.Buyer.FullName
-           ))
+  // Display name
+  .ForMember(dest => dest.DisplayName,
+      opt => opt.MapFrom(src =>
+          src.IsAIChat
+              ? "AI Assistant"
+              : src.Product.Shop.Name   // ⭐ Shop name
+      ))
 
-       // DISPLAY AVATAR
-       .ForMember(dest => dest.DisplayAvatar,
-           opt => opt.MapFrom(src =>
-               src.IsAIChat
-                   ? "https://i.ibb.co/8mCVxNd/ai-avatar.png"
-                   : src.Seller != null
-                       ? src.Seller.ImageUrl
-                       : src.Buyer.ImageUrl
-           ))
+  // Display avatar
+  .ForMember(dest => dest.DisplayAvatar,
+      opt => opt.MapFrom(src =>
+          src.IsAIChat
+              ? "https://i.ibb.co/8mCVxNd/ai-avatar.png"
+              : src.Product.Shop.ShopAvatar
+      ))
 
-       // ROLE
-       .ForMember(dest => dest.Role,
-           opt => opt.MapFrom(src =>
-               src.IsAIChat ? "ai"
-                   : src.Seller != null ? "seller" : "buyer"
-           ));
-
+  .ForMember(dest => dest.Role,
+      opt => opt.MapFrom(src =>
+          src.IsAIChat ? "ai"
+          : "seller"
+      ));
 
 
             // ============================================================

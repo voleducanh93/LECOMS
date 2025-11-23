@@ -23,7 +23,10 @@ namespace LECOMS.Repository.Repositories
         {
             return await _db.Conversations
                 .Include(c => c.Product)
-                .Include(c => c.Messages)
+                    .ThenInclude(p => p.Images)
+                .Include(c => c.Product.Shop)
+                .Include(c => c.Buyer)
+                .Include(c => c.Seller)
                 .FirstOrDefaultAsync(c =>
                     c.BuyerId == buyerId &&
                     c.ProductId == productId &&
