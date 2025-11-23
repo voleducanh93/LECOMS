@@ -19,6 +19,7 @@ namespace LECOMS.Service.Services
         private readonly ICustomerWalletService _customerWalletService;
         private readonly IShopWalletService _shopWalletService;
         private readonly IVoucherService _voucherService;
+        private readonly IPlatformWalletService _platformWalletService;
         private readonly ILogger<OrderService> _logger;
 
         private const decimal FIXED_SHIPPING_FEE = 30000m;
@@ -29,7 +30,8 @@ namespace LECOMS.Service.Services
             ICustomerWalletService customerWalletService,
             IShopWalletService shopWalletService,
             IVoucherService voucherService,
-            ILogger<OrderService> logger)
+            ILogger<OrderService> logger,
+            IPlatformWalletService platformWalletService)
         {
             _uow = uow;
             _paymentService = paymentService;
@@ -37,6 +39,7 @@ namespace LECOMS.Service.Services
             _shopWalletService = shopWalletService;
             _voucherService = voucherService;
             _logger = logger;
+            _platformWalletService = platformWalletService;
         }
 
         // =====================================================================
@@ -187,7 +190,14 @@ namespace LECOMS.Service.Services
 
                     await DistributeRevenueToShopsAsync(createdOrders, txObj);
 
-                    // Mark voucher used luôn (vì wallet không qua webhook)
+                    // ⭐⭐ NEW — PLATFORM NHẬN HOA HỒNG CHO WALLET PAYMENT
+                    await _platformWalletService.AddCommissionAsync(
+                        txObj.PlatformFeeAmount,
+                        txObj.Id,
+                        string.Join(",", createdOrders.Select(o => o.OrderCode))
+                    );
+
+                    // Voucher
                     if (!string.IsNullOrWhiteSpace(voucherCode) && voucherResult != null && voucherResult.IsValid)
                     {
                         await _voucherService.MarkVoucherUsedAsync(
@@ -200,6 +210,7 @@ namespace LECOMS.Service.Services
                     walletUsed = grandTotal;
                     payOSRequired = 0;
                 }
+
                 else
                 {
                     // ==================== PAYOS ====================

@@ -62,6 +62,8 @@ namespace LECOMS.Repository.Repositories
         public ICommentRepository Comments { get; }
         public ITransactionOrderRepository TransactionOrders { get; }
         public ITransactionOrderBreakdownRepository TransactionOrderBreakdowns { get; }
+        public IPlatformWalletRepository PlatformWallets { get; }
+        public IPlatformWalletTransactionRepository PlatformWalletTransactions { get; }
 
         public UnitOfWork(LecomDbContext context, IUserRepository userRepository, IShopRepository shopRepository, ICourseRepository courseRepo, ICourseSectionRepository sectionRepo,
         ILessonRepository lessonRepo, ICourseProductRepository cpRepo, ICourseCategoryRepository courseCategories, IProductCategoryRepository productCategories, IProductRepository products, IEnrollmentRepository enrollmentRepository, IProductImageRepository productImageRepository, ILessonProductRepository lessonProductRepository, ILandingPageRepository landingPage, ICartRepository cartRepository, ICartItemRepository cartItemRepository, IOrderRepository orderRepository, IOrderDetailRepository orderDetailRepository, IPaymentRepository paymentRepository, ITransactionRepository transactionRepository, IShopWalletRepository shopWalletRepository, ICustomerWalletRepository customerWalletRepository, IWalletTransactionRepository walletTransactionRepository, ICustomerWalletTransactionRepository customerWalletTransactionRepository, IRefundRequestRepository refundRequestRepository, IWithdrawalRequestRepository withdrawalRequestRepository, ICustomerWithdrawalRequestRepository customerWithdrawalRequestRepository, IPlatformConfigRepository platformConfigRepository
@@ -82,7 +84,7 @@ namespace LECOMS.Repository.Repositories
     IRankTierRepository rankTierRepository,
     IBoosterRepository boosterRepository,
     IUserBoosterRepository userBoosterRepository, IUserLessonProgressRepository userLessonProgressRepository,
-    ICommunityPostRepository communityPostRepository, ICommentRepository commentRepository, ITransactionOrderRepository transactionOrderRepository, ITransactionOrderBreakdownRepository transactionOrderBreakdownRepository
+    ICommunityPostRepository communityPostRepository, ICommentRepository commentRepository, ITransactionOrderRepository transactionOrderRepository, ITransactionOrderBreakdownRepository transactionOrderBreakdownRepository, IPlatformWalletRepository platformWalletRepository, IPlatformWalletTransactionRepository platformWalletTransactionRepository
 )
 
         {
@@ -135,6 +137,8 @@ namespace LECOMS.Repository.Repositories
             Comments = commentRepository;
             TransactionOrders = transactionOrderRepository;
             TransactionOrderBreakdowns = transactionOrderBreakdownRepository;
+            PlatformWallets = platformWalletRepository;
+            PlatformWalletTransactions = platformWalletTransactionRepository;
         }
         public async Task<int> CompleteAsync()
         {
