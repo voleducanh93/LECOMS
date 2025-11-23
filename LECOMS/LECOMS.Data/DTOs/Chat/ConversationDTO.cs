@@ -18,6 +18,10 @@ namespace LECOMS.Data.DTOs.Chat
 
         public string LastMessage { get; set; }
         public DateTime LastMessageAt { get; set; }
+        // NEW
+        public string DisplayName { get; set; }
+        public string DisplayAvatar { get; set; }
+        public string Role { get; set; } // "buyer", "seller", "ai"
     }
 
 }

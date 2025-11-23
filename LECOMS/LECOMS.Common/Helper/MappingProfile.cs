@@ -257,7 +257,36 @@ namespace LECOMS.Common.Helper
                 .ForMember(dest => dest.SenderAvatar,
                     opt => opt.MapFrom(src => src.Sender.ImageUrl));
             CreateMap<Conversation, ConversationDTO>()
-    .ForMember(dest => dest.Product, opt => opt.MapFrom(src => src.Product));
+     .ForMember(dest => dest.Product,
+         opt => opt.MapFrom(src => src.Product))
+
+     // tên người còn lại trong cuộc trò chuyện
+     .ForMember(dest => dest.DisplayName,
+         opt => opt.MapFrom(src =>
+             src.IsAIChat
+                 ? "AI Assistant"
+                 : src.SellerId != null
+                     ? src.Seller.FullName     // Buyer thấy Seller
+                     : src.Buyer.FullName      // Seller thấy Buyer
+         ))
+
+     // avatar người còn lại
+     .ForMember(dest => dest.DisplayAvatar,
+         opt => opt.MapFrom(src =>
+             src.IsAIChat
+                 ? "https://elearningindustry.com/will-ai-avatars-change-the-face-of-learning-online"
+                 : src.SellerId != null
+                     ? src.Seller.ImageUrl
+                     : src.Buyer.ImageUrl
+         ))
+
+     // role hiển thị
+     .ForMember(dest => dest.Role,
+         opt => opt.MapFrom(src =>
+             src.IsAIChat ? "ai"
+                 : src.SellerId != null ? "seller" : "buyer"
+         ));
+
 
 
             // ============================================================
