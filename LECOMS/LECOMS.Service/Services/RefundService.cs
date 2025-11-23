@@ -224,6 +224,8 @@ namespace LECOMS.Service.Services
                 Amount = refund.RefundAmount,
                 Type = WalletTransactionType.Refund,
                 Description = $"Refund for order {refund.Order.OrderCode}",
+                BalanceBefore = wallet.Balance - refund.RefundAmount,
+                BalanceAfter = wallet.Balance,
                 CreatedAt = DateTime.UtcNow
             };
 
