@@ -3,6 +3,7 @@ using LECOMS.Data.Entities;
 using LECOMS.Data.Enum;
 using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -15,11 +16,13 @@ namespace LECOMS.Service.Services
     {
         private readonly IUnitOfWork _uow;
         private readonly ILogger<RefundService> _logger;
+        private readonly IServiceProvider _serviceProvider;
 
-        public RefundService(IUnitOfWork uow, ILogger<RefundService> logger)
+        public RefundService(IUnitOfWork uow, ILogger<RefundService> logger, IServiceProvider serviceProvider)
         {
             _uow = uow;
             _logger = logger;
+            _serviceProvider = serviceProvider;
         }
 
         // ============================================================
@@ -167,7 +170,7 @@ namespace LECOMS.Service.Services
         }
 
         // ============================================================
-        // 5. ADMIN APPROVE / REJECT — Refund to CUSTOMER WALLET
+        // 5. ADMIN APPROVE / REJECT — Refund to CUSTOMER WALLET + TRỪ SHOP WALLET + HOÀN PHÍ SÀN
         // ============================================================
         public async Task<RefundRequestDTO> AdminDecisionAsync(
             string refundId,
@@ -177,7 +180,7 @@ namespace LECOMS.Service.Services
         {
             var refund = await _uow.RefundRequests.GetAsync(
                 r => r.Id == refundId,
-                includeProperties: "Order,RequestedByUser");
+                includeProperties: "Order,RequestedByUser,Order.Shop");
 
             if (refund == null)
                 throw new InvalidOperationException("Refund not found.");
@@ -192,55 +195,76 @@ namespace LECOMS.Service.Services
             {
                 refund.Status = RefundStatus.AdminRejected;
                 refund.AdminRejectReason = rejectReason;
+
                 await _uow.RefundRequests.UpdateAsync(refund);
                 await _uow.CompleteAsync();
                 return MapToDto(refund);
             }
 
-            // ---------------------------------
-            // REFUND → CUSTOMER WALLET
-            // ---------------------------------
-            var wallet = await _uow.CustomerWallets.GetAsync(w => w.CustomerId == refund.RequestedBy);
+            var shopWalletService = _serviceProvider.GetRequiredService<IShopWalletService>();
+            var customerWalletService = _serviceProvider.GetRequiredService<ICustomerWalletService>();
+            var platformWalletService = _serviceProvider.GetRequiredService<IPlatformWalletService>();
+            var config = await _uow.PlatformConfigs.GetConfigAsync();
 
-            if (wallet == null)
+            // ============================================
+            // 1) Tính lại shopAmount + platformFee theo đơn hàng
+            // ============================================
+            decimal total = refund.Order.Total;
+            decimal platformFee = total * config.DefaultCommissionRate / 100;
+            decimal shopAmount = total - platformFee;
+
+            decimal shopRefund = shopAmount;
+            decimal platformRefund = platformFee;
+
+            if (refund.Type == RefundType.Partial)
             {
-                wallet = new CustomerWallet
-                {
-                    CustomerId = refund.RequestedBy,
-                    Balance = 0,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                await _uow.CustomerWallets.AddAsync(wallet);
+                decimal ratio = refund.RefundAmount / total;
+                shopRefund = Math.Round(shopAmount * ratio, 2);
+                platformRefund = Math.Round(platformFee * ratio, 2);
             }
 
-            wallet.Balance += refund.RefundAmount;
-            await _uow.CustomerWallets.UpdateAsync(wallet);
+            // ============================================
+            // 2) Trừ SHOP pending balance
+            // ============================================
+            await shopWalletService.DeductPendingOnlyAsync(
+                refund.Order.ShopId,
+                shopRefund,
+                WalletTransactionType.Refund,
+                refund.OrderId,
+                $"Refund (Shop Portion) for Order {refund.Order.OrderCode}"
+            );
 
-            // Add wallet transaction
-            var tx = new CustomerWalletTransaction
-            {
-                CustomerWalletId = wallet.Id,
-                Amount = refund.RefundAmount,
-                Type = WalletTransactionType.Refund,
-                Description = $"Refund for order {refund.Order.OrderCode}",
-                CreatedAt = DateTime.UtcNow
-            };
+            // ============================================
+            // 3) HOÀN PHÍ SÀN → PLATFORM WALLET
+            // ============================================
+            await platformWalletService.RefundCommissionAsync(
+                platformRefund,
+                refund.Id,
+                $"Refund commission for order {refund.Order.OrderCode}"
+            );
 
-            await _uow.CustomerWalletTransactions.AddAsync(tx);
+            // ============================================
+            // 4) HOÀN TIỀN FULL CHO CUSTOMER
+            // ============================================
+            await customerWalletService.AddBalanceAsync(
+                refund.RequestedBy,
+                refund.RefundAmount,
+                refund.Id,
+                $"Refund for order {refund.Order.OrderCode}"
+            );
 
-            // Update refund & order
+            // ============================================
+            // 5) Cập nhật REFUND + ORDER
+            // ============================================
             refund.Status = RefundStatus.Refunded;
-            refund.ProcessNote = "Refund sent to Customer Wallet";
+            refund.ProcessNote = "Refund completed";
+
             refund.Order.Status = OrderStatus.Refunded;
+            refund.Order.PaymentStatus = PaymentStatus.Refunded;
 
             await _uow.RefundRequests.UpdateAsync(refund);
             await _uow.Orders.UpdateAsync(refund.Order);
             await _uow.CompleteAsync();
-
-            refund = await _uow.RefundRequests.GetAsync(
-                r => r.Id == refundId,
-                includeProperties: "Order,RequestedByUser,ShopResponseByUser,AdminResponseByUser");
 
             return MapToDto(refund);
         }

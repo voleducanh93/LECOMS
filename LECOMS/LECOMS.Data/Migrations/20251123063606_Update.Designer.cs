@@ -4,6 +4,7 @@ using LECOMS.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LECOMS.Data.Migrations
 {
     [DbContext(typeof(LecomDbContext))]
-    partial class LecomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251123063606_Update")]
+    partial class Update
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -816,11 +819,13 @@ namespace LECOMS.Data.Migrations
 
                     b.Property<string>("SenderId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ConversationId");
+
+                    b.HasIndex("SenderId");
 
                     b.ToTable("Messages");
                 });
@@ -1116,88 +1121,6 @@ namespace LECOMS.Data.Migrations
                             OrderHoldingDays = 7,
                             PayOSEnvironment = "sandbox"
                         });
-                });
-
-            modelBuilder.Entity("LECOMS.Data.Entities.PlatformWallet", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<decimal>("Balance")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("LastUpdated")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("TotalCommissionEarned")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalCommissionRefunded")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalPayout")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("PlatformWallets", (string)null);
-                });
-
-            modelBuilder.Entity("LECOMS.Data.Entities.PlatformWalletTransaction", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("BalanceAfter")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("BalanceBefore")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PlatformWalletId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("ReferenceId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("ReferenceType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("PlatformWalletId");
-
-                    b.HasIndex("ReferenceId", "ReferenceType");
-
-                    b.ToTable("PlatformWalletTransactions", (string)null);
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.PointLedger", b =>
@@ -2822,7 +2745,15 @@ namespace LECOMS.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("LECOMS.Data.Entities.User", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Conversation");
+
+                    b.Navigation("Sender");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.Notification", b =>
@@ -2894,17 +2825,6 @@ namespace LECOMS.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Payment");
-                });
-
-            modelBuilder.Entity("LECOMS.Data.Entities.PlatformWalletTransaction", b =>
-                {
-                    b.HasOne("LECOMS.Data.Entities.PlatformWallet", "PlatformWallet")
-                        .WithMany("Transactions")
-                        .HasForeignKey("PlatformWalletId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PlatformWallet");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.PointLedger", b =>
@@ -3377,11 +3297,6 @@ namespace LECOMS.Data.Migrations
             modelBuilder.Entity("LECOMS.Data.Entities.Payment", b =>
                 {
                     b.Navigation("Attempts");
-                });
-
-            modelBuilder.Entity("LECOMS.Data.Entities.PlatformWallet", b =>
-                {
-                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.Product", b =>

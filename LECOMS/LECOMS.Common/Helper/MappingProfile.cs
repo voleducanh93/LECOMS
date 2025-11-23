@@ -314,6 +314,15 @@ namespace LECOMS.Common.Helper
                 .ForMember(d => d.CategoryName, o => o.MapFrom(s => s.Course.Category.Name))
                 .ForMember(d => d.CourseThumbnail, o => o.MapFrom(s => s.Course.CourseThumbnail));
 
+
+            // ============================================================
+            // PLATFORMWALLET + FLATFORM WALLETTRANSACTION
+            // ============================================================
+            CreateMap<PlatformWallet, PlatformWalletDTO>();
+
+            CreateMap<PlatformWalletTransaction, PlatformWalletTransactionDTO>()
+                .ForMember(d => d.Type, o => o.MapFrom(s => s.Type.ToString()));
+
         }
     }
 }

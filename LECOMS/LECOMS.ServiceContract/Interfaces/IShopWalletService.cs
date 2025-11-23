@@ -30,7 +30,9 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<bool> CanWithdrawAsync(int shopId, decimal amount);
 
         Task<WalletSummaryDto> GetWalletSummaryAsync(int shopId);
+        Task<ShopWallet> DeductPendingOnlyAsync(int shopId, decimal amount, WalletTransactionType type, string referenceId, string description);
     }
+
 
     public class WalletSummaryDto
     {

@@ -58,6 +58,7 @@
             services.AddTransient<IVoucherService, VoucherService>();
             services.AddTransient<IGamificationAdminService, GamificationAdminService>();
             services.AddTransient<ITransactionOrderService, TransactionOrderService>();
+            services.AddTransient<IPlatformWalletService, PlatformWalletService>();
 
             return services;
             }

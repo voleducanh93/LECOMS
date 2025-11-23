@@ -59,6 +59,8 @@ namespace LECOMS.Data.Models
         public DbSet<Message> Messages { get; set; }
         public DbSet<TransactionOrder> TransactionOrders { get; set; }
         public DbSet<TransactionOrderBreakdown> TransactionOrderBreakdowns { get; set; }
+        public DbSet<PlatformWallet> PlatformWallets { get; set; }
+        public DbSet<PlatformWalletTransaction> PlatformWalletTransactions { get; set; }
 
         // =====================================================================
         // ==== NEW PAYMENT SYSTEM DbSets ⭐ ====
@@ -511,6 +513,44 @@ namespace LECOMS.Data.Models
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
+            // =====================================================================
+            // --- PlatformWallet ---
+            // =====================================================================
+
+            b.Entity<PlatformWallet>(e =>
+            {
+                e.ToTable("PlatformWallets");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.Balance).HasPrecision(18, 2);
+                e.Property(x => x.TotalCommissionEarned).HasPrecision(18, 2);
+                e.Property(x => x.TotalCommissionRefunded).HasPrecision(18, 2);
+                e.Property(x => x.TotalPayout).HasPrecision(18, 2);
+            });
+
+            // =====================================================================
+            // --- PlatformWalletTransaction ---
+            // =====================================================================
+
+            b.Entity<PlatformWalletTransaction>(e =>
+            {
+                e.ToTable("PlatformWalletTransactions");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.Amount).HasPrecision(18, 2);
+                e.Property(x => x.BalanceBefore).HasPrecision(18, 2);
+                e.Property(x => x.BalanceAfter).HasPrecision(18, 2);
+
+                e.Property(x => x.Type).HasConversion<int>();
+
+                e.HasIndex(x => x.CreatedAt);
+                e.HasIndex(x => new { x.ReferenceId, x.ReferenceType });
+
+                e.HasOne(x => x.PlatformWallet)
+                 .WithMany(w => w.Transactions)
+                 .HasForeignKey(x => x.PlatformWalletId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
 
         }
     }

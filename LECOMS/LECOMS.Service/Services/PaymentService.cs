@@ -29,19 +29,22 @@ namespace LECOMS.Service.Services
         private readonly IVoucherService _voucherService;
         private readonly IConfiguration _config;
         private readonly ILogger<PaymentService> _logger;
+        private readonly IPlatformWalletService _platformWallet;
 
         public PaymentService(
             IUnitOfWork uow,
             IShopWalletService shopWallet,
             IVoucherService voucherService,
             IConfiguration config,
-            ILogger<PaymentService> logger)
+            ILogger<PaymentService> logger,
+            IPlatformWalletService platformWallet)
         {
             _uow = uow;
             _shopWallet = shopWallet;
             _voucherService = voucherService;
             _config = config;
             _logger = logger;
+            _platformWallet = platformWallet;
         }
 
         // =========================================================
@@ -273,9 +276,9 @@ namespace LECOMS.Service.Services
         // 8. PAYMENT SUCCESS
         // =========================================================
         private async Task HandlePaymentSuccessAsync(
-            Transaction tx,
-            List<Order> orders,
-            PayOSWebhookData webhook)
+    Transaction tx,
+    List<Order> orders,
+    PayOSWebhookData webhook)
         {
             tx.Status = TransactionStatus.Completed;
             tx.PayOSTransactionId = webhook.Data?.Reference ?? webhook.Data?.PaymentLinkId;
@@ -302,6 +305,13 @@ namespace LECOMS.Service.Services
                     $"Order {o.OrderCode} revenue");
             }
 
+            // ⭐⭐ NEW: PLATFORM NHẬN HOA HỒNG
+            await _platformWallet.AddCommissionAsync(
+                tx.PlatformFeeAmount,
+                tx.Id,
+                string.Join(",", orders.Select(o => o.OrderCode))
+            );
+
             // Voucher
             if (!string.IsNullOrWhiteSpace(tx.VoucherCode))
             {
@@ -309,9 +319,11 @@ namespace LECOMS.Service.Services
                     orders.First().UserId,
                     tx.VoucherCode,
                     orders,
-                    tx.PayOSTransactionId!);
+                    tx.PayOSTransactionId!
+                );
             }
         }
+
 
         // =========================================================
         // 9. PAYMENT FAILED

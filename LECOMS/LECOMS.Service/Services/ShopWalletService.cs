@@ -269,5 +269,43 @@ namespace LECOMS.Service.Services
                 LastUpdated = wallet.LastUpdated
             };
         }
+
+        public async Task<ShopWallet> DeductPendingOnlyAsync(int shopId, decimal amount, WalletTransactionType type, string referenceId,string description)
+        {
+            if (amount <= 0)
+                throw new ArgumentException("Amount must be positive", nameof(amount));
+
+            var wallet = await GetOrCreateWalletAsync(shopId);
+
+            if (wallet.PendingBalance < amount)
+                throw new InvalidOperationException("Insufficient pending balance.");
+
+            decimal before = wallet.PendingBalance;
+
+            wallet.PendingBalance -= amount;
+            wallet.TotalRefunded += amount;
+            wallet.LastUpdated = DateTime.UtcNow;
+
+            await _unitOfWork.ShopWallets.UpdateAsync(wallet);
+
+            await _unitOfWork.WalletTransactions.AddAsync(new WalletTransaction
+            {
+                Id = Guid.NewGuid().ToString(),
+                ShopWalletId = wallet.Id,
+                Type = type,
+                Amount = -amount,
+                BalanceBefore = before,
+                BalanceAfter = wallet.PendingBalance,
+                BalanceType = "Pending",
+                Description = description,
+                ReferenceId = referenceId,
+                ReferenceType = "Refund",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _unitOfWork.CompleteAsync();
+            return wallet;
+        }
+
     }
 }

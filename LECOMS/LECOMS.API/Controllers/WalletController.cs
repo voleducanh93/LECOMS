@@ -1,6 +1,7 @@
 ﻿using LECOMS.Common.Helper;
 using LECOMS.Data.Enum;
 using LECOMS.RepositoryContract.Interfaces;
+using LECOMS.Service.Services;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,17 +23,20 @@ namespace LECOMS.API.Controllers
         private readonly ICustomerWalletService _customerWalletService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<WalletController> _logger;
+        private readonly IPlatformWalletService _platformWalletService;
 
         public WalletController(
             IShopWalletService shopWalletService,
             ICustomerWalletService customerWalletService,
             IUnitOfWork unitOfWork,
-            ILogger<WalletController> logger)
+            ILogger<WalletController> logger,
+            IPlatformWalletService platformWalletService)
         {
             _shopWalletService = shopWalletService;
             _customerWalletService = customerWalletService;
             _unitOfWork = unitOfWork;
             _logger = logger;
+            _platformWalletService = platformWalletService;
         }
 
         // ----------------- Helpers -----------------
@@ -276,23 +280,29 @@ namespace LECOMS.API.Controllers
         {
             try
             {
+                // Load tổng tiền shop & customer
                 var totalShopAvailableBalance = await _unitOfWork.ShopWallets.GetTotalAvailableBalanceAsync();
                 var totalShopPendingBalance = await _unitOfWork.ShopWallets.GetTotalPendingBalanceAsync();
                 var totalCustomerBalance = await _unitOfWork.CustomerWallets.GetTotalBalanceAsync();
 
+                // Tổng fee platform đã thu (cho báo cáo)
                 var startDate = new DateTime(2020, 1, 1);
                 var endDate = DateTime.UtcNow;
-                var totalPlatformFee = await _unitOfWork.Transactions.GetTotalPlatformFeeAsync(startDate, endDate);
+                var totalPlatformFeeEarned = await _unitOfWork.Transactions.GetTotalPlatformFeeAsync(startDate, endDate);
+
+                // Lấy ví platform trực tiếp từ DB
+                var platformWallet = await _unitOfWork.PlatformWallets.GetAsync(x => true)
+                                     ?? await _platformWalletService.GetOrCreateAsync();
+
+                decimal platformAvailableBalance = platformWallet.Balance;
 
                 var totalShopsWithWallet = await _unitOfWork.ShopWallets.CountAsync(_ => true);
                 var totalCustomersWithWallet = await _unitOfWork.CustomerWallets.CountAsync(_ => true);
 
+                // Pending requests
                 var pendingShopWithdrawals = await _unitOfWork.WithdrawalRequests.GetPendingRequestsAsync();
                 var pendingCustomerWithdrawals = await _unitOfWork.CustomerWithdrawalRequests.GetPendingRequestsAsync();
                 var pendingRefunds = await _unitOfWork.RefundRequests.GetByStatusAsync(RefundStatus.PendingShop);
-
-                decimal platformAvailableBalance =
-                    totalPlatformFee - (totalShopAvailableBalance + totalShopPendingBalance + totalCustomerBalance);
 
                 return Success(new
                 {
@@ -310,9 +320,11 @@ namespace LECOMS.API.Controllers
                     },
                     platform = new
                     {
-                        totalFeeEarned = totalPlatformFee,
-                        availableBalance = platformAvailableBalance,
-                        totalLockedInSystem = totalShopAvailableBalance + totalShopPendingBalance + totalCustomerBalance
+                        balance = platformWallet.Balance,
+                        totalCommissionEarned = platformWallet.TotalCommissionEarned,
+                        totalCommissionRefunded = platformWallet.TotalCommissionRefunded,
+                        totalPayout = platformWallet.TotalPayout,
+                        lastUpdated = platformWallet.LastUpdated
                     },
                     pending = new
                     {
@@ -335,8 +347,14 @@ namespace LECOMS.API.Controllers
                     summary = new
                     {
                         totalMoneyInSystem =
-                            totalShopAvailableBalance + totalShopPendingBalance + totalCustomerBalance + platformAvailableBalance,
-                        healthStatus = platformAvailableBalance >= 0 ? "Healthy" : "Warning: Negative platform balance"
+                            platformAvailableBalance +
+                            totalShopAvailableBalance +
+                            totalShopPendingBalance +
+                            totalCustomerBalance,
+
+                        healthStatus = platformAvailableBalance >= 0
+                            ? "Healthy"
+                            : "Warning: Negative platform balance"
                     },
                     generatedAt = DateTime.UtcNow
                 });
@@ -347,6 +365,7 @@ namespace LECOMS.API.Controllers
                 return Error("Internal server error", HttpStatusCode.InternalServerError);
             }
         }
+
 
         [HttpGet("admin/top-shops")]
         [Authorize(Roles = "Admin")]
@@ -469,6 +488,182 @@ namespace LECOMS.API.Controllers
                 return Error("Internal server error", HttpStatusCode.InternalServerError);
             }
         }
+
+        // ============================================================================
+        // =============== ADMIN — PLATFORM WALLET ===================================
+        // ============================================================================
+
+        [HttpGet("admin/platform-wallet")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetPlatformWalletSummary()
+        {
+            var wallet = await _unitOfWork.PlatformWallets.GetAsync(x => true)
+                         ?? await _platformWalletService.GetOrCreateAsync();
+
+            return Success(new
+            {
+                wallet.Id,
+                wallet.Balance,
+                wallet.TotalCommissionEarned,
+                wallet.TotalCommissionRefunded,
+                wallet.TotalPayout,
+                wallet.CreatedAt,
+                wallet.LastUpdated
+            });
+        }
+
+        [HttpGet("admin/platform-wallet/transactions")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetPlatformWalletTransactions(int page = 1, int pageSize = 20)
+        {
+            var list = await _unitOfWork.PlatformWalletTransactions.GetAllAsync();
+
+            var totalItems = list.Count();
+            var items = list
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
+
+            return Success(new
+            {
+                totalItems,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling(totalItems / (double)pageSize),
+                transactions = items.Select(x => new {
+                    x.Id,
+                    x.Amount,
+                    Type = x.Type.ToString(),
+                    x.BalanceBefore,
+                    x.BalanceAfter,
+                    x.Description,
+                    x.ReferenceId,
+                    x.ReferenceType,
+                    x.CreatedAt
+                })
+            });
+        }
+
+        // ============================================================================
+        // =============== ADMIN — SHOP WALLET =======================================
+        // ============================================================================
+
+        [HttpGet("admin/shops")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAllShopWallets()
+        {
+            var wallets = await _unitOfWork.ShopWallets.GetAllAsync(includeProperties: "Shop");
+
+            return Success(wallets.Select(w => new {
+                w.Id,
+                w.ShopId,
+                shopName = w.Shop.Name,
+                w.AvailableBalance,
+                w.PendingBalance,
+                w.TotalEarned,
+                w.TotalWithdrawn,
+                w.TotalRefunded,
+                w.LastUpdated
+            }));
+        }
+
+        [HttpGet("admin/shop/{shopId}/transactions")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AdminGetShopTransactions(int shopId, int page = 1, int pageSize = 20)
+        {
+            var wallet = await _shopWalletService.GetWalletWithTransactionsAsync(shopId, page, pageSize);
+            if (wallet == null) return Error("Wallet not found", HttpStatusCode.NotFound);
+
+            var query = wallet.Transactions.OrderByDescending(t => t.CreatedAt);
+
+            var totalItems = query.Count();
+            var items = query.Skip((page - 1) * pageSize).Take(pageSize);
+
+            return Success(new
+            {
+                walletId = wallet.Id,
+                wallet.ShopId,
+                transactions = items.Select(x => new {
+                    x.Id,
+                    Type = x.Type.ToString(),
+                    x.Amount,
+                    x.BalanceType,
+                    x.BalanceBefore,
+                    x.BalanceAfter,
+                    x.Description,
+                    x.ReferenceId,
+                    x.ReferenceType,
+                    x.CreatedAt
+                }),
+                pagination = new
+                {
+                    currentPage = page,
+                    pageSize,
+                    totalItems,
+                    totalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
+                }
+            });
+        }
+
+        // ============================================================================
+        // =============== ADMIN — CUSTOMER WALLET ===================================
+        // ============================================================================
+
+        [HttpGet("admin/customers")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAllCustomerWallets()
+        {
+            var wallets = await _unitOfWork.CustomerWallets.GetAllAsync(includeProperties: "Customer");
+
+            return Success(wallets.Select(w => new {
+                w.Id,
+                w.CustomerId,
+                customerName = w.Customer.UserName,
+                w.Balance,
+                w.TotalRefunded,
+                w.TotalSpent,
+                w.TotalWithdrawn,
+                w.LastUpdated
+            }));
+        }
+
+        [HttpGet("admin/customer/{customerId}/transactions")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AdminGetCustomerTransactions(string customerId, int page = 1, int pageSize = 20)
+        {
+            var wallet = await _customerWalletService.GetWalletWithTransactionsAsync(customerId, page, pageSize);
+            if (wallet == null) return Error("Wallet not found", HttpStatusCode.NotFound);
+
+            var query = wallet.Transactions.OrderByDescending(t => t.CreatedAt);
+
+            var totalItems = query.Count();
+            var items = query.Skip((page - 1) * pageSize).Take(pageSize);
+
+            return Success(new
+            {
+                walletId = wallet.Id,
+                wallet.CustomerId,
+                transactions = items.Select(x => new {
+                    x.Id,
+                    Type = x.Type.ToString(),
+                    x.Amount,
+                    x.BalanceBefore,
+                    x.BalanceAfter,
+                    x.Description,
+                    x.ReferenceId,
+                    x.ReferenceType,
+                    x.CreatedAt
+                }),
+                pagination = new
+                {
+                    currentPage = page,
+                    pageSize,
+                    totalItems,
+                    totalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
+                }
+            });
+        }
+
 
     }
 }

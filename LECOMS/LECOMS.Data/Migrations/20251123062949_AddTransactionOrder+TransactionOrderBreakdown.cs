@@ -11,10 +11,17 @@ namespace LECOMS.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // --------------------------
+            // REMOVE OLD COLUMN OrderId
+            // --------------------------
             migrationBuilder.DropColumn(
                 name: "OrderId",
                 table: "Transactions");
 
+            // --------------------------
+            // FIX SenderId TYPE ONLY
+            // (KHÔNG THÊM FOREIGN KEY)
+            // --------------------------
             migrationBuilder.AlterColumn<string>(
                 name: "SenderId",
                 table: "Messages",
@@ -23,6 +30,9 @@ namespace LECOMS.Data.Migrations
                 oldClrType: typeof(string),
                 oldType: "nvarchar(max)");
 
+            // --------------------------
+            // CREATE: TransactionOrders
+            // --------------------------
             migrationBuilder.CreateTable(
                 name: "TransactionOrders",
                 columns: table => new
@@ -48,6 +58,9 @@ namespace LECOMS.Data.Migrations
                         onDelete: ReferentialAction.Restrict);
                 });
 
+            // --------------------------
+            // CREATE: TransactionOrderBreakdowns
+            // --------------------------
             migrationBuilder.CreateTable(
                 name: "TransactionOrderBreakdowns",
                 columns: table => new
@@ -77,11 +90,9 @@ namespace LECOMS.Data.Migrations
                         onDelete: ReferentialAction.Restrict);
                 });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Messages_SenderId",
-                table: "Messages",
-                column: "SenderId");
-
+            // --------------------------
+            // Indexes
+            // --------------------------
             migrationBuilder.CreateIndex(
                 name: "IX_TransactionOrderBreakdowns_TransactionId",
                 table: "TransactionOrderBreakdowns",
@@ -102,40 +113,24 @@ namespace LECOMS.Data.Migrations
                 table: "TransactionOrders",
                 column: "TransactionId");
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_Messages_AspNetUsers_SenderId",
-                table: "Messages",
-                column: "SenderId",
-                principalTable: "AspNetUsers",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+            // --------------------------
+            // IMPORTANT:
+            // ❌ KHÔNG THÊM FOREIGN KEY Messages → AspNetUsers
+            // vì sẽ luôn conflict với dữ liệu cũ
+            // --------------------------
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_Messages_AspNetUsers_SenderId",
-                table: "Messages");
-
+            // Drop 2 new tables
             migrationBuilder.DropTable(
                 name: "TransactionOrderBreakdowns");
 
             migrationBuilder.DropTable(
                 name: "TransactionOrders");
 
-            migrationBuilder.DropIndex(
-                name: "IX_Messages_SenderId",
-                table: "Messages");
-
-            migrationBuilder.AddColumn<string>(
-                name: "OrderId",
-                table: "Transactions",
-                type: "nvarchar(4000)",
-                maxLength: 4000,
-                nullable: false,
-                defaultValue: "");
-
+            // Revert SenderId type
             migrationBuilder.AlterColumn<string>(
                 name: "SenderId",
                 table: "Messages",
@@ -143,6 +138,15 @@ namespace LECOMS.Data.Migrations
                 nullable: false,
                 oldClrType: typeof(string),
                 oldType: "nvarchar(450)");
+
+            // Add back OrderId
+            migrationBuilder.AddColumn<string>(
+                name: "OrderId",
+                table: "Transactions",
+                type: "nvarchar(4000)",
+                maxLength: 4000,
+                nullable: false,
+                defaultValue: "");
         }
     }
 }
