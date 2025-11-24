@@ -61,6 +61,9 @@ namespace LECOMS.Data.Models
         public DbSet<TransactionOrderBreakdown> TransactionOrderBreakdowns { get; set; }
         public DbSet<PlatformWallet> PlatformWallets { get; set; }
         public DbSet<PlatformWalletTransaction> PlatformWalletTransactions { get; set; }
+        public DbSet<Feedback> Feedbacks { get; set; }
+        public DbSet<FeedbackImage> FeedbackImages { get; set; }
+        public DbSet<FeedbackReply> FeedbackReplies { get; set; }
 
         // =====================================================================
         // ==== NEW PAYMENT SYSTEM DbSets ⭐ ====
