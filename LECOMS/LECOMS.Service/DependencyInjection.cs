@@ -60,6 +60,7 @@
             services.AddTransient<ITransactionOrderService, TransactionOrderService>();
             services.AddTransient<IPlatformWalletService, PlatformWalletService>();
             services.AddTransient<IFeedbackService, FeedbackService>();
+            services.AddTransient<ISellerDashboardService, SellerDashboardService>();
 
             return services;
             }
