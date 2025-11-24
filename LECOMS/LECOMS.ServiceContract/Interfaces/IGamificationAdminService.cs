@@ -13,5 +13,6 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<RedeemRuleDTO> CreateRedeemRuleAsync(RedeemRuleCreateDTO dto);
         Task<RedeemRuleDTO> UpdateRedeemRuleAsync(string id, RedeemRuleUpdateDTO dto);
         Task<bool> DeleteRedeemRuleAsync(string id);
+        Task<RedeemRuleDTO?> GetRedeemRuleByIdAsync(string id);
     }
 }

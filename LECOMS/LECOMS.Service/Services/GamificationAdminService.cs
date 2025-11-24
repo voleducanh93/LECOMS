@@ -85,5 +85,19 @@ namespace LECOMS.Service.Services
             await _uow.CompleteAsync();
             return true;
         }
+
+        public async Task<RedeemRuleDTO?> GetRedeemRuleByIdAsync(string id)
+        {
+            var rule = await _uow.RedeemRules.GetAsync(r => r.Id.ToString() == id);
+            if (rule == null) return null;
+
+            return new RedeemRuleDTO
+            {
+                Id = rule.Id.ToString(),
+                Reward = rule.Reward,
+                CostPoints = rule.CostPoints,
+                Active = rule.Active
+            };
+        }
     }
 }
