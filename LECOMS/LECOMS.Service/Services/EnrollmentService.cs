@@ -1,5 +1,6 @@
 ﻿using CloudinaryDotNet;
 using LECOMS.Data.DTOs.Course;
+using LECOMS.Data.DTOs.Gamification;
 using LECOMS.Data.Entities;
 using LECOMS.RepositoryContract.Interfaces;
 using LECOMS.ServiceContract.Interfaces;
@@ -13,9 +14,13 @@ namespace LECOMS.Service.Services
     {
         private readonly IUnitOfWork _uow;
 
-        public EnrollmentService(IUnitOfWork uow)
+        private readonly IGamificationService _gamification;
+
+        public EnrollmentService(IUnitOfWork uow, IGamificationService gamification)
         {
             _uow = uow;
+            _gamification = gamification;
+
         }
 
         public async Task<EnrollmentDTO> EnrollAsync(string userId, string courseId)
@@ -214,7 +219,7 @@ namespace LECOMS.Service.Services
 
         public async Task<bool> CompleteLessonAsync(string userId, string lessonId)
         {
-            // ⬅ Load Lesson + Section
+            // 1. Load lesson
             var lesson = await _uow.Lessons.GetAsync(
                 l => l.Id == lessonId,
                 includeProperties: "Section"
@@ -223,6 +228,7 @@ namespace LECOMS.Service.Services
             if (lesson == null)
                 throw new KeyNotFoundException("Lesson not found.");
 
+            // 2. Load or create progress
             var progress = await _uow.UserLessonProgresses.GetProgressAsync(userId, lessonId);
 
             if (progress == null)
@@ -241,14 +247,17 @@ namespace LECOMS.Service.Services
             }
             else
             {
-                progress.IsCompleted = true;
-                progress.CompletedAt = DateTime.UtcNow;
-                progress.XpEarned = 5;
+                if (!progress.IsCompleted)
+                {
+                    progress.IsCompleted = true;
+                    progress.CompletedAt = DateTime.UtcNow;
+                    progress.XpEarned = 5;
 
-                await _uow.UserLessonProgresses.UpdateAsync(progress);
+                    await _uow.UserLessonProgresses.UpdateAsync(progress);
+                }
             }
 
-            // ⭐ FIXED: Lấy courseId qua Section
+            // 3. Update course progress
             var courseId = lesson.Section.CourseId;
 
             var enrollment = await _uow.Enrollments.GetAsync(
@@ -269,8 +278,18 @@ namespace LECOMS.Service.Services
             }
 
             await _uow.CompleteAsync();
+
+            // ===============================
+            // ⭐ GAMIFICATION EVENT HERE ⭐
+            // ===============================
+            await _gamification.HandleEventAsync(userId, new GamificationEventDTO
+            {
+                Action = "CompleteLesson"
+            });
+
             return true;
         }
+
 
 
     }
