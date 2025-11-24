@@ -153,21 +153,32 @@ namespace LECOMS.Service.Services
                 v.QuantityAvailable > 0
             );
 
-            // ⭐ lấy danh sách RedeemRule
+            // ⭐ RedeemRule cho Booster/Voucher
             var redeemRules = await _uow.RedeemRules.GetAllAsync(r => r.Active);
 
+
+            // ================================
+            // 🔥 BOOSTERS
+            // ================================
             var boosterDtos = boosters.Select(b => new RewardItemDTO
             {
                 Id = b.Id.ToString(),
-                Type = "Booster",
-                Name = b.Name,
-                Description = b.Description ?? "",
-                CostPoints = b.CostPoints,
-                ExtraInfo = b.Duration.HasValue
+                Title = b.Name,                       // FE field: title
+                Description = b.Description ?? "",    // FE field: description
+                CoinCost = b.CostPoints,              // FE field: coinCost
+                Type = "Booster",                     // FE field: type
+                ImageUrl = null,                      // FE field: imageUrl (bạn không có => null)
+                DurationDescription =
+                    b.Duration.HasValue
                     ? $"Hoạt động {b.Duration.Value.TotalHours} giờ"
-                    : "One-time use"
+                    : "One-time use",                 // FE field: durationDescription
+                Redeemable = true                     // luôn cho redeem
             }).ToList();
 
+
+            // ================================
+            // 🔥 VOUCHERS
+            // ================================
             var voucherDtos = vouchers.Select(v =>
             {
                 var rule = redeemRules.FirstOrDefault(r => r.Reward == v.Code);
@@ -175,15 +186,19 @@ namespace LECOMS.Service.Services
                 return new RewardItemDTO
                 {
                     Id = v.Id,
-                    Type = "Voucher",
-                    Name = v.Code,
+                    Title = v.Code,                         // FE field: title
                     Description = BuildVoucherDescription(v),
-                    CostPoints = rule?.CostPoints ?? 0, // ⭐ FIX 100%
-                    ExtraInfo = v.EndDate.HasValue
-                        ? $"HSD đến {v.EndDate.Value:dd/MM/yyyy}"
-                        : "Không giới hạn"
+                    CoinCost = rule?.CostPoints ?? 0,       // FE field: coinCost
+                    Type = "Voucher",                       // FE field: type
+                    ImageUrl = null,                        // FE field: imageUrl
+                    DurationDescription =
+                        v.EndDate.HasValue
+                            ? $"HSD đến {v.EndDate.Value:dd/MM/yyyy}"
+                            : "Không giới hạn",             // FE field: durationDescription
+                    Redeemable = true                       // FE field: redeemable
                 };
             }).ToList();
+
 
             return new
             {
