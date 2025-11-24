@@ -284,7 +284,8 @@ namespace LECOMS.Service.Services
             // ===============================
             await _gamification.HandleEventAsync(userId, new GamificationEventDTO
             {
-                Action = "CompleteLesson"
+                Action = "CompleteLesson",
+                ReferenceId = lessonId
             });
 
             return true;

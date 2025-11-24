@@ -1,4 +1,5 @@
-﻿using LECOMS.Data.DTOs.Order;
+﻿using LECOMS.Data.DTOs.Gamification;
+using LECOMS.Data.DTOs.Order;
 using LECOMS.Data.DTOs.Voucher;
 using LECOMS.Data.Entities;
 using LECOMS.Data.Enum;
@@ -21,6 +22,7 @@ namespace LECOMS.Service.Services
         private readonly IVoucherService _voucherService;
         private readonly IPlatformWalletService _platformWalletService;
         private readonly ILogger<OrderService> _logger;
+        private readonly IGamificationService _gamification; // ⭐ thêm
 
         private const decimal FIXED_SHIPPING_FEE = 30000m;
 
@@ -31,7 +33,8 @@ namespace LECOMS.Service.Services
             IShopWalletService shopWalletService,
             IVoucherService voucherService,
             ILogger<OrderService> logger,
-            IPlatformWalletService platformWalletService)
+            IPlatformWalletService platformWalletService,
+            IGamificationService gamification)
         {
             _uow = uow;
             _paymentService = paymentService;
@@ -40,6 +43,7 @@ namespace LECOMS.Service.Services
             _voucherService = voucherService;
             _logger = logger;
             _platformWalletService = platformWalletService;
+            _gamification = gamification;
         }
 
         // =====================================================================
@@ -209,6 +213,12 @@ namespace LECOMS.Service.Services
 
                     walletUsed = grandTotal;
                     payOSRequired = 0;
+                    // ⭐⭐⭐ GAMIFICATION EVENT — thêm ngay tại đây ⭐⭐⭐
+                    await _gamification.HandleEventAsync(userId, new GamificationEventDTO
+                    {
+                        Action = "PurchaseProduct", // phải trùng EarnRule.Action + QuestDefinition.Code
+                        ReferenceId = string.Join(",", createdOrders.Select(o => o.Id))
+                    });
                 }
 
                 else
