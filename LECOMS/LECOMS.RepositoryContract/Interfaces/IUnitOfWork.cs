@@ -64,6 +64,9 @@ namespace LECOMS.RepositoryContract.Interfaces
         ITransactionOrderBreakdownRepository TransactionOrderBreakdowns { get; }
         IPlatformWalletRepository PlatformWallets { get; }
         IPlatformWalletTransactionRepository PlatformWalletTransactions { get; }
+        IFeedbackRepository Feedbacks { get; }
+        IFeedbackReplyRepository FeedbackReplies { get; }
+        IFeedbackImageRepository FeedbackImages { get; }
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
         bool HasActiveTransaction { get; }
