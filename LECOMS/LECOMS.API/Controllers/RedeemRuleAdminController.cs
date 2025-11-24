@@ -38,6 +38,35 @@ namespace LECOMS.API.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var result = await _service.GetRedeemRuleByIdAsync(id);
+
+                if (result == null)
+                {
+                    response.IsSuccess = false;
+                    response.StatusCode = HttpStatusCode.NotFound;
+                    response.ErrorMessages.Add("Redeem rule not found.");
+                    return StatusCode((int)response.StatusCode, response);
+                }
+
+                response.Result = result;
+                response.StatusCode = HttpStatusCode.OK;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] RedeemRuleCreateDTO dto)
         {
@@ -92,5 +121,7 @@ namespace LECOMS.API.Controllers
             }
             return StatusCode((int)response.StatusCode, response);
         }
+
+
     }
 }
