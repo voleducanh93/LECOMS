@@ -310,6 +310,71 @@ namespace LECOMS.Service.Services
 
             return _mapper.Map<ConversationDTO>(conv);
         }
+        public async Task<MessageDTO> SendAIUserMessage(Guid conversationId, string senderId, string content)
+        {
+            var conversation = await _uow.Conversations.GetAsync(
+                c => c.Id == conversationId,
+                includeProperties: "Product,Product.Shop,Product.Images"
+            );
+
+            if (conversation == null)
+                throw new KeyNotFoundException("Conversation not found.");
+
+            if (!conversation.IsAIChat)
+                throw new InvalidOperationException("This is not an AI chat.");
+
+            var userMsg = new Message
+            {
+                Id = Guid.NewGuid(),
+                ConversationId = conversationId,
+                SenderId = senderId,
+                Content = content,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _uow.Messages.AddAsync(userMsg);
+
+            conversation.LastMessage = content;
+            conversation.LastMessageAt = DateTime.UtcNow;
+
+            await _uow.CompleteAsync();
+
+            return await MapMessageAsync(userMsg);
+        }
+        public async Task<MessageDTO> SendAIReply(Guid conversationId, string senderId, string content)
+        {
+            var conversation = await _uow.Conversations.GetAsync(
+                c => c.Id == conversationId,
+                includeProperties: "Product,Product.Shop,Product.Images"
+            );
+
+            if (conversation == null)
+                throw new KeyNotFoundException("Conversation not found.");
+
+            if (!conversation.IsAIChat)
+                throw new InvalidOperationException("This is not an AI chat.");
+
+            var aiResponse = await _ai.GetProductAnswerAsync(conversation.Product, content);
+
+            var aiMsg = new Message
+            {
+                Id = Guid.NewGuid(),
+                ConversationId = conversationId,
+                SenderId = "AI_SYSTEM",
+                Content = aiResponse,
+                IsRead = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _uow.Messages.AddAsync(aiMsg);
+
+            conversation.LastMessage = aiResponse;
+            conversation.LastMessageAt = DateTime.UtcNow;
+
+            await _uow.CompleteAsync();
+
+            return await MapMessageAsync(aiMsg);
+        }
 
     }
 }

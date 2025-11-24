@@ -126,7 +126,20 @@ namespace LECOMS.API.Controllers
             try
             {
                 var userId = _userManager.GetUserId(User);
-                var aiMsg = await _chatService.SendAIMessage(conversationId, userId, dto.Content);
+
+                // 1) Lưu tin nhắn của user
+                var userMsg = await _chatService.SendAIUserMessage(conversationId, userId, dto.Content);
+
+                // 🔥 Broadcast tin nhắn của USER
+                await _hub.Clients.Group(conversationId.ToString())
+                    .SendAsync("ReceiveMessage", userMsg);
+
+                // 2) AI trả lời
+                var aiMsg = await _chatService.SendAIReply(conversationId, userId, dto.Content);
+
+                // 🔥 Broadcast tin nhắn của AI
+                await _hub.Clients.Group(conversationId.ToString())
+                    .SendAsync("ReceiveMessage", aiMsg);
 
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = aiMsg;
@@ -140,6 +153,7 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+
 
         // --------------------------
         // GET MESSAGES

@@ -21,6 +21,9 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<IEnumerable<Conversation>> GetSellerConversationsAsync(string sellerId);
         Task<ConversationDTO> GetUserConversationById(Guid conversationId, string userId);
         Task<ConversationDTO> GetSellerConversationById(Guid conversationId, string sellerId);
+        // 🆕 AI chat tách làm 2 hàm
+        Task<MessageDTO> SendAIUserMessage(Guid conversationId, string senderId, string content);
+        Task<MessageDTO> SendAIReply(Guid conversationId, string senderId, string content);
 
 
     }
