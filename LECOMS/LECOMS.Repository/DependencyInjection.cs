@@ -66,6 +66,9 @@ namespace LECOMS.Repository
             services.AddTransient<ITransactionOrderRepository, TransactionOrderRepository>();
             services.AddScoped<IPlatformWalletRepository, PlatformWalletRepository>();
             services.AddScoped<IPlatformWalletTransactionRepository, PlatformWalletTransactionRepository>();
+            services.AddScoped<IFeedbackRepository, FeedbackRepository>();
+            services.AddScoped<IFeedbackImageRepository, FeedbackImageRepository>();
+            services.AddScoped<IFeedbackReplyRepository, FeedbackReplyRepository>();
             //DI Unit Of Work
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             return services;
