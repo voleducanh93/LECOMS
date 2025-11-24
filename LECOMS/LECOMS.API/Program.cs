@@ -116,6 +116,21 @@ builder.Services.AddQuartz(q =>
         )
     );
 
+    // ==========================
+    // AUTO RELEASE BALANCE JOB
+    // ==========================
+    var releaseJobKey = new JobKey("AutoReleaseBalanceJob");
+    q.AddJob<AutoReleaseBalanceJob>(opts => opts.WithIdentity(releaseJobKey));
+
+    q.AddTrigger(t => t
+        .ForJob(releaseJobKey)
+        .WithIdentity("AutoReleaseBalanceJob-trigger")
+        .WithSimpleSchedule(x => x
+            .WithIntervalInMinutes(30) // Chạy mỗi 30 phút
+            .RepeatForever()
+        )
+    );
+
 });
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
