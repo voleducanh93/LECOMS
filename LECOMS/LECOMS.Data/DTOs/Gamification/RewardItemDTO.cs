@@ -3,6 +3,7 @@
     public class RewardItemDTO
     {
         public string Id { get; set; } = null!;
+        public string RewardCode { get; set; } = null!;   // ⭐ ADD
         public string Title { get; set; } = null!;
         public string Description { get; set; } = null!;
         public int CoinCost { get; set; }
