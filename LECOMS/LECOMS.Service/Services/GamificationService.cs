@@ -187,7 +187,7 @@ namespace LECOMS.Service.Services
                 return new RewardItemDTO
                 {
                     Id = v.Id,
-                    RewardCode = b.Code,                   // ⭐ ADD
+                    RewardCode = v.Code,                   // ⭐ ADD
                     Title = v.Code,                         // FE field: title
                     Description = BuildVoucherDescription(v),
                     CoinCost = rule?.CostPoints ?? 0,       // FE field: coinCost
