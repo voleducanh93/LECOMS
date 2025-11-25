@@ -68,7 +68,7 @@ namespace LECOMS.Service.Services
         public async Task<CustomerWallet> AddBalanceAsync(
             string customerId, decimal amount, string refundId, string description)
         {
-            if (amount <= 0) throw new ArgumentException("Amount must be positive", nameof(amount));
+            if (amount <= 0) throw new ArgumentException("Số tiền phải dương", nameof(amount));
 
             var wallet = await GetOrCreateWalletAsync(customerId);
             decimal before = wallet.Balance;
@@ -106,12 +106,12 @@ namespace LECOMS.Service.Services
             string referenceId,
             string description)
         {
-            if (amount <= 0) throw new ArgumentException("Amount must be positive", nameof(amount));
+            if (amount <= 0) throw new ArgumentException("Số tiền phải dương", nameof(amount));
 
             var wallet = await GetOrCreateWalletAsync(customerId);
 
             if (wallet.Balance < amount)
-                throw new InvalidOperationException("Insufficient balance.");
+                throw new InvalidOperationException("Không đủ cân bằng.");
 
             decimal before = wallet.Balance;
 

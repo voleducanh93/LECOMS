@@ -121,7 +121,7 @@ namespace LECOMS.API.Controllers
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.NotFound;
-                response.ErrorMessages.Add("Product not found.");
+                response.ErrorMessages.Add("Product không tìm thấy.");
             }
             catch (Exception ex)
             {
@@ -149,7 +149,7 @@ namespace LECOMS.API.Controllers
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.NotFound;
-                response.ErrorMessages.Add("Shop not found.");
+                response.ErrorMessages.Add("Không tìm thấy cửa hàng.");
             }
             catch (Exception ex)
             {
@@ -183,7 +183,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Course not found.");
+                    response.ErrorMessages.Add("Course không tìm thấy.");
                     return StatusCode((int)response.StatusCode, response);
                 }
 
@@ -295,7 +295,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Product not found.");
+                    response.ErrorMessages.Add("Product không tìm thấy.");
                     return StatusCode((int)response.StatusCode, response);
                 }
 

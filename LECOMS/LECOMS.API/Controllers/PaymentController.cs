@@ -181,7 +181,7 @@ namespace LECOMS.API.Controllers
 
                 if (transaction == null)
                 {
-                    return NotFound(new { success = false, message = "Transaction not found" });
+                    return NotFound(new { success = false, message = "Transaction không tìm thấy" });
                 }
 
                 return Ok(new

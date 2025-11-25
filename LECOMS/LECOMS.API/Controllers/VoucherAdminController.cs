@@ -61,7 +61,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Voucher not found.");
+                    response.ErrorMessages.Add("Voucher không tìm thấy.");
                     return NotFound(response);
                 }
 
@@ -136,7 +136,7 @@ namespace LECOMS.API.Controllers
             {
                 var voucher = await _uow.Vouchers.GetAsync(v => v.Id == id);
                 if (voucher == null)
-                    throw new InvalidOperationException("Voucher not found.");
+                    throw new InvalidOperationException("Voucher không tìm thấy.");
 
                 // apply update
                 if (dto.DiscountType.HasValue) voucher.DiscountType = dto.DiscountType.Value;
@@ -178,7 +178,7 @@ namespace LECOMS.API.Controllers
             {
                 var voucher = await _uow.Vouchers.GetAsync(v => v.Id == id);
                 if (voucher == null)
-                    throw new InvalidOperationException("Voucher not found.");
+                    throw new InvalidOperationException("Voucher không tìm thấy.");
 
                 await _uow.Vouchers.DeleteAsync(voucher);
                 await _uow.CompleteAsync();

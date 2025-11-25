@@ -104,7 +104,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Shop not found.");
+                    response.ErrorMessages.Add("Không tìm thấy cửa hàng.");
                 }
                 else
                 {
@@ -158,7 +158,7 @@ namespace LECOMS.API.Controllers
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.NotFound;
-                response.ErrorMessages.Add("Shop not found.");
+                response.ErrorMessages.Add("Không tìm thấy cửa hàng.");
             }
 
             return StatusCode((int)response.StatusCode, response);
@@ -182,7 +182,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Shop not found.");
+                    response.ErrorMessages.Add("Không tìm thấy cửa hàng.");
                 }
                 else
                 {
@@ -243,7 +243,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Shop not found.");
+                    response.ErrorMessages.Add("Không tìm thấy cửa hàng.");
                 }
                 else
                 {
@@ -280,7 +280,7 @@ namespace LECOMS.API.Controllers
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.NotFound;
-                response.ErrorMessages.Add("Shop not found.");
+                response.ErrorMessages.Add("Không tìm thấy cửa hàng.");
             }
 
             return StatusCode((int)response.StatusCode, response);
@@ -314,7 +314,7 @@ namespace LECOMS.API.Controllers
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.NotFound;
-                response.ErrorMessages.Add("Shop not found.");
+                response.ErrorMessages.Add("Không tìm thấy cửa hàng.");
             }
 
             return StatusCode((int)response.StatusCode, response);

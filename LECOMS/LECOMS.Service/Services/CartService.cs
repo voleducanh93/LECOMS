@@ -73,11 +73,11 @@ namespace LECOMS.Service.Services
 
         public async Task<CartDTO> AddItemAsync(string userId, string productId, int quantity)
         {
-            if (quantity <= 0) throw new ArgumentException("Quantity must be > 0", nameof(quantity));
+            if (quantity <= 0) throw new ArgumentException("Số lượng phải được > 0", nameof(quantity));
 
             var product = await _uow.Products.GetAsync(p => p.Id == productId);
-            if (product == null) throw new InvalidOperationException("Product not found.");
-            if (product.Stock < quantity) throw new InvalidOperationException("Not enough stock.");
+            if (product == null) throw new InvalidOperationException("Không tìm thấy sản phẩm.");
+            if (product.Stock < quantity) throw new InvalidOperationException("Không đủ hàng.");
 
             var cart = await _uow.Carts.GetByUserIdAsync(userId, includeProperties: "Items");
             if (cart == null)
@@ -142,24 +142,24 @@ namespace LECOMS.Service.Services
         {
             if (!absoluteQuantity.HasValue && !quantityChange.HasValue)
             {
-                throw new ArgumentException("Either absoluteQuantity or quantityChange must be provided.");
+                throw new ArgumentException("Phải cung cấp Số lượng tuyệt đối hoặc Số lượng thay đổi.");
             }
 
             if (absoluteQuantity.HasValue && quantityChange.HasValue)
             {
-                throw new ArgumentException("Cannot provide both absoluteQuantity and quantityChange.");
+                throw new ArgumentException("Không thể cung cấp cả Số lượng tuyệt đối và Số lượng Thay đổi.");
             }
 
             var cart = await _uow.Carts.GetByUserIdAsync(userId, includeProperties: "Items");
             if (cart == null)
             {
-                throw new InvalidOperationException("Cart not found.");
+                throw new InvalidOperationException("Không tìm thấy giỏ hàng");
             }
 
             var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
             if (item == null)
             {
-                throw new InvalidOperationException("Product not found in cart.");
+                throw new InvalidOperationException("Không tìm thấy sản phẩm trong giỏ hàng.");
             }
 
             int newQuantity;
@@ -182,12 +182,12 @@ namespace LECOMS.Service.Services
             var product = await _uow.Products.GetAsync(p => p.Id == productId);
             if (product == null)
             {
-                throw new InvalidOperationException("Product not found.");
+                throw new InvalidOperationException("Không tìm thấy sản phẩm.");
             }
 
             if (product.Stock < newQuantity)
             {
-                throw new InvalidOperationException($"Not enough stock. Available: {product.Stock}, Requested: {newQuantity}");
+                throw new InvalidOperationException($"Không đủ hàng. Có sẵn: {product.Stock}, được yêu cầu: {newQuantity}");
             }
 
             item.Quantity = newQuantity;

@@ -87,12 +87,12 @@ namespace LECOMS.Service.Services
                 q => q.Id == userQuestId && q.UserId == userId,
                 includeProperties: "Quest");
 
-            if (progress == null) throw new KeyNotFoundException("Quest progress not found.");
-            if (!progress.IsCompleted) throw new InvalidOperationException("Quest not completed yet.");
+            if (progress == null) throw new KeyNotFoundException("Không tìm thấy tiến trình nhiệm vụ.");
+            if (!progress.IsCompleted) throw new InvalidOperationException("Nhiệm vụ vẫn chưa hoàn thành.");
             if (progress.IsClaimed) return false;
 
             var wallet = await _uow.PointWallets.GetByUserIdAsync(userId)
-                         ?? throw new InvalidOperationException("Wallet not found.");
+                         ?? throw new InvalidOperationException("Không tìm thấy ví.");
 
             // Cộng điểm + XP
             wallet.Balance += progress.Quest.RewardPoints;
@@ -439,15 +439,15 @@ namespace LECOMS.Service.Services
         public async Task<RedeemResponseDTO> RedeemAsync(string userId, RedeemRequestDTO dto)
         {
             var wallet = await _uow.PointWallets.GetByUserIdAsync(userId)
-                         ?? throw new InvalidOperationException("Wallet not found.");
+                         ?? throw new InvalidOperationException("Không tìm thấy ví.");
 
             // 1. Tìm RedeemRule (Reward = code)
             var rule = await _uow.RedeemRules.GetAsync(r => r.Reward == dto.RewardCode && r.Active);
             if (rule == null)
-                throw new InvalidOperationException("Redeem rule not found.");
+                throw new InvalidOperationException("Không tìm thấy quy tắc đổi quà.");
 
             if (wallet.Balance < rule.CostPoints)
-                throw new InvalidOperationException("Not enough points.");
+                throw new InvalidOperationException("Không đủ điểm.");
 
             // 2. Trừ điểm
             wallet.Balance -= rule.CostPoints;
@@ -477,7 +477,7 @@ namespace LECOMS.Service.Services
             else
             {
                 var voucher = await _uow.Vouchers.GetByCodeAsync(dto.RewardCode)
-                              ?? throw new InvalidOperationException("Reward code not found.");
+                              ?? throw new InvalidOperationException("Không tìm thấy mã phần thưởng.");
 
                 await _uow.UserVouchers.AddAsync(new UserVoucher
                 {
@@ -494,7 +494,7 @@ namespace LECOMS.Service.Services
             return new RedeemResponseDTO
             {
                 Success = true,
-                Message = "Redeem success.",
+                Message = "Đổi lấy thành công.",
                 NewBalance = wallet.Balance
             };
         }

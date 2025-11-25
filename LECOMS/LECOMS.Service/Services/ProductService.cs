@@ -31,7 +31,7 @@ namespace LECOMS.Service.Services
         {
             var shop = await _uow.Shops.GetAsync(s => s.Id == shopId);
             if (shop == null)
-                throw new InvalidOperationException("Shop not found.");
+                throw new InvalidOperationException("Không tìm thấy cửa hàng.");
 
             var products = await _uow.Products.GetAllByShopAsync(shopId, includeProperties: "Category,Images");
             return _mapper.Map<IEnumerable<ProductDTO>>(products);
@@ -48,7 +48,7 @@ namespace LECOMS.Service.Services
             );
 
             if (product == null)
-                throw new KeyNotFoundException("Product not found.");
+                throw new KeyNotFoundException("Product không tìm thấy.");
 
             return _mapper.Map<ProductDTO>(product);
         }
@@ -62,10 +62,10 @@ namespace LECOMS.Service.Services
             try
             {
                 var shop = await _uow.Shops.GetAsync(s => s.Id == shopId)
-                           ?? throw new InvalidOperationException("Shop not found.");
+                           ?? throw new InvalidOperationException("Không tìm thấy cửa hàng.");
 
                 var category = await _uow.ProductCategories.GetAsync(c => c.Id == dto.CategoryId)
-                               ?? throw new InvalidOperationException("Category not found.");
+                               ?? throw new InvalidOperationException("Category không tìm thấy.");
 
                 var slug = GenerateSlug(dto.Name);
                 if (await _uow.Products.ExistsSlugAsync(slug))
@@ -121,7 +121,7 @@ namespace LECOMS.Service.Services
         public async Task<ProductDTO> UpdateAsync(string id, ProductUpdateDTO dto)
         {
             var product = await _uow.Products.GetAsync(p => p.Id == id, includeProperties: "Images");
-            if (product == null) throw new KeyNotFoundException("Product not found.");
+            if (product == null) throw new KeyNotFoundException("Product không tìm thấy.");
 
             if (!string.IsNullOrEmpty(dto.Name))
             {
@@ -278,7 +278,7 @@ namespace LECOMS.Service.Services
             );
 
             if (product == null)
-                throw new KeyNotFoundException("Product not found.");
+                throw new KeyNotFoundException("Product không tìm thấy.");
 
             return _mapper.Map<ProductDTO>(product);
         }

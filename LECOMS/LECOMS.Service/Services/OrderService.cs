@@ -314,7 +314,7 @@ namespace LECOMS.Service.Services
             );
 
             if (order == null)
-                throw new InvalidOperationException("Order not found");
+                throw new InvalidOperationException("Order không tìm thấy");
 
             order.Status = Enum.Parse<OrderStatus>(status);
             await _uow.Orders.UpdateAsync(order);
@@ -328,7 +328,7 @@ namespace LECOMS.Service.Services
             var order = await _uow.Orders.GetAsync(
                 o => o.Id == orderId,
                 includeProperties: "User,Shop")
-                ?? throw new InvalidOperationException("Order not found.");
+                ?? throw new InvalidOperationException("Order không tìm thấy.");
 
             if (order.UserId != userId)
                 throw new InvalidOperationException("You are not allowed to confirm this order.");

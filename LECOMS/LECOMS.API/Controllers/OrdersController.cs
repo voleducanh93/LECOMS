@@ -87,7 +87,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Order not found.");
+                    response.ErrorMessages.Add("Order không tìm thấy.");
                     return NotFound(response);
                 }
 
@@ -163,7 +163,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Shop not found for this seller.");
+                    response.ErrorMessages.Add("Shop không tìm thấy for this seller.");
                     return NotFound(response);
                 }
 

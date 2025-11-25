@@ -97,7 +97,7 @@ namespace LECOMS.Service.Services
             string orderCodesDescription)
         {
             if (commissionAmount <= 0)
-                throw new ArgumentException("Commission amount must be positive");
+                throw new ArgumentException("Commission Số tiền phải dương");
 
             string desc = $"Commission from transaction {transactionId} ({orderCodesDescription})";
 
@@ -115,7 +115,7 @@ namespace LECOMS.Service.Services
             string description)
         {
             if (commissionRefundAmount <= 0)
-                throw new ArgumentException("Commission refund amount must be positive");
+                throw new ArgumentException("Commission refund Số tiền phải dương");
 
             // Hoàn hoa hồng là tiền ra khỏi ví → amount âm
             decimal amount = -commissionRefundAmount;
@@ -134,7 +134,7 @@ namespace LECOMS.Service.Services
             string description)
         {
             if (amount <= 0)
-                throw new ArgumentException("Payout amount must be positive");
+                throw new ArgumentException("Thanh toán Số tiền phải dương");
 
             // Payout = tiền ra khỏi ví → -amount
             return AddTransactionAsync(

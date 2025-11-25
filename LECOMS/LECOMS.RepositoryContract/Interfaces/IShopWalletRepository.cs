@@ -20,7 +20,7 @@ namespace LECOMS.RepositoryContract.Interfaces
         Task<ShopWallet?> GetByIdWithTransactionsAsync(string walletId);
 
         /// <summary>
-        /// Lấy wallet với withdrawal requests
+        /// Lấy wallet với Yêu cầu rút tiền
         /// </summary>
         Task<ShopWallet?> GetByIdWithWithdrawalsAsync(string walletId);
 

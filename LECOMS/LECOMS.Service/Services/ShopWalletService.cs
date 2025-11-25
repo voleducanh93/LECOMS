@@ -55,7 +55,7 @@ namespace LECOMS.Service.Services
         public async Task<ShopWallet> AddPendingBalanceAsync(
             int shopId, decimal amount, string orderId, string description)
         {
-            if (amount <= 0) throw new ArgumentException("Amount must be positive", nameof(amount));
+            if (amount <= 0) throw new ArgumentException("Số tiền phải dương", nameof(amount));
 
             var wallet = await GetOrCreateWalletAsync(shopId);
 
@@ -88,7 +88,7 @@ namespace LECOMS.Service.Services
 
         public async Task<ShopWallet> ReleaseBalanceAsync(int shopId, decimal amount, string orderId)
         {
-            if (amount <= 0) throw new ArgumentException("Amount must be positive", nameof(amount));
+            if (amount <= 0) throw new ArgumentException("Số tiền phải dương", nameof(amount));
 
             var wallet = await GetOrCreateWalletAsync(shopId);
 
@@ -145,7 +145,7 @@ namespace LECOMS.Service.Services
             string referenceId,
             string description)
         {
-            if (amount <= 0) throw new ArgumentException("Amount must be positive", nameof(amount));
+            if (amount <= 0) throw new ArgumentException("Số tiền phải dương", nameof(amount));
 
             var wallet = await GetOrCreateWalletAsync(shopId);
 
@@ -213,7 +213,7 @@ namespace LECOMS.Service.Services
             int shopId, decimal amount, string referenceId, string description)
         {
             if (amount <= 0)
-                throw new ArgumentException("Amount must be positive", nameof(amount));
+                throw new ArgumentException("Số tiền phải dương", nameof(amount));
 
             var wallet = await GetOrCreateWalletAsync(shopId);
 
@@ -273,7 +273,7 @@ namespace LECOMS.Service.Services
         public async Task<ShopWallet> DeductPendingOnlyAsync(int shopId, decimal amount, WalletTransactionType type, string referenceId,string description)
         {
             if (amount <= 0)
-                throw new ArgumentException("Amount must be positive", nameof(amount));
+                throw new ArgumentException("Số tiền phải dương", nameof(amount));
 
             var wallet = await GetOrCreateWalletAsync(shopId);
 

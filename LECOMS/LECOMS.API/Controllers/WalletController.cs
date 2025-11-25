@@ -77,7 +77,7 @@ namespace LECOMS.API.Controllers
 
                 var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == userId);
                 if (shop == null)
-                    return Error("Shop not found for this user", HttpStatusCode.NotFound);
+                    return Error("Shop không tìm thấy for this user", HttpStatusCode.NotFound);
 
                 var summary = await _shopWalletService.GetWalletSummaryAsync(shop.Id);
 
@@ -116,11 +116,11 @@ namespace LECOMS.API.Controllers
 
                 var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == userId);
                 if (shop == null)
-                    return Error("Shop not found for this user", HttpStatusCode.NotFound);
+                    return Error("Shop không tìm thấy for this user", HttpStatusCode.NotFound);
 
                 var wallet = await _shopWalletService.GetWalletWithTransactionsAsync(shop.Id, page, pageSize);
                 if (wallet == null)
-                    return Error("Wallet not found", HttpStatusCode.NotFound);
+                    return Error("Wallet không tìm thấy", HttpStatusCode.NotFound);
 
                 // paginate trên bộ Transactions đã include
                 var query = wallet.Transactions
@@ -221,7 +221,7 @@ namespace LECOMS.API.Controllers
 
                 var wallet = await _customerWalletService.GetWalletWithTransactionsAsync(userId, page, pageSize);
                 if (wallet == null)
-                    return Error("Wallet not found", HttpStatusCode.NotFound);
+                    return Error("Wallet không tìm thấy", HttpStatusCode.NotFound);
 
                 var query = wallet.Transactions
                     .OrderByDescending(t => t.CreatedAt);
@@ -572,7 +572,7 @@ namespace LECOMS.API.Controllers
         public async Task<IActionResult> AdminGetShopTransactions(int shopId, int page = 1, int pageSize = 20)
         {
             var wallet = await _shopWalletService.GetWalletWithTransactionsAsync(shopId, page, pageSize);
-            if (wallet == null) return Error("Wallet not found", HttpStatusCode.NotFound);
+            if (wallet == null) return Error("Wallet không tìm thấy", HttpStatusCode.NotFound);
 
             var query = wallet.Transactions.OrderByDescending(t => t.CreatedAt);
 
@@ -632,7 +632,7 @@ namespace LECOMS.API.Controllers
         public async Task<IActionResult> AdminGetCustomerTransactions(string customerId, int page = 1, int pageSize = 20)
         {
             var wallet = await _customerWalletService.GetWalletWithTransactionsAsync(customerId, page, pageSize);
-            if (wallet == null) return Error("Wallet not found", HttpStatusCode.NotFound);
+            if (wallet == null) return Error("Wallet không tìm thấy", HttpStatusCode.NotFound);
 
             var query = wallet.Transactions.OrderByDescending(t => t.CreatedAt);
 
@@ -675,14 +675,14 @@ namespace LECOMS.API.Controllers
             {
                 var order = await _unitOfWork.Orders.GetAsync(o => o.Id == orderId);
                 if (order == null)
-                    return Error("Order not found.", HttpStatusCode.NotFound);
+                    return Error("Order không tìm thấy.", HttpStatusCode.NotFound);
 
                 if (order.PaymentStatus != PaymentStatus.Paid)
                     return Error("Order is not paid.", HttpStatusCode.BadRequest);
 
                 var tx = await _unitOfWork.Transactions.GetByOrderIdAsync(orderId);
                 if (tx == null)
-                    return Error("Transaction not found.", HttpStatusCode.BadRequest);
+                    return Error("Không tìm thấy giao dịch.", HttpStatusCode.BadRequest);
 
                 if (order.BalanceReleased)
                     return Error("Balance already released.", HttpStatusCode.BadRequest);

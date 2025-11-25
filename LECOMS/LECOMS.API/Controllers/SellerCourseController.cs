@@ -38,7 +38,7 @@ namespace LECOMS.API.Controllers
                 var sellerId = userManager.GetUserId(User);
                 var shop = await shopService.GetShopBySellerIdAsync(sellerId);
                 if (shop == null)
-                    throw new InvalidOperationException("Shop not found.");
+                    throw new InvalidOperationException("Không tìm thấy cửa hàng.");
 
                 // 🔥 gán shopId
                 dto.ShopId = shop.Id;
@@ -228,7 +228,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.StatusCode = HttpStatusCode.NotFound;
                     response.IsSuccess = false;
-                    response.ErrorMessages.Add("Course not found");
+                    response.ErrorMessages.Add("Course không tìm thấy");
                 }
                 else
                 {

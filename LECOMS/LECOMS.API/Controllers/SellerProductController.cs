@@ -43,7 +43,7 @@ namespace LECOMS.API.Controllers
 
                 var shop = await _shopService.GetShopBySellerIdAsync(sellerId);
                 if (shop == null)
-                    throw new InvalidOperationException("Shop not found.");
+                    throw new InvalidOperationException("Không tìm thấy cửa hàng.");
 
                 var list = await _productService.GetAllByShopAsync(shop.Id);
                 response.StatusCode = HttpStatusCode.OK;
@@ -110,7 +110,7 @@ namespace LECOMS.API.Controllers
 
                 var shop = await _shopService.GetShopBySellerIdAsync(sellerId);
                 if (shop == null)
-                    throw new InvalidOperationException("Shop not found.");
+                    throw new InvalidOperationException("Không tìm thấy cửa hàng.");
 
                 // 🔥 Service sẽ auto: Pending + Draft
                 var product = await _productService.CreateAsync(shop.Id, dto);
@@ -190,7 +190,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Product not found.");
+                    response.ErrorMessages.Add("Product không tìm thấy.");
                 }
                 else
                 {
@@ -260,7 +260,7 @@ namespace LECOMS.API.Controllers
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.NotFound;
-                response.ErrorMessages.Add("Product not found.");
+                response.ErrorMessages.Add("Product không tìm thấy.");
             }
             catch (Exception ex)
             {

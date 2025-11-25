@@ -35,33 +35,33 @@ namespace LECOMS.Service.Services
         }
 
         /// <summary>
-        /// Shop tạo withdrawal request
+        /// Shop tạo Yêu cầu rút tiền
         /// </summary>
         public async Task<WithdrawalRequest> CreateWithdrawalRequestAsync(CreateWithdrawalRequestDto dto)
         {
-            _logger.LogInformation("Creating withdrawal request for Shop {ShopId}, Amount: {Amount}", dto.ShopId, dto.Amount);
+            _logger.LogInformation("Creating Yêu cầu rút tiền for Shop {ShopId}, Amount: {Amount}", dto.ShopId, dto.Amount);
 
             // 1. Validate shop
             var shop = await _unitOfWork.Shops.GetAsync(s => s.Id == dto.ShopId);
             if (shop == null)
-                throw new InvalidOperationException($"Shop {dto.ShopId} not found");
+                throw new InvalidOperationException($"Shop {dto.ShopId} không tìm thấy");
 
             // 2. Lấy platform config
             var config = await _unitOfWork.PlatformConfigs.GetConfigAsync();
 
             // 3. Validate amount
             if (dto.Amount < config.MinWithdrawalAmount)
-                throw new ArgumentException($"Withdrawal amount must be at least {config.MinWithdrawalAmount:N0} VND");
+                throw new ArgumentException($"Số tiền rút ít nhất phải có {config.MinWithdrawalAmount:N0} VND");
 
             if (dto.Amount > config.MaxWithdrawalAmount)
-                throw new ArgumentException($"Withdrawal amount cannot exceed {config.MaxWithdrawalAmount:N0} VND");
+                throw new ArgumentException($"Số tiền rút không thể vượt quá {config.MaxWithdrawalAmount:N0} VND");
 
             // 4. Check available balance
             var canWithdraw = await _shopWalletService.CanWithdrawAsync(dto.ShopId, dto.Amount);
             if (!canWithdraw)
             {
                 var wallet = await _shopWalletService.GetOrCreateWalletAsync(dto.ShopId);
-                throw new InvalidOperationException($"Insufficient available balance. Available: {wallet.AvailableBalance:N0}, Required: {dto.Amount:N0}");
+                throw new InvalidOperationException($"Số dư khả dụng không đủ. Có sẵn: {wallet.AvailableBalance:N0}, Yêu cầu: {dto.Amount:N0}");
             }
 
             // 5. Lấy hoặc tạo wallet
@@ -87,7 +87,7 @@ namespace LECOMS.Service.Services
             await _unitOfWork.CompleteAsync();
 
             _logger.LogInformation(
-                "Withdrawal request created: {WithdrawalId}, Shop: {ShopId}, Amount: {Amount}",
+                "Yêu cầu rút tiền tạo: {WithdrawalId}, Cửa hàng: {ShopId}, Số lượng: {Amount}",
                 withdrawalRequest.Id, dto.ShopId, dto.Amount);
 
             // TODO: Send notification cho admin
@@ -96,30 +96,30 @@ namespace LECOMS.Service.Services
         }
 
         /// <summary>
-        /// Admin approve withdrawal request
+        /// Admin approve Yêu cầu rút tiền
         /// </summary>
         public async Task<WithdrawalRequest> ApproveWithdrawalAsync(string withdrawalId, string adminId, string? note = null)
         {
-            _logger.LogInformation("Admin {AdminId} approving withdrawal {WithdrawalId}", adminId, withdrawalId);
+            _logger.LogInformation("Admin {AdminId} phê duyệt rút tiền {WithdrawalId}", adminId, withdrawalId);
 
             using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
-                // 1. Lấy withdrawal request
+                // 1. Lấy Yêu cầu rút tiền
                 var withdrawalRequest = await _unitOfWork.WithdrawalRequests.GetByIdWithDetailsAsync(withdrawalId);
 
                 if (withdrawalRequest == null)
-                    throw new InvalidOperationException($"Withdrawal request {withdrawalId} not found");
+                    throw new InvalidOperationException($"Yêu cầu rút tiền {withdrawalId} không tìm thấy");
 
                 if (withdrawalRequest.Status != WithdrawalStatus.Pending)
-                    throw new InvalidOperationException($"Withdrawal request {withdrawalId} is not pending. Current status: {withdrawalRequest.Status}");
+                    throw new InvalidOperationException($"Yêu cầu rút tiền {withdrawalId} is not pending. Current status: {withdrawalRequest.Status}");
 
                 // 2. Validate balance vẫn đủ
                 var canWithdraw = await _shopWalletService.CanWithdrawAsync(withdrawalRequest.ShopId, withdrawalRequest.Amount);
                 if (!canWithdraw)
                 {
                     var shopWallet = await _shopWalletService.GetOrCreateWalletAsync(withdrawalRequest.ShopId);
-                    throw new InvalidOperationException($"Insufficient balance. Available: {shopWallet.AvailableBalance}, Required: {withdrawalRequest.Amount}");
+                    throw new InvalidOperationException($"Không đủ cân bằng. Có sẵn: {shopWallet.AvailableBalance}, Yêu cầu: {withdrawalRequest.Amount}");
                 }
 
                 // 3. TRỪ TIỀN NGAY (lock để tránh rút 2 lần)
@@ -130,7 +130,7 @@ namespace LECOMS.Service.Services
                     withdrawalRequest.Id,
                     $"Rút tiền vào tài khoản {withdrawalRequest.BankName} *{withdrawalRequest.BankAccountNumber.Substring(Math.Max(0, withdrawalRequest.BankAccountNumber.Length - 4))}");
 
-                // 4. Update withdrawal request status
+                // 4. Update Yêu cầu rút tiền status
                 withdrawalRequest.Status = WithdrawalStatus.Approved;
                 withdrawalRequest.ApprovedBy = adminId;
                 withdrawalRequest.ApprovedAt = DateTime.UtcNow;
@@ -150,7 +150,7 @@ namespace LECOMS.Service.Services
                 await transaction.CommitAsync();
 
                 _logger.LogInformation(
-                    "Withdrawal {WithdrawalId} approved. Amount {Amount} deducted from Shop {ShopId}",
+                    "Rút tiền {WithdrawalId} tán thành. Số lượng {Amount} trừ vào Cửa hàng {ShopId}",
                     withdrawalId, withdrawalRequest.Amount, withdrawalRequest.ShopId);
 
                 // TODO: Send notification cho shop
@@ -160,14 +160,14 @@ namespace LECOMS.Service.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error approving withdrawal {WithdrawalId}", withdrawalId);
+                _logger.LogError(ex, "Error phê duyệt rút tiền {WithdrawalId}", withdrawalId);
                 await transaction.RollbackAsync();
                 throw;
             }
         }
 
         /// <summary>
-        /// Admin reject withdrawal request
+        /// Admin reject Yêu cầu rút tiền
         /// </summary>
         public async Task<WithdrawalRequest> RejectWithdrawalAsync(string withdrawalId, string adminId, string reason)
         {
@@ -176,10 +176,10 @@ namespace LECOMS.Service.Services
             var withdrawalRequest = await _unitOfWork.WithdrawalRequests.GetAsync(w => w.Id == withdrawalId);
 
             if (withdrawalRequest == null)
-                throw new InvalidOperationException($"Withdrawal request {withdrawalId} not found");
+                throw new InvalidOperationException($"Yêu cầu rút tiền {withdrawalId} không tìm thấy");
 
             if (withdrawalRequest.Status != WithdrawalStatus.Pending)
-                throw new InvalidOperationException($"Withdrawal request {withdrawalId} is not pending");
+                throw new InvalidOperationException($"Yêu cầu rút tiền {withdrawalId} is not pending");
 
             withdrawalRequest.Status = WithdrawalStatus.Rejected;
             withdrawalRequest.ApprovedBy = adminId;
@@ -189,7 +189,7 @@ namespace LECOMS.Service.Services
             await _unitOfWork.WithdrawalRequests.UpdateAsync(withdrawalRequest);
             await _unitOfWork.CompleteAsync();
 
-            _logger.LogInformation("Withdrawal request {WithdrawalId} rejected", withdrawalId);
+            _logger.LogInformation("Yêu cầu rút tiền {WithdrawalId} rejected", withdrawalId);
 
             // TODO: Send notification cho shop
 
@@ -201,7 +201,7 @@ namespace LECOMS.Service.Services
         /// </summary>
         public async Task ProcessApprovedWithdrawalsAsync()
         {
-            _logger.LogInformation("Processing approved withdrawals...");
+            _logger.LogInformation("Xử lý các khoản rút tiền được phê duyệt...");
 
             var approvedWithdrawals = await _unitOfWork.WithdrawalRequests.GetApprovedRequestsAsync();
 
@@ -210,7 +210,7 @@ namespace LECOMS.Service.Services
                 await ProcessSingleWithdrawalAsync(withdrawal);
             }
 
-            _logger.LogInformation("Processed {Count} withdrawals", approvedWithdrawals.Count());
+            _logger.LogInformation("Đã xử lý {Count} rút tiền", approvedWithdrawals.Count());
         }
 
         /// <summary>
@@ -218,7 +218,7 @@ namespace LECOMS.Service.Services
         /// </summary>
         private async Task ProcessSingleWithdrawalAsync(WithdrawalRequest withdrawal)
         {
-            _logger.LogInformation("Processing withdrawal {WithdrawalId}", withdrawal.Id);
+            _logger.LogInformation("Đang xử lý việc rút tiền {WithdrawalId}", withdrawal.Id);
 
             using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
@@ -239,7 +239,7 @@ namespace LECOMS.Service.Services
                     withdrawal.CompletedAt = DateTime.UtcNow;
                     withdrawal.TransactionReference = $"TXN{DateTime.UtcNow:yyyyMMddHHmmss}"; // Fake reference
 
-                    _logger.LogInformation("Withdrawal {WithdrawalId} completed successfully", withdrawal.Id);
+                    _logger.LogInformation("Rút tiền {WithdrawalId} hoàn thành thành công", withdrawal.Id);
 
                     // TODO: Send notification cho shop
                 }
@@ -248,7 +248,7 @@ namespace LECOMS.Service.Services
                     // Failed → HOÀN TIỀN
                     withdrawal.Status = WithdrawalStatus.Failed;
                     withdrawal.CompletedAt = DateTime.UtcNow;
-                    withdrawal.FailureReason = "Bank transfer failed (simulated)";
+                    withdrawal.FailureReason = "Chuyển khoản ngân hàng không thành công (simulated)";
 
                     // Hoàn tiền vào AvailableBalance
                     await _shopWalletService.AddAvailableBalanceAsync(
@@ -295,7 +295,7 @@ namespace LECOMS.Service.Services
             // TODO: Implement real bank transfer API
             // VD: VietQR, Napas, Bank API
 
-            _logger.LogWarning("Using STUB bank transfer. Implement real API!");
+            _logger.LogWarning("Sử dụng chuyển khoản ngân hàng STU. Triển khai API thực sự!");
 
             // Simulate delay
             await Task.Delay(2000);
@@ -306,7 +306,7 @@ namespace LECOMS.Service.Services
         }
 
         /// <summary>
-        /// Lấy withdrawal request by ID
+        /// Lấy Yêu cầu rút tiền by ID
         /// </summary>
         public async Task<WithdrawalRequest?> GetWithdrawalRequestAsync(string withdrawalId)
         {
@@ -314,7 +314,7 @@ namespace LECOMS.Service.Services
         }
 
         /// <summary>
-        /// Lấy withdrawal requests theo shop
+        /// Lấy Yêu cầu rút tiền theo shop
         /// </summary>
         public async Task<IEnumerable<WithdrawalRequest>> GetWithdrawalRequestsByShopAsync(int shopId, int pageNumber = 1, int pageSize = 20)
         {
@@ -322,7 +322,7 @@ namespace LECOMS.Service.Services
         }
 
         /// <summary>
-        /// Lấy pending withdrawal requests
+        /// Lấy pending Yêu cầu rút tiền
         /// </summary>
         public async Task<IEnumerable<WithdrawalRequest>> GetPendingWithdrawalRequestsAsync()
         {
@@ -334,28 +334,28 @@ namespace LECOMS.Service.Services
         /// </summary>
         public async Task<WithdrawalRequest> CancelWithdrawalRequestAsync(string withdrawalId, string userId)
         {
-            _logger.LogInformation("User {UserId} cancelling withdrawal {WithdrawalId}", userId, withdrawalId);
+            _logger.LogInformation("người dùng {UserId} hủy rút tiền {WithdrawalId}", userId, withdrawalId);
 
             var withdrawal = await _unitOfWork.WithdrawalRequests.GetByIdWithDetailsAsync(withdrawalId);
 
             if (withdrawal == null)
-                throw new InvalidOperationException($"Withdrawal request {withdrawalId} not found");
+                throw new InvalidOperationException($"Yêu cầu rút tiền {withdrawalId} không tìm thấy");
 
             if (withdrawal.Status != WithdrawalStatus.Pending)
-                throw new InvalidOperationException($"Cannot cancel withdrawal with status {withdrawal.Status}");
+                throw new InvalidOperationException($"Không thể hủy rút tiền với trạng thái {withdrawal.Status}");
 
             // Verify ownership
             if (withdrawal.Shop.SellerId != userId)
-                throw new UnauthorizedAccessException("You can only cancel your own withdrawal requests");
+                throw new UnauthorizedAccessException("Bạn chỉ có thể hủy yêu cầu rút tiền của chính mình");
 
             withdrawal.Status = WithdrawalStatus.Rejected;
-            withdrawal.RejectionReason = "Cancelled by user";
+            withdrawal.RejectionReason = "Bị người dùng hủy";
             withdrawal.ApprovedAt = DateTime.UtcNow;
 
             await _unitOfWork.WithdrawalRequests.UpdateAsync(withdrawal);
             await _unitOfWork.CompleteAsync();
 
-            _logger.LogInformation("Withdrawal {WithdrawalId} cancelled by user", withdrawalId);
+            _logger.LogInformation("Rút tiền {WithdrawalId} bị người dùng hủy", withdrawalId);
 
             return withdrawal;
         }

@@ -38,16 +38,16 @@ namespace LECOMS.Service.Services
                 includeProperties: "Shop,User");
 
             if (order == null)
-                throw new InvalidOperationException("Order not found.");
+                throw new InvalidOperationException("Đơn đặt hàng không được tìm thấy.");
 
             if (order.UserId != customerId)
-                throw new InvalidOperationException("You are not allowed to refund this order.");
+                throw new InvalidOperationException("Bạn không được phép hoàn trả đơn đặt hàng này.");
 
             if (order.PaymentStatus != PaymentStatus.Paid)
-                throw new InvalidOperationException("Only paid orders can be refunded.");
+                throw new InvalidOperationException("Chỉ những đơn hàng đã thanh toán mới có thể được hoàn lại.");
 
             if (order.Status == OrderStatus.Cancelled || order.Status == OrderStatus.Refunded)
-                throw new InvalidOperationException("Order is not refundable.");
+                throw new InvalidOperationException("Đơn đặt hàng không được hoàn lại.");
 
             // Check refund window
             var config = await _uow.PlatformConfigs.GetConfigAsync();
@@ -55,7 +55,7 @@ namespace LECOMS.Service.Services
             {
                 var baseTime = order.CompletedAt ?? order.CreatedAt;
                 if (baseTime.AddDays(config.MaxRefundDays) < DateTime.UtcNow)
-                    throw new InvalidOperationException("Refund window has expired.");
+                    throw new InvalidOperationException("Thời hạn hoàn tiền đã hết hạn.");
             }
 
             // tránh duplicate pending refund
@@ -66,7 +66,7 @@ namespace LECOMS.Service.Services
                  r.Status == RefundStatus.ShopApproved));
 
             if (existing != null)
-                throw new InvalidOperationException("There is already a pending refund request.");
+                throw new InvalidOperationException("Hiện đã có yêu cầu hoàn tiền đang chờ xử lý.");
 
             decimal amount = dto.Type == RefundType.Full
                 ? order.Total
@@ -138,13 +138,13 @@ namespace LECOMS.Service.Services
                 includeProperties: "Order,Order.Shop,RequestedByUser");
 
             if (refund == null)
-                throw new InvalidOperationException("Refund not found.");
+                throw new InvalidOperationException("Không tìm thấy khoản tiền hoàn lại.");
 
             if (refund.Status != RefundStatus.PendingShop)
-                throw new InvalidOperationException("Refund not in PendingShop.");
+                throw new InvalidOperationException("Hoàn tiền không có trong Cửa hàng đang chờ xử lý.");
 
             if (refund.Order.Shop.SellerId != sellerId)
-                throw new InvalidOperationException("You are not allowed to process this refund.");
+                throw new InvalidOperationException("Bạn không được phép xử lý khoản hoàn trả này.");
 
             refund.ShopResponseBy = sellerId;
             refund.ShopRespondedAt = DateTime.UtcNow;
@@ -183,10 +183,10 @@ namespace LECOMS.Service.Services
                 includeProperties: "Order,RequestedByUser,Order.Shop");
 
             if (refund == null)
-                throw new InvalidOperationException("Refund not found.");
+                throw new InvalidOperationException("Không tìm thấy khoản tiền hoàn lại.");
 
             if (refund.Status != RefundStatus.PendingAdmin)
-                throw new InvalidOperationException("Refund not in PendingAdmin.");
+                throw new InvalidOperationException("Hoàn tiền không có trong Quản trị viên đang chờ xử lý.");
 
             refund.AdminResponseBy = adminId;
             refund.AdminRespondedAt = DateTime.UtcNow;
@@ -240,7 +240,7 @@ namespace LECOMS.Service.Services
             await platformWalletService.RefundCommissionAsync(
                 platformRefund,
                 refund.Id,
-                $"Refund commission for order {refund.Order.OrderCode}"
+                $"Hoàn tiền hoa hồng cho đơn hàng {refund.Order.OrderCode}"
             );
 
             // ============================================
@@ -250,7 +250,7 @@ namespace LECOMS.Service.Services
                 refund.RequestedBy,
                 refund.RefundAmount,
                 refund.Id,
-                $"Refund for order {refund.Order.OrderCode}"
+                $"Hoàn tiền cho đơn hàng {refund.Order.OrderCode}"
             );
 
             // ============================================
@@ -279,17 +279,17 @@ namespace LECOMS.Service.Services
                 includeProperties: "Order,RequestedByUser,ShopResponseByUser,AdminResponseByUser");
 
             if (refund == null)
-                throw new InvalidOperationException("Refund not found.");
+                throw new InvalidOperationException("Không tìm thấy khoản tiền hoàn lại.");
 
             if (refund.RequestedBy != customerId)
-                throw new InvalidOperationException("You are not allowed to modify this refund.");
+                throw new InvalidOperationException("Bạn không được phép sửa đổi khoản hoàn trả này.");
 
             // chỉ cho thêm evidence khi refund chưa kết thúc
             if (refund.Status == RefundStatus.ShopRejected ||
                 refund.Status == RefundStatus.AdminRejected ||
                 refund.Status == RefundStatus.Refunded)
             {
-                throw new InvalidOperationException("Cannot add evidence to a closed refund.");
+                throw new InvalidOperationException("Không thể thêm bằng chứng vào khoản hoàn trả đã đóng.");
             }
 
             if (urls == null || urls.Length == 0)

@@ -27,7 +27,7 @@ namespace LECOMS.Service.Services
             // 1. Lấy shop theo seller
             var shop = await _uow.Shops.GetAsync(s => s.SellerId == sellerUserId);
             if (shop == null)
-                throw new InvalidOperationException("Seller does not have a shop.");
+                throw new InvalidOperationException("Người bán không có cửa hàng.");
 
             int shopId = shop.Id;
 

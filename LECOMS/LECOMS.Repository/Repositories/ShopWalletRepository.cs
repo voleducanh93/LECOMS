@@ -42,7 +42,7 @@ namespace LECOMS.Repository.Repositories
         }
 
         /// <summary>
-        /// Lấy wallet với withdrawal requests
+        /// Lấy wallet với Yêu cầu rút tiền
         /// </summary>
         public async Task<ShopWallet?> GetByIdWithWithdrawalsAsync(string walletId)
         {

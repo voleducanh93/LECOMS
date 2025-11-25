@@ -11,7 +11,7 @@ namespace LECOMS.ServiceContract.Interfaces
     public interface ICustomerWithdrawalService
     {
         /// <summary>
-        /// Customer tạo withdrawal request
+        /// Customer tạo Yêu cầu rút tiền
         /// 
         /// FLOW:
         /// 1. Validate amount (min, max từ PlatformConfig)
@@ -23,7 +23,7 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<CustomerWithdrawalRequest> CreateCustomerWithdrawalRequestAsync(CreateCustomerWithdrawalRequestDto dto);
 
         /// <summary>
-        /// Admin approve withdrawal request
+        /// Admin approve Yêu cầu rút tiền
         /// 
         /// FLOW:
         /// 1. Validate Balance vẫn đủ
@@ -37,7 +37,7 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<CustomerWithdrawalRequest> ApproveCustomerWithdrawalAsync(string withdrawalId, string adminId, string? note = null);
 
         /// <summary>
-        /// Admin reject withdrawal request
+        /// Admin reject Yêu cầu rút tiền
         /// </summary>
         Task<CustomerWithdrawalRequest> RejectCustomerWithdrawalAsync(string withdrawalId, string adminId, string reason);
 
@@ -54,17 +54,17 @@ namespace LECOMS.ServiceContract.Interfaces
         Task ProcessApprovedCustomerWithdrawalsAsync();
 
         /// <summary>
-        /// Lấy withdrawal request by ID
+        /// Lấy Yêu cầu rút tiền by ID
         /// </summary>
         Task<CustomerWithdrawalRequest?> GetCustomerWithdrawalRequestAsync(string withdrawalId);
 
         /// <summary>
-        /// Lấy withdrawal requests theo customer
+        /// Lấy Yêu cầu rút tiền theo customer
         /// </summary>
         Task<IEnumerable<CustomerWithdrawalRequest>> GetCustomerWithdrawalRequestsByCustomerAsync(string customerId, int pageNumber = 1, int pageSize = 20);
 
         /// <summary>
-        /// Lấy pending withdrawal requests
+        /// Lấy pending Yêu cầu rút tiền
         /// </summary>
         Task<IEnumerable<CustomerWithdrawalRequest>> GetPendingCustomerWithdrawalRequestsAsync();
 
@@ -75,7 +75,7 @@ namespace LECOMS.ServiceContract.Interfaces
     }
 
     /// <summary>
-    /// DTO để tạo customer withdrawal request
+    /// DTO để tạo customer Yêu cầu rút tiền
     /// </summary>
     public class CreateCustomerWithdrawalRequestDto
     {

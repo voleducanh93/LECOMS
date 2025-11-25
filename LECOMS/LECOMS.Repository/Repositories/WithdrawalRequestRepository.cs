@@ -18,7 +18,7 @@ namespace LECOMS.Repository.Repositories
         public WithdrawalRequestRepository(LecomDbContext db) : base(db) { }
 
         /// <summary>
-        /// Lấy withdrawal requests theo ShopId
+        /// Lấy Yêu cầu rút tiền theo ShopId
         /// </summary>
         public async Task<IEnumerable<WithdrawalRequest>> GetByShopIdAsync(
             int shopId,
@@ -36,7 +36,7 @@ namespace LECOMS.Repository.Repositories
         }
 
         /// <summary>
-        /// Lấy withdrawal request với Shop details (eager loading)
+        /// Lấy Yêu cầu rút tiền với Shop details (eager loading)
         /// </summary>
         public async Task<WithdrawalRequest?> GetByIdWithDetailsAsync(string withdrawalId)
         {
@@ -49,7 +49,7 @@ namespace LECOMS.Repository.Repositories
         }
 
         /// <summary>
-        /// Lấy withdrawal requests theo status
+        /// Lấy Yêu cầu rút tiền theo status
         /// </summary>
         public async Task<IEnumerable<WithdrawalRequest>> GetByStatusAsync(
             WithdrawalStatus status,
@@ -67,7 +67,7 @@ namespace LECOMS.Repository.Repositories
         }
 
         /// <summary>
-        /// Lấy pending withdrawal requests (chờ admin approve)
+        /// Lấy pending Yêu cầu rút tiền (chờ admin approve)
         /// Dùng cho admin dashboard
         /// </summary>
         public async Task<IEnumerable<WithdrawalRequest>> GetPendingRequestsAsync()
@@ -97,7 +97,7 @@ namespace LECOMS.Repository.Repositories
         }
 
         /// <summary>
-        /// Đếm số withdrawal requests trong tháng của shop
+        /// Đếm số Yêu cầu rút tiền trong tháng của shop
         /// Dùng để giới hạn số lần rút tiền
         /// </summary>
         public async Task<int> CountByShopInMonthAsync(int shopId, int year, int month)
@@ -114,7 +114,7 @@ namespace LECOMS.Repository.Repositories
         }
 
         /// <summary>
-        /// Tính tổng withdrawal amount của shop
+        /// Tính tổng Số tiền rút của shop
         /// Dùng cho reporting
         /// </summary>
         public async Task<decimal> GetTotalWithdrawalAmountByShopAsync(int shopId, DateTime fromDate, DateTime toDate)

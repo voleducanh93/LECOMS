@@ -52,7 +52,7 @@ namespace LECOMS.Service.Services
             }
 
             if (user == null)
-                throw new KeyNotFoundException("Tài khoản không tồn tại."); // ✅ Trả về 404 Not Found
+                throw new KeyNotFoundException("Tài khoản không tồn tại."); // ✅ Trả về 404 không tìm thấy
 
             if (!await _userManager.CheckPasswordAsync(user, loginRequestDTO.Password))
                 throw new UnauthorizedAccessException("Mật khẩu không chính xác."); // ✅ Trả về 401 Unauthorized

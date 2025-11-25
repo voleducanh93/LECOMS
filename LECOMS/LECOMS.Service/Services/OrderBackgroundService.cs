@@ -31,7 +31,7 @@ namespace LECOMS.Service.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Order Background Service started");
+            _logger.LogInformation("Dịch vụ nền đặt hàng đã bắt đầu");
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -51,12 +51,12 @@ namespace LECOMS.Service.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error in OrderBackgroundService");
+                    _logger.LogError(ex, "Lỗi trong OrderBackgroundService");
                     await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
                 }
             }
 
-            _logger.LogInformation("Order Background Service stopped");
+            _logger.LogInformation("Dịch vụ nền đặt hàng đã dừng");
         }
 
         /// <summary>
@@ -93,7 +93,7 @@ namespace LECOMS.Service.Services
                         var transaction = await unitOfWork.Transactions.GetByOrderIdAsync(order.Id);
                         if (transaction == null)
                         {
-                            _logger.LogWarning("Transaction not found for Order {OrderId}", order.Id);
+                            _logger.LogWarning("Transaction không tìm thấy for Order {OrderId}", order.Id);
                             continue;
                         }
 
@@ -125,7 +125,7 @@ namespace LECOMS.Service.Services
         }
 
         /// <summary>
-        /// Process approved withdrawal requests
+        /// Process approved Yêu cầu rút tiền
         /// </summary>
         private async Task ProcessWithdrawalsAsync(IServiceScope scope)
         {

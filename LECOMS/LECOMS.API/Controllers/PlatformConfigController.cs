@@ -149,12 +149,12 @@ namespace LECOMS.API.Controllers
 
                 if (request.MinWithdrawalAmount < 0)
                 {
-                    return BadRequest(new { success = false, message = "Min withdrawal amount must be positive" });
+                    return BadRequest(new { success = false, message = "Min withdrawal Số tiền phải dương" });
                 }
 
                 if (request.MaxWithdrawalAmount < request.MinWithdrawalAmount)
                 {
-                    return BadRequest(new { success = false, message = "Max withdrawal amount must be greater than min" });
+                    return BadRequest(new { success = false, message = "Max Số tiền rút must be greater than min" });
                 }
 
                 if (request.MaxRefundDays < 0 || request.MaxRefundDays > 365)

@@ -26,7 +26,7 @@ namespace LECOMS.API.Controllers
         private string GetUserId()
         {
             return User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? throw new InvalidOperationException("UserId not found in token.");
+                ?? throw new InvalidOperationException("UserId không tìm thấy in token.");
         }
 
         // ===========================

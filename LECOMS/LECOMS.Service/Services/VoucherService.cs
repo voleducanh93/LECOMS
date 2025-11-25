@@ -196,7 +196,7 @@ namespace LECOMS.Service.Services
             var voucher = await _uow.Vouchers.GetByCodeAsync(voucherCode.Trim());
             if (voucher == null)
             {
-                _logger.LogWarning("MarkVoucherUsedAsync: voucher {Code} not found", voucherCode);
+                _logger.LogWarning("MarkVoucherUsedAsync: voucher {Code} không tìm thấy", voucherCode);
                 return;
             }
 

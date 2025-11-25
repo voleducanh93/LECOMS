@@ -23,7 +23,7 @@ namespace LECOMS.Service.Services
         public async Task<FeedbackDTO> CreateFeedbackAsync(string userId, CreateFeedbackRequestDTO dto)
         {
             if (dto.Rating < 1 || dto.Rating > 5)
-                throw new InvalidOperationException("Rating must be between 1 and 5.");
+                throw new InvalidOperationException("Đánh giá phải nằm trong khoảng từ 1 đến 5.");
 
             // Lấy order + details để verify
             var order = await _uow.Orders.GetAsync(
@@ -35,11 +35,11 @@ namespace LECOMS.Service.Services
             );
 
             if (order == null)
-                throw new InvalidOperationException("Order is not eligible for feedback.");
+                throw new InvalidOperationException("Đơn đặt hàng không đủ điều kiện để phản hồi.");
 
             var orderedProduct = order.Details.FirstOrDefault(d => d.ProductId == dto.ProductId);
             if (orderedProduct == null)
-                throw new InvalidOperationException("Product not found in this order.");
+                throw new InvalidOperationException("Không tìm thấy sản phẩm theo thứ tự này.");
 
             // Check đã feedback rồi (1 feedback / order / product)
             var existing = await _uow.Feedbacks.GetAsync(f =>
@@ -49,7 +49,7 @@ namespace LECOMS.Service.Services
             );
 
             if (existing != null)
-                throw new InvalidOperationException("You have already given feedback for this product in this order.");
+                throw new InvalidOperationException("Bạn đã đưa ra phản hồi cho sản phẩm này theo thứ tự này.");
 
             var feedback = new Feedback
             {
@@ -127,7 +127,7 @@ namespace LECOMS.Service.Services
             // Lấy shop của seller
             var shop = await _uow.Shops.GetAsync(s => s.SellerId == sellerUserId);
             if (shop == null)
-                throw new InvalidOperationException("Seller does not have a shop.");
+                throw new InvalidOperationException("Người bán không có cửa hàng.");
 
             var feedback = await _uow.Feedbacks.GetAsync(
                 f => f.Id == feedbackId,
@@ -135,13 +135,13 @@ namespace LECOMS.Service.Services
             );
 
             if (feedback == null)
-                throw new InvalidOperationException("Feedback not found.");
+                throw new InvalidOperationException("Không tìm thấy phản hồi.");
 
             if (feedback.ShopId != shop.Id)
-                throw new InvalidOperationException("You cannot reply to feedback of another shop.");
+                throw new InvalidOperationException("Bạn không thể trả lời phản hồi của cửa hàng khác.");
 
             if (feedback.Reply != null)
-                throw new InvalidOperationException("Feedback already has a reply.");
+                throw new InvalidOperationException("Phản hồi đã có phản hồi rồi.");
 
             var reply = new FeedbackReply
             {
@@ -192,7 +192,7 @@ namespace LECOMS.Service.Services
             var shop = await _uow.Shops.GetAsync(s => s.SellerId == sellerUserId);
 
             if (shop == null)
-                throw new InvalidOperationException("Seller does not have a shop.");
+                throw new InvalidOperationException("Người bán không có cửa hàng.");
 
             var list = await _uow.Feedbacks.GetAllAsync(
                 f => f.ShopId == shop.Id,
@@ -261,7 +261,7 @@ namespace LECOMS.Service.Services
         {
             var shop = await _uow.Shops.GetAsync(s => s.SellerId == sellerUserId);
             if (shop == null)
-                throw new InvalidOperationException("Seller does not have a shop.");
+                throw new InvalidOperationException("Người bán không có cửa hàng.");
 
             var list = await _uow.Feedbacks.GetAllAsync(
                 f => f.ShopId == shop.Id,
@@ -402,7 +402,7 @@ namespace LECOMS.Service.Services
         public async Task<FeedbackDTO> UpdateFeedbackAsync(string userId, string feedbackId, UpdateFeedbackRequestDTO dto)
         {
             if (dto.Rating < 1 || dto.Rating > 5)
-                throw new InvalidOperationException("Rating must be between 1 and 5.");
+                throw new InvalidOperationException("Đánh giá phải nằm trong khoảng từ 1 đến 5.");
 
             var feedback = await _uow.Feedbacks.GetAsync(
                 f => f.Id == feedbackId,
@@ -410,10 +410,10 @@ namespace LECOMS.Service.Services
             );
 
             if (feedback == null)
-                throw new InvalidOperationException("Feedback not found.");
+                throw new InvalidOperationException("Không tìm thấy phản hồi.");
 
             if (feedback.UserId != userId)
-                throw new InvalidOperationException("You can only update your own feedback.");
+                throw new InvalidOperationException("Bạn chỉ có thể cập nhật phản hồi của riêng bạn.");
 
             // Update core fields
             feedback.Rating = dto.Rating;
@@ -470,10 +470,10 @@ namespace LECOMS.Service.Services
             );
 
             if (feedback == null)
-                throw new InvalidOperationException("Feedback not found.");
+                throw new InvalidOperationException("Không tìm thấy phản hồi.");
 
             if (feedback.UserId != userId)
-                throw new InvalidOperationException("You can only delete your own feedback.");
+                throw new InvalidOperationException("Bạn chỉ có thể xóa phản hồi của riêng bạn.");
 
             // Xóa reply nếu có
             if (feedback.Reply != null)
@@ -506,7 +506,7 @@ namespace LECOMS.Service.Services
             );
 
             if (feedback == null)
-                throw new InvalidOperationException("Feedback not found.");
+                throw new InvalidOperationException("Không tìm thấy phản hồi.");
 
             if (feedback.Reply != null)
                 await _uow.FeedbackReplies.DeleteAsync(feedback.Reply);
@@ -533,7 +533,7 @@ namespace LECOMS.Service.Services
         {
             var shop = await _uow.Shops.GetAsync(s => s.SellerId == sellerUserId);
             if (shop == null)
-                throw new InvalidOperationException("Seller does not have a shop.");
+                throw new InvalidOperationException("Người bán không có cửa hàng.");
 
             var feedback = await _uow.Feedbacks.GetAsync(
                 f => f.Id == feedbackId,
@@ -541,13 +541,13 @@ namespace LECOMS.Service.Services
             );
 
             if (feedback == null)
-                throw new InvalidOperationException("Feedback not found.");
+                throw new InvalidOperationException("Không tìm thấy phản hồi.");
 
             if (feedback.ShopId != shop.Id)
-                throw new InvalidOperationException("You cannot modify reply of another shop.");
+                throw new InvalidOperationException("Bạn không thể sửa đổi câu trả lời của cửa hàng khác.");
 
             if (feedback.Reply == null)
-                throw new InvalidOperationException("Feedback does not have a reply yet.");
+                throw new InvalidOperationException("Phản hồi chưa có câu trả lời.");
 
             feedback.Reply.ReplyContent = dto.ReplyContent;
             // Nếu model của bạn có UpdatedAt thì set ở đây, nếu không thì thôi
@@ -570,7 +570,7 @@ namespace LECOMS.Service.Services
         {
             var shop = await _uow.Shops.GetAsync(s => s.SellerId == sellerUserId);
             if (shop == null)
-                throw new InvalidOperationException("Seller does not have a shop.");
+                throw new InvalidOperationException("Người bán không có cửa hàng.");
 
             var feedback = await _uow.Feedbacks.GetAsync(
                 f => f.Id == feedbackId,
@@ -578,13 +578,13 @@ namespace LECOMS.Service.Services
             );
 
             if (feedback == null)
-                throw new InvalidOperationException("Feedback not found.");
+                throw new InvalidOperationException("Không tìm thấy phản hồi.");
 
             if (feedback.ShopId != shop.Id)
-                throw new InvalidOperationException("You cannot delete reply of another shop.");
+                throw new InvalidOperationException("Bạn không thể xóa trả lời của cửa hàng khác.");
 
             if (feedback.Reply == null)
-                throw new InvalidOperationException("Feedback does not have a reply.");
+                throw new InvalidOperationException("Phản hồi không có câu trả lời.");
 
             await _uow.FeedbackReplies.DeleteAsync(feedback.Reply);
             feedback.Reply = null;

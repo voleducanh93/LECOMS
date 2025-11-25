@@ -223,7 +223,7 @@ namespace LECOMS.API.Controllers
             {
                 var result = await _photoService.DeleteFileAsync(publicId, type);
 
-                if (result.Result.ToLower() == "not found")
+                if (result.Result.ToLower() == "không tìm thấy")
                 {
                     _response.IsSuccess = false;
                     _response.StatusCode = HttpStatusCode.NotFound;
@@ -231,7 +231,7 @@ namespace LECOMS.API.Controllers
                 }
                 else if (result.Result.ToLower() != "ok")
                 {
-                    // Ném lỗi nếu kết quả không phải 'ok' hoặc 'not found'
+                    // Ném lỗi nếu kết quả không phải 'ok' hoặc 'không tìm thấy'
                     throw new Exception($"Lỗi xóa file từ Cloudinary: {result.Result}");
                 }
                 else

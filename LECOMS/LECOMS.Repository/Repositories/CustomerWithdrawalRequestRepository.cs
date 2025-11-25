@@ -17,7 +17,7 @@ namespace LECOMS.Repository.Repositories
         public CustomerWithdrawalRequestRepository(LecomDbContext db) : base(db) { }
 
         /// <summary>
-        /// Lấy withdrawal requests theo CustomerId
+        /// Lấy Yêu cầu rút tiền theo CustomerId
         /// </summary>
         public async Task<IEnumerable<CustomerWithdrawalRequest>> GetByCustomerIdAsync(
             string customerId,
@@ -35,7 +35,7 @@ namespace LECOMS.Repository.Repositories
         }
 
         /// <summary>
-        /// Lấy withdrawal request với Customer details
+        /// Lấy Yêu cầu rút tiền với Customer details
         /// </summary>
         public async Task<CustomerWithdrawalRequest?> GetByIdWithDetailsAsync(string withdrawalId)
         {
@@ -47,7 +47,7 @@ namespace LECOMS.Repository.Repositories
         }
 
         /// <summary>
-        /// Lấy withdrawal requests theo status
+        /// Lấy Yêu cầu rút tiền theo status
         /// </summary>
         public async Task<IEnumerable<CustomerWithdrawalRequest>> GetByStatusAsync(
             WithdrawalStatus status,
@@ -65,7 +65,7 @@ namespace LECOMS.Repository.Repositories
         }
 
         /// <summary>
-        /// Lấy pending withdrawal requests
+        /// Lấy pending Yêu cầu rút tiền
         /// </summary>
         public async Task<IEnumerable<CustomerWithdrawalRequest>> GetPendingRequestsAsync()
         {

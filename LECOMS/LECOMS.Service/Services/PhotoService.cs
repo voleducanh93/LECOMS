@@ -129,7 +129,7 @@ namespace LECOMS.Service.Services
                 ResourceType = resourceType
             };
             var result = await _cloudinary.DestroyAsync(deleteParams);
-            // Bạn có thể kiểm tra result.Result == "ok" hoặc "not found"
+            // Bạn có thể kiểm tra result.Result == "ok" hoặc "không tìm thấy"
             return result;
         }
     }

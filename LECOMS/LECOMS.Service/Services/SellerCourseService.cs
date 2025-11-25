@@ -37,7 +37,7 @@ namespace LECOMS.Service.Services
 
             var shop = await _unitOfWork.Shops.GetAsync(s => s.Id == shopId);
             if (shop == null)
-                throw new InvalidOperationException("Shop not found.");
+                throw new InvalidOperationException("Không tìm thấy cửa hàng.");
 
             // 🔥 Sinh slug unique
             var baseSlug = GenerateSlug(dto.Title);
@@ -332,7 +332,7 @@ namespace LECOMS.Service.Services
             // Lấy shop theo seller
             var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == sellerId);
             if (shop == null)
-                throw new InvalidOperationException("Shop not found.");
+                throw new InvalidOperationException("Không tìm thấy cửa hàng.");
 
             var courses = await _unitOfWork.Courses.Query()
                 .Include(c => c.Category)
@@ -360,7 +360,7 @@ namespace LECOMS.Service.Services
         public async Task<CourseDTO?> GetCourseByIdAsync(string courseId, string sellerId)
         {
             var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == sellerId);
-            if (shop == null) throw new InvalidOperationException("Shop not found.");
+            if (shop == null) throw new InvalidOperationException("Không tìm thấy cửa hàng.");
 
             var course = await _unitOfWork.Courses.GetAsync(
                 c => c.Id == courseId && c.ShopId == shop.Id,
@@ -387,10 +387,10 @@ namespace LECOMS.Service.Services
         public async Task<CourseDTO> UpdateCourseAsync(string courseId, UpdateCourseDto dto, string sellerId)
         {
             var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == sellerId);
-            if (shop == null) throw new InvalidOperationException("Shop not found.");
+            if (shop == null) throw new InvalidOperationException("Không tìm thấy cửa hàng.");
 
             var course = await _unitOfWork.Courses.GetAsync(c => c.Id == courseId && c.ShopId == shop.Id);
-            if (course == null) throw new KeyNotFoundException("Course not found.");
+            if (course == null) throw new KeyNotFoundException("Course không tìm thấy.");
 
             if (!string.IsNullOrEmpty(dto.Title)) course.Title = dto.Title.Trim();
             if (!string.IsNullOrEmpty(dto.Summary)) course.Summary = dto.Summary.Trim();
@@ -420,7 +420,7 @@ namespace LECOMS.Service.Services
         public async Task<bool> DeleteCourseAsync(string courseId, string sellerId)
         {
             var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == sellerId);
-            if (shop == null) throw new InvalidOperationException("Shop not found.");
+            if (shop == null) throw new InvalidOperationException("Không tìm thấy cửa hàng.");
 
             var course = await _unitOfWork.Courses.GetAsync(c => c.Id == courseId && c.ShopId == shop.Id);
             if (course == null) return false;
@@ -535,7 +535,7 @@ namespace LECOMS.Service.Services
             );
 
             if (course == null)
-                throw new KeyNotFoundException("Course not found.");
+                throw new KeyNotFoundException("Course không tìm thấy.");
 
             return new CourseDTO
             {

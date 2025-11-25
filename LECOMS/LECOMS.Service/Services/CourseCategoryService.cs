@@ -31,7 +31,7 @@ namespace LECOMS.Service.Services
         public async Task<CourseCategoryDTO> CreateAsync(CourseCategoryCreateDTO dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.Name))
-                throw new ArgumentException("Name is required");
+                throw new ArgumentException("Tên là bắt buộc");
 
             var name = dto.Name.Trim();
             var slug = ToSlug(name);
@@ -39,12 +39,12 @@ namespace LECOMS.Service.Services
             // 1) Check trùng theo Slug (đúng với Unique Index hiện có)
             var existBySlug = await _uow.CourseCategories.GetAsync(c => c.Slug == slug);
             if (existBySlug != null)
-                throw new InvalidOperationException("Slug already exists for another category.");
+                throw new InvalidOperationException("Slug đã tồn tại cho một danh mục khác.");
 
             // 2) (Tuỳ chọn) Check thêm theo Name để thân thiện với người dùng
             var existByName = await _uow.CourseCategories.GetByNameAsync(name);
             if (existByName != null)
-                throw new InvalidOperationException("Category name already exists.");
+                throw new InvalidOperationException("Tên danh mục đã tồn tại.");
 
             var category = new CourseCategory
             {

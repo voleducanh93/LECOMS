@@ -42,7 +42,7 @@ namespace LECOMS.API.Controllers
                 {
                     _response.StatusCode = HttpStatusCode.NotFound;
                     _response.IsSuccess = false;
-                    _response.ErrorMessages.Add("User profile not found");
+                    _response.ErrorMessages.Add("User profile không tìm thấy");
                     return NotFound(_response);
                 }
 

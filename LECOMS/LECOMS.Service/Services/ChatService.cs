@@ -38,12 +38,12 @@ namespace LECOMS.Service.Services
                 includeProperties: "Shop,Images,Category");
 
             if (product == null)
-                throw new KeyNotFoundException("Product not found.");
+                throw new KeyNotFoundException("Không tìm thấy sản phẩm.");
 
             var sellerId = product.Shop.SellerId;
 
             if (buyerId == sellerId)
-                throw new InvalidOperationException("Seller cannot chat with themselves.");
+                throw new InvalidOperationException("Người bán không thể trò chuyện với chính mình.");
 
             var existing = await _uow.Conversations.GetByKeyAsync(
                 buyerId,
@@ -122,13 +122,13 @@ namespace LECOMS.Service.Services
             );
 
             if (conversation == null)
-                throw new KeyNotFoundException("Conversation not found.");
+                throw new KeyNotFoundException("Không tìm thấy cuộc trò chuyện.");
 
             if (conversation.IsAIChat)
-                throw new InvalidOperationException("This conversation is AI chat.");
+                throw new InvalidOperationException("Cuộc trò chuyện này là trò chuyện AI.");
 
             if (conversation.BuyerId != senderId && conversation.SellerId != senderId)
-                throw new UnauthorizedAccessException("You are not part of this conversation.");
+                throw new UnauthorizedAccessException("Bạn không phải là một phần của cuộc trò chuyện này.");
 
             var message = new Message
             {
@@ -162,10 +162,10 @@ namespace LECOMS.Service.Services
             );
 
             if (conversation == null)
-                throw new KeyNotFoundException("Conversation not found.");
+                throw new KeyNotFoundException("Không tìm thấy cuộc trò chuyện.");
 
             if (!conversation.IsAIChat)
-                throw new InvalidOperationException("This is not an AI chat.");
+                throw new InvalidOperationException("Đây không phải là cuộc trò chuyện AI.");
 
             var userMessage = new Message
             {
@@ -209,7 +209,7 @@ namespace LECOMS.Service.Services
             var conv = await _uow.Conversations.GetAsync(c => c.Id == conversationId);
 
             if (conv == null)
-                throw new KeyNotFoundException("Conversation not found.");
+                throw new KeyNotFoundException("Không tìm thấy cuộc trò chuyện");
 
             var messages = await _uow.Messages.GetByConversationAsync(conversationId);
 
@@ -293,7 +293,7 @@ namespace LECOMS.Service.Services
             );
 
             if (conv == null)
-                throw new UnauthorizedAccessException("You do not own this conversation.");
+                throw new UnauthorizedAccessException("Bạn không sở hữu cuộc trò chuyện này.");
 
             return _mapper.Map<ConversationDTO>(conv);
         }
@@ -306,7 +306,7 @@ namespace LECOMS.Service.Services
             );
 
             if (conv == null)
-                throw new UnauthorizedAccessException("You do not own this conversation.");
+                throw new UnauthorizedAccessException("Bạn không sở hữu cuộc trò chuyện này.");
 
             return _mapper.Map<ConversationDTO>(conv);
         }
@@ -318,10 +318,10 @@ namespace LECOMS.Service.Services
             );
 
             if (conversation == null)
-                throw new KeyNotFoundException("Conversation not found.");
+                throw new KeyNotFoundException("Không tìm thấy cuộc trò chuyện.");
 
             if (!conversation.IsAIChat)
-                throw new InvalidOperationException("This is not an AI chat.");
+                throw new InvalidOperationException("Đây không phải là cuộc trò chuyện AI.");
 
             var userMsg = new Message
             {
@@ -349,10 +349,10 @@ namespace LECOMS.Service.Services
             );
 
             if (conversation == null)
-                throw new KeyNotFoundException("Conversation not found.");
+                throw new KeyNotFoundException("Không tìm thấy cuộc trò chuyện.");
 
             if (!conversation.IsAIChat)
-                throw new InvalidOperationException("This is not an AI chat.");
+                throw new InvalidOperationException("Đây không phải là cuộc trò chuyện AI.");
 
             var aiResponse = await _ai.GetProductAnswerAsync(conversation.Product, content);
 

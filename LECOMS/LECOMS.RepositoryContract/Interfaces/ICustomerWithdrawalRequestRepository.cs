@@ -12,7 +12,7 @@ namespace LECOMS.RepositoryContract.Interfaces
     public interface ICustomerWithdrawalRequestRepository : IRepository<CustomerWithdrawalRequest>
     {
         /// <summary>
-        /// Lấy withdrawal requests theo CustomerId
+        /// Lấy Yêu cầu rút tiền theo CustomerId
         /// </summary>
         Task<IEnumerable<CustomerWithdrawalRequest>> GetByCustomerIdAsync(
             string customerId,
@@ -20,12 +20,12 @@ namespace LECOMS.RepositoryContract.Interfaces
             int pageSize = 20);
 
         /// <summary>
-        /// Lấy withdrawal request với Customer details
+        /// Lấy Yêu cầu rút tiền với Customer details
         /// </summary>
         Task<CustomerWithdrawalRequest?> GetByIdWithDetailsAsync(string withdrawalId);
 
         /// <summary>
-        /// Lấy withdrawal requests theo status
+        /// Lấy Yêu cầu rút tiền theo status
         /// </summary>
         Task<IEnumerable<CustomerWithdrawalRequest>> GetByStatusAsync(
             WithdrawalStatus status,
@@ -33,7 +33,7 @@ namespace LECOMS.RepositoryContract.Interfaces
             int pageSize = 20);
 
         /// <summary>
-        /// Lấy pending withdrawal requests
+        /// Lấy pending Yêu cầu rút tiền
         /// </summary>
         Task<IEnumerable<CustomerWithdrawalRequest>> GetPendingRequestsAsync();
 

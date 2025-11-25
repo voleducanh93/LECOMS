@@ -36,12 +36,12 @@ namespace LECOMS.Service.Services
         public async Task<ShopDTO> CreateShopAsync(string sellerId, SellerRegistrationRequestDTO dto)
         {
             if (await _uow.Shops.ExistsBySellerIdAsync(sellerId))
-                throw new InvalidOperationException("This seller already has a shop.");
+                throw new InvalidOperationException("Người bán này đã có một cửa hàng.");
 
             // ✅ Kiểm tra category tồn tại
             var category = await _uow.CourseCategories.GetAsync(c => c.Id == dto.CategoryId);
             if (category == null)
-                throw new InvalidOperationException("Selected category not found.");
+                throw new InvalidOperationException("Không tìm thấy danh mục đã chọn.");
 
             var shop = new Shop
             {
@@ -110,7 +110,7 @@ namespace LECOMS.Service.Services
         public async Task<ShopDTO> UpdateShopAsync(int id, ShopUpdateDTO dto, string userId, bool isAdmin)
         {
             var shop = await _uow.Shops.GetAsync(s => s.Id == id);
-            if (shop == null) throw new KeyNotFoundException("Shop not found.");
+            if (shop == null) throw new KeyNotFoundException("Không tìm thấy cửa hàng.");
 
             if (!isAdmin && shop.SellerId != userId)
                 throw new UnauthorizedAccessException();
@@ -139,7 +139,7 @@ namespace LECOMS.Service.Services
         public async Task<ShopDTO> ApproveShopAsync(int id, string adminId)
         {
             var shop = await _uow.Shops.GetAsync(s => s.Id == id);
-            if (shop == null) throw new KeyNotFoundException("Shop not found.");
+            if (shop == null) throw new KeyNotFoundException("Không tìm thấy cửa hàng.");
 
             shop.Status = "Approved";
             shop.ApprovedAt = DateTime.UtcNow;
@@ -154,7 +154,7 @@ namespace LECOMS.Service.Services
         public async Task<ShopDTO> RejectShopAsync(int id, string adminId, string reason)
         {
             var shop = await _uow.Shops.GetAsync(s => s.Id == id);
-            if (shop == null) throw new KeyNotFoundException("Shop not found.");
+            if (shop == null) throw new KeyNotFoundException("Không tìm thấy cửa hàng.");
 
             shop.Status = "Rejected";
             shop.RejectedReason = reason;
@@ -172,7 +172,7 @@ namespace LECOMS.Service.Services
                 includeProperties: "Category"
             ); 
             if (shop == null)
-                throw new KeyNotFoundException("Shop not found.");
+                throw new KeyNotFoundException("Không tìm thấy cửa hàng.");
 
             // Lấy sản phẩm của shop
             var products = await _uow.Products.GetAllAsync(

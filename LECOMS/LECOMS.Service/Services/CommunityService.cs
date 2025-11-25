@@ -82,11 +82,11 @@ namespace LECOMS.Service.Services
         {
             var user = await _uow.Users.GetAsync(u => u.Id == userId);
             if (user == null)
-                throw new InvalidOperationException("User not found.");
+                throw new InvalidOperationException("Không tìm thấy người dùng.");
 
             var post = await _uow.CommunityPosts.GetAsync(p => p.Id == postId);
             if (post == null)
-                throw new InvalidOperationException("Post not found.");
+                throw new InvalidOperationException("Không tìm thấy bài đăng.");
 
             var comment = new Comment
             {
@@ -126,7 +126,7 @@ namespace LECOMS.Service.Services
             );
 
             if (post == null)
-                throw new KeyNotFoundException("Post not found.");
+                throw new KeyNotFoundException("Không tìm thấy bài đăng.");
 
             return new CommunityPostDTO
             {

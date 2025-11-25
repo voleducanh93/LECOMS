@@ -12,7 +12,7 @@ namespace LECOMS.RepositoryContract.Interfaces
     public interface IWithdrawalRequestRepository : IRepository<WithdrawalRequest>
     {
         /// <summary>
-        /// Lấy withdrawal requests theo ShopId
+        /// Lấy Yêu cầu rút tiền theo ShopId
         /// </summary>
         Task<IEnumerable<WithdrawalRequest>> GetByShopIdAsync(
             int shopId,
@@ -20,12 +20,12 @@ namespace LECOMS.RepositoryContract.Interfaces
             int pageSize = 20);
 
         /// <summary>
-        /// Lấy withdrawal request với Shop details (eager loading)
+        /// Lấy Yêu cầu rút tiền với Shop details (eager loading)
         /// </summary>
         Task<WithdrawalRequest?> GetByIdWithDetailsAsync(string withdrawalId);
 
         /// <summary>
-        /// Lấy withdrawal requests theo status
+        /// Lấy Yêu cầu rút tiền theo status
         /// </summary>
         Task<IEnumerable<WithdrawalRequest>> GetByStatusAsync(
             WithdrawalStatus status,
@@ -33,7 +33,7 @@ namespace LECOMS.RepositoryContract.Interfaces
             int pageSize = 20);
 
         /// <summary>
-        /// Lấy pending withdrawal requests (chờ admin approve)
+        /// Lấy pending Yêu cầu rút tiền (chờ admin approve)
         /// </summary>
         Task<IEnumerable<WithdrawalRequest>> GetPendingRequestsAsync();
 
@@ -44,12 +44,12 @@ namespace LECOMS.RepositoryContract.Interfaces
         Task<IEnumerable<WithdrawalRequest>> GetApprovedRequestsAsync();
 
         /// <summary>
-        /// Đếm số withdrawal requests trong tháng của shop
+        /// Đếm số Yêu cầu rút tiền trong tháng của shop
         /// </summary>
         Task<int> CountByShopInMonthAsync(int shopId, int year, int month);
 
         /// <summary>
-        /// Tính tổng withdrawal amount của shop
+        /// Tính tổng Số tiền rút của shop
         /// </summary>
         Task<decimal> GetTotalWithdrawalAmountByShopAsync(int shopId, DateTime fromDate, DateTime toDate);
     }

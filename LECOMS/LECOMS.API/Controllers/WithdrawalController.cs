@@ -39,7 +39,7 @@ namespace LECOMS.API.Controllers
         // ==================== SHOP WITHDRAWAL ====================
 
         /// <summary>
-        /// Shop tạo withdrawal request
+        /// Shop tạo Yêu cầu rút tiền
         /// POST: api/withdrawal/shop/create
         /// </summary>
         [HttpPost("shop/create")]
@@ -56,7 +56,7 @@ namespace LECOMS.API.Controllers
                 var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == userId);
                 if (shop == null)
                 {
-                    return NotFound(new { success = false, message = "Shop not found for this user" });
+                    return NotFound(new { success = false, message = "Shop không tìm thấy for this user" });
                 }
 
                 // Validate input
@@ -81,7 +81,7 @@ namespace LECOMS.API.Controllers
                 return Ok(new
                 {
                     success = true,
-                    message = "Withdrawal request created successfully. Waiting for admin approval.",
+                    message = "Yêu cầu rút tiền created successfully. Waiting for admin approval.",
                     data = new
                     {
                         withdrawalId = withdrawal.Id,
@@ -96,7 +96,7 @@ namespace LECOMS.API.Controllers
             }
             catch (ArgumentException ex)
             {
-                _logger.LogWarning(ex, "Invalid withdrawal request");
+                _logger.LogWarning(ex, "Invalid Yêu cầu rút tiền");
                 return BadRequest(new { success = false, message = ex.Message });
             }
             catch (InvalidOperationException ex)
@@ -130,7 +130,7 @@ namespace LECOMS.API.Controllers
                 var shop = await _unitOfWork.Shops.GetAsync(s => s.SellerId == userId);
                 if (shop == null)
                 {
-                    return NotFound(new { success = false, message = "Shop not found" });
+                    return NotFound(new { success = false, message = "Shop không tìm thấy" });
                 }
 
                 var withdrawals = await _withdrawalService.GetWithdrawalRequestsByShopAsync(shop.Id, page, pageSize);
@@ -184,7 +184,7 @@ namespace LECOMS.API.Controllers
                 return Ok(new
                 {
                     success = true,
-                    message = "Withdrawal request cancelled successfully",
+                    message = "Yêu cầu rút tiền cancelled successfully",
                     data = new
                     {
                         withdrawalId = withdrawal.Id,
@@ -212,7 +212,7 @@ namespace LECOMS.API.Controllers
         // ==================== CUSTOMER WITHDRAWAL ====================
 
         /// <summary>
-        /// Customer tạo withdrawal request
+        /// Customer tạo Yêu cầu rút tiền
         /// POST: api/withdrawal/customer/create
         /// </summary>
         [HttpPost("customer/create")]
@@ -247,7 +247,7 @@ namespace LECOMS.API.Controllers
                 return Ok(new
                 {
                     success = true,
-                    message = "Withdrawal request created successfully. Waiting for admin approval.",
+                    message = "Yêu cầu rút tiền created successfully. Waiting for admin approval.",
                     data = new
                     {
                         withdrawalId = withdrawal.Id,
@@ -262,7 +262,7 @@ namespace LECOMS.API.Controllers
             }
             catch (ArgumentException ex)
             {
-                _logger.LogWarning(ex, "Invalid customer withdrawal request");
+                _logger.LogWarning(ex, "Invalid customer Yêu cầu rút tiền");
                 return BadRequest(new { success = false, message = ex.Message });
             }
             catch (InvalidOperationException ex)
@@ -344,7 +344,7 @@ namespace LECOMS.API.Controllers
                 return Ok(new
                 {
                     success = true,
-                    message = "Withdrawal request cancelled successfully",
+                    message = "Yêu cầu rút tiền cancelled successfully",
                     data = new
                     {
                         withdrawalId = withdrawal.Id,

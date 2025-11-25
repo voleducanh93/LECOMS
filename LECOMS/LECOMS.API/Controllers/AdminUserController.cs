@@ -65,7 +65,7 @@ namespace LECOMS.API.Controllers
             {
                 _response.StatusCode = HttpStatusCode.NotFound;
                 _response.IsSuccess = false;
-                _response.ErrorMessages.Add("User not found");
+                _response.ErrorMessages.Add("User không tìm thấy");
                 return NotFound(_response);
             }
             _response.StatusCode = HttpStatusCode.OK;
@@ -144,14 +144,14 @@ namespace LECOMS.API.Controllers
             if (user == null)
             {
                 _response.IsSuccess = false;
-                _response.ErrorMessages.Add("User not found");
+                _response.ErrorMessages.Add("User không tìm thấy");
                 return NotFound(_response);
             }
 
             if (!await _roleManager.RoleExistsAsync(dto.Role))
             {
                 _response.IsSuccess = false;
-                _response.ErrorMessages.Add("Role not found");
+                _response.ErrorMessages.Add("Role không tìm thấy");
                 return NotFound(_response);
             }
 
@@ -170,7 +170,7 @@ namespace LECOMS.API.Controllers
             if (user == null)
             {
                 _response.IsSuccess = false;
-                _response.ErrorMessages.Add("User not found");
+                _response.ErrorMessages.Add("User không tìm thấy");
                 return NotFound(_response);
             }
 

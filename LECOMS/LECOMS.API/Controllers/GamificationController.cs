@@ -22,7 +22,7 @@ namespace LECOMS.API.Controllers
         }
 
         private string GetUserId() =>
-            User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new InvalidOperationException("User not found");
+            User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new InvalidOperationException("User không tìm thấy");
 
         /// <summary>Dashboard gamification: level, coins, quests</summary>
         [HttpGet("profile")]

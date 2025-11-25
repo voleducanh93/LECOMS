@@ -11,7 +11,7 @@ namespace LECOMS.ServiceContract.Interfaces
     public interface IWithdrawalService
     {
         /// <summary>
-        /// Shop tạo withdrawal request
+        /// Shop tạo Yêu cầu rút tiền
         /// 
         /// FLOW:
         /// 1. Validate amount (min, max từ PlatformConfig)
@@ -23,7 +23,7 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<WithdrawalRequest> CreateWithdrawalRequestAsync(CreateWithdrawalRequestDto dto);
 
         /// <summary>
-        /// Admin approve withdrawal request
+        /// Admin approve Yêu cầu rút tiền
         /// 
         /// FLOW:
         /// 1. Validate AvailableBalance vẫn đủ
@@ -37,7 +37,7 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<WithdrawalRequest> ApproveWithdrawalAsync(string withdrawalId, string adminId, string? note = null);
 
         /// <summary>
-        /// Admin reject withdrawal request
+        /// Admin reject Yêu cầu rút tiền
         /// </summary>
         Task<WithdrawalRequest> RejectWithdrawalAsync(string withdrawalId, string adminId, string reason);
 
@@ -54,17 +54,17 @@ namespace LECOMS.ServiceContract.Interfaces
         Task ProcessApprovedWithdrawalsAsync();
 
         /// <summary>
-        /// Lấy withdrawal request by ID
+        /// Lấy Yêu cầu rút tiền by ID
         /// </summary>
         Task<WithdrawalRequest?> GetWithdrawalRequestAsync(string withdrawalId);
 
         /// <summary>
-        /// Lấy withdrawal requests theo shop
+        /// Lấy Yêu cầu rút tiền theo shop
         /// </summary>
         Task<IEnumerable<WithdrawalRequest>> GetWithdrawalRequestsByShopAsync(int shopId, int pageNumber = 1, int pageSize = 20);
 
         /// <summary>
-        /// Lấy pending withdrawal requests
+        /// Lấy pending Yêu cầu rút tiền
         /// </summary>
         Task<IEnumerable<WithdrawalRequest>> GetPendingWithdrawalRequestsAsync();
 
@@ -75,7 +75,7 @@ namespace LECOMS.ServiceContract.Interfaces
     }
 
     /// <summary>
-    /// DTO để tạo withdrawal request
+    /// DTO để tạo Yêu cầu rút tiền
     /// </summary>
     public class CreateWithdrawalRequestDto
     {

@@ -47,7 +47,7 @@ namespace LECOMS.Data.Entities
         public decimal MaxWithdrawalAmount { get; set; } = 50000000m;
 
         /// <summary>
-        /// Tự động approve withdrawal requests
+        /// Tự động approve Yêu cầu rút tiền
         /// Default: false (cần admin approve)
         /// </summary>
         public bool AutoApproveWithdrawal { get; set; } = false;

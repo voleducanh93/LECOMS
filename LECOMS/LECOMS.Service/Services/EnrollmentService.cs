@@ -25,14 +25,14 @@ namespace LECOMS.Service.Services
 
         public async Task<EnrollmentDTO> EnrollAsync(string userId, string courseId)
         {
-            if (string.IsNullOrWhiteSpace(userId)) throw new ArgumentException("userId is required", nameof(userId));
-            if (string.IsNullOrWhiteSpace(courseId)) throw new ArgumentException("courseId is required", nameof(courseId));
+            if (string.IsNullOrWhiteSpace(userId)) throw new ArgumentException("ID người dùng là bắt buộc", nameof(userId));
+            if (string.IsNullOrWhiteSpace(courseId)) throw new ArgumentException("khóa học là bắt buộc", nameof(courseId));
 
             var course = await _uow.Courses.GetAsync(c => c.Id == courseId);
-            if (course == null) throw new KeyNotFoundException("Course not found.");
+            if (course == null) throw new KeyNotFoundException("Khóa học không được tìm thấy.");
 
             var existing = await _uow.Enrollments.GetByUserAndCourseAsync(userId, courseId);
-            if (existing != null) throw new InvalidOperationException("User already enrolled in this course.");
+            if (existing != null) throw new InvalidOperationException("Người dùng đã đăng ký khóa học này.");
 
             var enrollment = new Enrollment
             {
@@ -113,7 +113,7 @@ namespace LECOMS.Service.Services
             );
 
             if (enrollment == null)
-                throw new KeyNotFoundException("User is not enrolled in this course.");
+                throw new KeyNotFoundException("Người dùng không được ghi danh vào khóa học này.");
 
             var course = enrollment.Course;
 
@@ -226,7 +226,7 @@ namespace LECOMS.Service.Services
             );
 
             if (lesson == null)
-                throw new KeyNotFoundException("Lesson not found.");
+                throw new KeyNotFoundException("Bài học không được tìm thấy.");
 
             // 2. Load or create progress
             var progress = await _uow.UserLessonProgresses.GetProgressAsync(userId, lessonId);

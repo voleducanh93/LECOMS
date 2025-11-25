@@ -50,7 +50,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Redeem rule not found.");
+                    response.ErrorMessages.Add("Redeem rule không tìm thấy.");
                     return StatusCode((int)response.StatusCode, response);
                 }
 

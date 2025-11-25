@@ -29,7 +29,7 @@ namespace LECOMS.API.Controllers
             try
             {
                 var userId = _userManager.GetUserId(User);
-                if (string.IsNullOrWhiteSpace(userId)) throw new UnauthorizedAccessException("User not found.");
+                if (string.IsNullOrWhiteSpace(userId)) throw new UnauthorizedAccessException("User không tìm thấy.");
 
                 var enrollment = await _enrollmentService.EnrollAsync(userId, courseId);
                 response.StatusCode = HttpStatusCode.Created;
@@ -75,7 +75,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.StatusCode = HttpStatusCode.NotFound;
                     response.IsSuccess = false;
-                    response.ErrorMessages.Add("Enrollment not found.");
+                    response.ErrorMessages.Add("Enrollment không tìm thấy.");
                 }
                 else
                 {
@@ -104,7 +104,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.StatusCode = HttpStatusCode.Unauthorized;
                     response.IsSuccess = false;
-                    response.ErrorMessages.Add("User not found.");
+                    response.ErrorMessages.Add("User không tìm thấy.");
                     return StatusCode((int)response.StatusCode, response);
                 }
 

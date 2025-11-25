@@ -56,7 +56,7 @@ namespace LECOMS.Service.Services
         public async Task<RedeemRuleDTO> UpdateRedeemRuleAsync(string id, RedeemRuleUpdateDTO dto)
         {
             var rule = await _uow.RedeemRules.GetAsync(r => r.Id.ToString() == id)
-                       ?? throw new InvalidOperationException("Redeem rule not found");
+                       ?? throw new InvalidOperationException("Không tìm thấy quy tắc đổi quà");
 
             if (dto.CostPoints.HasValue)
                 rule.CostPoints = dto.CostPoints.Value;

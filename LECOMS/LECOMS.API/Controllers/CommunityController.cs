@@ -174,7 +174,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Post not found.");
+                    response.ErrorMessages.Add("Post không tìm thấy.");
                 }
                 else
                 {
@@ -213,7 +213,7 @@ namespace LECOMS.API.Controllers
                 {
                     response.IsSuccess = false;
                     response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Post not found.");
+                    response.ErrorMessages.Add("Post không tìm thấy.");
                 }
                 else
                 {

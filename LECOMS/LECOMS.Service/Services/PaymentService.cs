@@ -53,10 +53,10 @@ namespace LECOMS.Service.Services
         public async Task<string> CreatePaymentLinkAsync(string orderId)
         {
             var tx = await _uow.Transactions.GetByOrderIdAsync(orderId)
-                ?? throw new InvalidOperationException("Transaction not found.");
+                ?? throw new InvalidOperationException("Không tìm thấy giao dịch.");
 
             if (tx.Status == TransactionStatus.Completed)
-                throw new InvalidOperationException("Order already paid.");
+                throw new InvalidOperationException("Đơn hàng đã được thanh toán.");
 
             // NEW — load orderIds từ mapping table
             var mapping = await _uow.TransactionOrders.GetByTransactionIdAsync(tx.Id);
@@ -75,7 +75,7 @@ namespace LECOMS.Service.Services
             }
 
             if (!list.Any())
-                throw new InvalidOperationException("No valid orders.");
+                throw new InvalidOperationException("Không có đơn đặt hàng hợp lệ.");
 
             tx.PayOSOrderCode = null;
             tx.PayOSPaymentUrl = null;
@@ -95,7 +95,7 @@ namespace LECOMS.Service.Services
         public async Task<string> CreatePaymentLinkForMultipleOrdersAsync(string transactionId, List<Order> orders)
         {
             var tx = await _uow.Transactions.GetAsync(t => t.Id == transactionId)
-                ?? throw new InvalidOperationException("Transaction not found.");
+                ?? throw new InvalidOperationException("Không tìm thấy giao dịch.");
 
             return await CreatePayOSPaymentAsync(tx, orders);
         }
@@ -347,7 +347,7 @@ namespace LECOMS.Service.Services
         public async Task<CheckoutResultDTO> CreatePaymentResultForExistingOrdersAsync(string orderId)
         {
             var tx = await _uow.Transactions.GetByOrderIdAsync(orderId)
-                ?? throw new InvalidOperationException("Transaction not found.");
+                ?? throw new InvalidOperationException("Không tìm thấy giao dịch.");
 
             var mapping = await _uow.TransactionOrders.GetByTransactionIdAsync(tx.Id);
             var orderIds = mapping.Select(m => m.OrderId).ToList();
