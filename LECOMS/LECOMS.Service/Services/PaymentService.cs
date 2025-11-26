@@ -291,7 +291,7 @@ namespace LECOMS.Service.Services
             foreach (var o in orders)
             {
                 o.PaymentStatus = PaymentStatus.Paid;
-                o.Status = OrderStatus.Processing;
+                o.Status = OrderStatus.Paid;
 
                 await _uow.Orders.UpdateAsync(o);
 

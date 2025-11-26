@@ -180,7 +180,7 @@ namespace LECOMS.Service.Services
                     foreach (var o in createdOrders)
                     {
                         o.PaymentStatus = PaymentStatus.Paid;
-                        o.Status = OrderStatus.Processing;
+                        o.Status = OrderStatus.Paid;
                     }
 
                     // Tạo transaction WALLET
