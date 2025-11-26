@@ -178,7 +178,10 @@ namespace LECOMS.Service.Services
                         $"Thanh toán đơn hàng {string.Join(",", createdOrders.Select(o => o.OrderCode))}");
 
                     foreach (var o in createdOrders)
+                    {
                         o.PaymentStatus = PaymentStatus.Paid;
+                        o.Status = OrderStatus.Processing;
+                    }
 
                     // Tạo transaction WALLET
                     var txObj = await CreateTransactionAsync(
