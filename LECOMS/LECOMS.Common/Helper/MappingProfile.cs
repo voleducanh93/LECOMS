@@ -293,16 +293,23 @@ namespace LECOMS.Common.Helper
             // GAMIFICATION
             // ============================================================
             CreateMap<UserQuestProgress, QuestDTO>()
-                .ForMember(d => d.Title, o => o.MapFrom(s => s.Quest.Title))
-                .ForMember(d => d.Description, o => o.MapFrom(s => s.Quest.Description))
-                .ForMember(d => d.RewardXP, o => o.MapFrom(s => s.Quest.RewardXP))
-                .ForMember(d => d.RewardPoints, o => o.MapFrom(s => s.Quest.RewardPoints))
-                .ForMember(d => d.TargetValue, o => o.MapFrom(s => s.Quest.TargetValue))
-                .ForMember(d => d.Period, o => o.MapFrom(s => s.Quest.Period.ToString()))
-                .ForMember(d => d.Status, o => o.MapFrom(s =>
-                    s.IsClaimed ? "Claimed" :
-                    s.IsCompleted ? "Completed" :
-                    "InProgress"));
+    .ForMember(d => d.Title, o => o.MapFrom(s => s.Quest.Title))
+    .ForMember(d => d.Description, o => o.MapFrom(s => s.Quest.Description))
+    .ForMember(d => d.RewardXP, o => o.MapFrom(s => s.Quest.RewardXP))
+    .ForMember(d => d.RewardPoints, o => o.MapFrom(s => s.Quest.RewardPoints))
+    .ForMember(d => d.TargetValue, o => o.MapFrom(s => s.Quest.TargetValue))
+    .ForMember(d => d.Period, o => o.MapFrom(s => s.Quest.Period.ToString()))
+    .ForMember(d => d.IsRewardClaimed, o => o.MapFrom(s => s.IsClaimed))
+    .ForMember(d => d.Status, o => o.MapFrom(s =>
+        s.IsClaimed ? "Claimed" :
+        s.IsCompleted ? "Completed" :
+        "InProgress"
+    ));
+            CreateMap<UserBadge, RecentBadgeDTO>()
+            .ForMember(d => d.Id, opt => opt.MapFrom(s => s.BadgeId))
+            .ForMember(d => d.Name, opt => opt.MapFrom(s => s.Badge.Name))
+            .ForMember(d => d.Description, opt => opt.MapFrom(s => s.Badge.Description))
+            .ForMember(d => d.AchievedAt, opt => opt.MapFrom(s => s.AchievedAt));
 
             // ============================================================
             // ENROLLMENT (THÊM COURSE SLUG + FULL INCLUDE)

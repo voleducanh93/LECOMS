@@ -502,6 +502,93 @@ namespace LECOMS.Service.Services
         }
 
         #endregion
+        public async Task InitializeUserGamificationAsync(string userId)
+        {
+            // ============================================
+            // 1) Tạo PointWallet nếu chưa có
+            // ============================================
+            var wallet = await _uow.PointWallets.GetByUserIdAsync(userId);
+            if (wallet == null)
+            {
+                wallet = new PointWallet
+                {
+                    UserId = userId,
+                    Balance = 0,
+                    LifetimeEarned = 0,
+                    LifetimeSpent = 0,
+                    CurrentXP = 0,
+                    Level = 1
+                };
+
+                await _uow.PointWallets.AddAsync(wallet);
+                await _uow.CompleteAsync();
+            }
+
+            // ============================================
+            // 2) Load danh sách QuestDefinitions cố định của hệ thống
+            //    (Daily, Weekly, Monthly)
+            // ============================================
+            var definitions = await _uow.QuestDefinitions.GetAllAsync(q => q.Active);
+            var now = DateTime.UtcNow;
+
+            foreach (var def in definitions)
+            {
+                // Tính PeriodStart – PeriodEnd
+                DateTime start, end;
+
+                switch (def.Period)
+                {
+                    case QuestPeriod.Daily:
+                        start = now.Date;
+                        end = now.Date.AddDays(1).AddSeconds(-1);
+                        break;
+
+                    case QuestPeriod.Weekly:
+                        start = now.StartOfWeek();
+                        end = now.EndOfWeek();
+                        break;
+
+                    case QuestPeriod.Monthly:
+                        start = new DateTime(now.Year, now.Month, 1);
+                        end = start.AddMonths(1).AddSeconds(-1);
+                        break;
+
+                    default:
+                        continue;
+                }
+
+                // Kiểm tra user đã có nhiệm vụ này chưa
+                var existing = await _uow.UserQuestProgresses.GetAsync(
+                    x => x.UserId == userId &&
+                         x.QuestDefinitionId == def.Id &&
+                         x.PeriodStart == start &&
+                         x.PeriodEnd == end
+                );
+
+                if (existing != null)
+                    continue;
+
+                // ============================================
+                // 3) Tạo UserQuestProgress (progress nhiệm vụ)
+                // ============================================
+                var progress = new UserQuestProgress
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    UserId = userId,
+                    QuestDefinitionId = def.Id,
+                    CurrentValue = 0,
+                    IsCompleted = false,
+                    IsClaimed = false,
+                    PeriodStart = start,
+                    PeriodEnd = end
+                };
+
+                await _uow.UserQuestProgresses.AddAsync(progress);
+            }
+
+            await _uow.CompleteAsync();
+        }
+
 
     }
 }

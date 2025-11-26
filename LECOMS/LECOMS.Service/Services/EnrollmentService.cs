@@ -228,6 +228,13 @@ namespace LECOMS.Service.Services
             if (lesson == null)
                 throw new KeyNotFoundException("Bài học không được tìm thấy.");
 
+            // ⭐ Load EarnRule: CompleteLesson
+            var earnRule = await _uow.EarnRules.GetAsync(
+                r => r.Action == "CompleteLesson" && r.Active
+            );
+
+            int xpReward = earnRule?.Points ?? 5;
+
             // 2. Load or create progress
             var progress = await _uow.UserLessonProgresses.GetProgressAsync(userId, lessonId);
 
@@ -240,7 +247,7 @@ namespace LECOMS.Service.Services
                     LessonId = lessonId,
                     IsCompleted = true,
                     CompletedAt = DateTime.UtcNow,
-                    XpEarned = 5
+                    XpEarned = xpReward
                 };
 
                 await _uow.UserLessonProgresses.AddAsync(progress);
@@ -251,7 +258,7 @@ namespace LECOMS.Service.Services
                 {
                     progress.IsCompleted = true;
                     progress.CompletedAt = DateTime.UtcNow;
-                    progress.XpEarned = 5;
+                    progress.XpEarned = xpReward;
 
                     await _uow.UserLessonProgresses.UpdateAsync(progress);
                 }
@@ -290,7 +297,6 @@ namespace LECOMS.Service.Services
 
             return true;
         }
-
 
 
     }

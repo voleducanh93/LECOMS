@@ -16,5 +16,6 @@
 
         /// <summary>InProgress | Completed | Claimed</summary>
         public string Status { get; set; } = null!;
+        public bool IsRewardClaimed { get; set; }   // ⭐ NEW
     }
 }

@@ -26,14 +26,15 @@ namespace LECOMS.Service.Services
         private readonly IMapper _mapper;
         private readonly IEmailService _emailService;
         private readonly IUnitOfWork _unitOfWork;
-
+        private readonly IGamificationService _gamification;
         public AuthService(
             UserManager<User> userManager,
             RoleManager<IdentityRole> roleManager,
             IConfiguration configuration,
             IMapper mapper,
             IEmailService emailService,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IGamificationService gamificationService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -41,6 +42,7 @@ namespace LECOMS.Service.Services
             _mapper = mapper;
             _emailService = emailService;
             _unitOfWork = unitOfWork;
+            _gamification = gamificationService;
         }
 
         public async Task<LoginResponseDTO> LoginAsync(LoginRequestDTO loginRequestDTO)
@@ -158,6 +160,7 @@ namespace LECOMS.Service.Services
             await _unitOfWork.CustomerWallets.AddAsync(wallet);
             await _unitOfWork.CompleteAsync();
 
+            await _gamification.InitializeUserGamificationAsync(user.Id);
 
             // Generate confirmation email token and send email
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);

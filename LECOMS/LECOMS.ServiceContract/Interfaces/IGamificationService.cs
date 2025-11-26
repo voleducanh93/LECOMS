@@ -12,5 +12,7 @@ namespace LECOMS.ServiceContract.Interfaces
         Task HandleEventAsync(string userId, GamificationEventDTO dto);
         Task<LeaderboardDTO> GetLeaderboardAsync(string userId, string period); // "weekly" | "monthly" | "all"
         Task<RedeemResponseDTO> RedeemAsync(string userId, RedeemRequestDTO dto);
+        Task InitializeUserGamificationAsync(string userId);
+
     }
 }

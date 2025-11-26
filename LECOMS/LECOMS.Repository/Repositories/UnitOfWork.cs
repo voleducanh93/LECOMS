@@ -1,4 +1,5 @@
-﻿using LECOMS.Data.Models;
+﻿using LECOMS.Data.Entities;
+using LECOMS.Data.Models;
 using LECOMS.RepositoryContract.Interfaces;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
@@ -67,11 +68,14 @@ namespace LECOMS.Repository.Repositories
         public IFeedbackRepository Feedbacks { get; }
         public IFeedbackReplyRepository FeedbackReplies { get; }
         public IFeedbackImageRepository FeedbackImages { get; }
+        public IRepository<Badge> Badges { get;  }
+        public IRepository<UserBadge> UserBadges { get; }
+
 
         public UnitOfWork(LecomDbContext context, IUserRepository userRepository, IShopRepository shopRepository, ICourseRepository courseRepo, ICourseSectionRepository sectionRepo,
         ILessonRepository lessonRepo, ICourseProductRepository cpRepo, ICourseCategoryRepository courseCategories, IProductCategoryRepository productCategories, IProductRepository products, IEnrollmentRepository enrollmentRepository, IProductImageRepository productImageRepository, ILessonProductRepository lessonProductRepository, ILandingPageRepository landingPage, ICartRepository cartRepository, ICartItemRepository cartItemRepository, IOrderRepository orderRepository, IOrderDetailRepository orderDetailRepository, IPaymentRepository paymentRepository, ITransactionRepository transactionRepository, IShopWalletRepository shopWalletRepository, ICustomerWalletRepository customerWalletRepository, IWalletTransactionRepository walletTransactionRepository, ICustomerWalletTransactionRepository customerWalletTransactionRepository, IRefundRequestRepository refundRequestRepository, IWithdrawalRequestRepository withdrawalRequestRepository, ICustomerWithdrawalRequestRepository customerWithdrawalRequestRepository, IPlatformConfigRepository platformConfigRepository
             ,IConversationRepository conversationRepository, IMessageRepository messageRepository,
-     
+
 
     // ⭐ thêm mấy thằng gamification ở đây
     IPointWalletRepository pointWalletRepository,
@@ -87,8 +91,10 @@ namespace LECOMS.Repository.Repositories
     IRankTierRepository rankTierRepository,
     IBoosterRepository boosterRepository,
     IUserBoosterRepository userBoosterRepository, IUserLessonProgressRepository userLessonProgressRepository,
-    ICommunityPostRepository communityPostRepository, ICommentRepository commentRepository, ITransactionOrderRepository transactionOrderRepository, ITransactionOrderBreakdownRepository transactionOrderBreakdownRepository, IPlatformWalletRepository platformWalletRepository, IPlatformWalletTransactionRepository platformWalletTransactionRepository, IFeedbackRepository feedbackRepository, IFeedbackReplyRepository feedbackReplyRepository, IFeedbackImageRepository feedbackImageRepository
-)
+    ICommunityPostRepository communityPostRepository, ICommentRepository commentRepository, ITransactionOrderRepository transactionOrderRepository, 
+    ITransactionOrderBreakdownRepository transactionOrderBreakdownRepository, IPlatformWalletRepository platformWalletRepository, 
+    IPlatformWalletTransactionRepository platformWalletTransactionRepository, IFeedbackRepository feedbackRepository, 
+    IFeedbackReplyRepository feedbackReplyRepository, IFeedbackImageRepository feedbackImageRepository)
 
         {
             _context = context;
@@ -145,6 +151,9 @@ namespace LECOMS.Repository.Repositories
             Feedbacks = feedbackRepository;
             FeedbackReplies = feedbackReplyRepository;
             FeedbackImages = feedbackImageRepository;
+            Badges = new Repository<Badge>(context);
+            UserBadges = new Repository<UserBadge>(context);
+
         }
         public async Task<int> CompleteAsync()
         {

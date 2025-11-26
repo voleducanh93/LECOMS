@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿using LECOMS.Data.Entities;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -67,6 +68,8 @@ namespace LECOMS.RepositoryContract.Interfaces
         IFeedbackRepository Feedbacks { get; }
         IFeedbackReplyRepository FeedbackReplies { get; }
         IFeedbackImageRepository FeedbackImages { get; }
+        IRepository<Badge> Badges { get; }
+        IRepository<UserBadge> UserBadges { get; }
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
         bool HasActiveTransaction { get; }

@@ -95,26 +95,26 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
-        /// <summary>Gửi event gamification (complete lesson, purchase,...)</summary>
-        [HttpPost("events")]
-        public async Task<IActionResult> HandleEvent([FromBody] GamificationEventDTO dto)
-        {
-            var response = new APIResponse();
-            try
-            {
-                var userId = GetUserId();
-                await _service.HandleEventAsync(userId, dto);
-                response.StatusCode = HttpStatusCode.OK;
-                response.Result = true;
-            }
-            catch (Exception ex)
-            {
-                response.IsSuccess = false;
-                response.StatusCode = HttpStatusCode.InternalServerError;
-                response.ErrorMessages.Add(ex.Message);
-            }
-            return StatusCode((int)response.StatusCode, response);
-        }
+        ///// <summary>Gửi event gamification (complete lesson, purchase,...)</summary>
+        //[HttpPost("events")]
+        //public async Task<IActionResult> HandleEvent([FromBody] GamificationEventDTO dto)
+        //{
+        //    var response = new APIResponse();
+        //    try
+        //    {
+        //        var userId = GetUserId();
+        //        await _service.HandleEventAsync(userId, dto);
+        //        response.StatusCode = HttpStatusCode.OK;
+        //        response.Result = true;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        response.IsSuccess = false;
+        //        response.StatusCode = HttpStatusCode.InternalServerError;
+        //        response.ErrorMessages.Add(ex.Message);
+        //    }
+        //    return StatusCode((int)response.StatusCode, response);
+        //}
 
         /// <summary>Leaderboard Weekly/Monthly/All</summary>
         [HttpGet("leaderboard")]
