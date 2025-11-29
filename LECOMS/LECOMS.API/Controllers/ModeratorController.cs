@@ -31,6 +31,7 @@ namespace LECOMS.API.Controllers
             try
             {
                 var list = await _uow.Courses.Query()
+                    .Include(c => c.Shop)
                     .Where(c => c.ApprovalStatus == ApprovalStatus.Pending)
                     .Include(c => c.Shop)
                     .Select(c => new

@@ -397,6 +397,9 @@ namespace LECOMS.Service.Services
             if (!string.IsNullOrEmpty(dto.CategoryId)) course.CategoryId = dto.CategoryId;
             if (!string.IsNullOrEmpty(dto.CourseThumbnail)) course.CourseThumbnail = dto.CourseThumbnail;
             if (dto.Active.HasValue) course.Active = dto.Active.Value;
+            // ---------- QUAN TRỌNG: Reset kiểm duyệt ----------
+            course.ApprovalStatus = ApprovalStatus.Pending;
+            course.ModeratorNote = null;
 
             await _unitOfWork.Courses.UpdateAsync(course);
             await _unitOfWork.CompleteAsync();
