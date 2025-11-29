@@ -23,5 +23,7 @@ namespace LECOMS.ServiceContract.Interfaces
 
         // ✅ Admin dashboard thống kê refund
         Task<RefundDashboardDTO> GetAdminDashboardAsync();
+        Task<RefundRequestDTO?> GetByOrderIdAsync(string orderId, string userId);
+
     }
 }

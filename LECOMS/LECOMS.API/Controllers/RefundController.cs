@@ -271,6 +271,31 @@ namespace LECOMS.API.Controllers
                 return BadRequest(_response);
             }
         }
+
+        /// <summary>
+        /// Lấy refund request theo OrderId
+        /// </summary>
+        [HttpGet("by-order/{orderId}")]
+        [Authorize(Roles = "Customer, Seller", AuthenticationSchemes = "Bearer")]
+        public async Task<IActionResult> GetByOrderId(string orderId)
+        {
+            try
+            {
+                var userId = GetUserId();
+                var result = await _refundService.GetByOrderIdAsync(orderId, userId);
+
+                _response.StatusCode = HttpStatusCode.OK;
+                _response.Result = result;
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.StatusCode = HttpStatusCode.BadRequest;
+                _response.ErrorMessages.Add(ex.Message);
+                return BadRequest(_response);
+            }
+        }
     }
     public class UploadEvidenceDTO
     {
