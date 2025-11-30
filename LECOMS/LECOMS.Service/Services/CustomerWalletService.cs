@@ -87,7 +87,7 @@ namespace LECOMS.Service.Services
                 BalanceAfter = wallet.Balance,
                 Description = description,
                 ReferenceId = refundId,
-                ReferenceType = "RefundRequest",
+                ReferenceType = WalletTransactionType.Refund.ToString(),
                 CreatedAt = DateTime.UtcNow
             };
 

@@ -78,7 +78,7 @@ namespace LECOMS.Service.Services
                 BalanceType = "Pending",
                 Description = description,
                 ReferenceId = orderId,
-                ReferenceType = "Order",
+                ReferenceType = WalletTransactionType.OrderRevenue.ToString(),
                 CreatedAt = DateTime.UtcNow
             });
 
@@ -115,7 +115,7 @@ namespace LECOMS.Service.Services
                 BalanceType = "Pending",
                 Description = $"Release pending revenue for order {orderId}",
                 ReferenceId = orderId,
-                ReferenceType = "Order",
+                ReferenceType = WalletTransactionType.BalanceRelease.ToString(),
                 CreatedAt = DateTime.UtcNow
             });
 
@@ -130,7 +130,7 @@ namespace LECOMS.Service.Services
                 BalanceType = "Available",
                 Description = $"Revenue available for order {orderId}",
                 ReferenceId = orderId,
-                ReferenceType = "Order",
+                ReferenceType = WalletTransactionType.BalanceRelease.ToString(),
                 CreatedAt = DateTime.UtcNow
             });
 
@@ -235,7 +235,7 @@ namespace LECOMS.Service.Services
                 BalanceType = "Available",
                 Description = description,
                 ReferenceId = referenceId,
-                ReferenceType = "RefundRequest",
+                ReferenceType = WalletTransactionType.Refund.ToString(),
                 CreatedAt = DateTime.UtcNow
             });
 
@@ -299,7 +299,7 @@ namespace LECOMS.Service.Services
                 BalanceType = "Pending",
                 Description = description,
                 ReferenceId = referenceId,
-                ReferenceType = "Refund",
+                ReferenceType = type.ToString(),
                 CreatedAt = DateTime.UtcNow
             });
 
