@@ -300,8 +300,8 @@ namespace LECOMS.API.Controllers
                 var totalCustomersWithWallet = await _unitOfWork.CustomerWallets.CountAsync(_ => true);
 
                 // Pending requests
-                var pendingShopWithdrawals = await _unitOfWork.WithdrawalRequests.GetPendingRequestsAsync();
-                var pendingCustomerWithdrawals = await _unitOfWork.CustomerWithdrawalRequests.GetPendingRequestsAsync();
+                var pendingShopWithdrawals = await _unitOfWork.WithdrawalRequests.GetPendingAsync();
+                var pendingCustomerWithdrawals = await _unitOfWork.CustomerWithdrawalRequests.GetPendingAsync();
                 var pendingRefunds = await _unitOfWork.RefundRequests.GetByStatusAsync(RefundStatus.PendingShop);
 
                 return Success(new

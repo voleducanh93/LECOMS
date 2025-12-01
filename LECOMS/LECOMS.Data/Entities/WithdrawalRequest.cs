@@ -7,7 +7,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace LECOMS.Data.Entities
 {
     /// <summary>
-    /// Yêu cầu rút tiền của Shop
+    /// Yêu cầu rút tiền của Shop (từ ShopWallet → bank)
     /// </summary>
     [Index(nameof(ShopWalletId))]
     [Index(nameof(Status))]
@@ -23,7 +23,6 @@ namespace LECOMS.Data.Entities
         [ForeignKey(nameof(ShopWalletId))]
         public ShopWallet ShopWallet { get; set; } = null!;
 
-        // ⭐ SỬA: int thay vì string
         [Required]
         public int ShopId { get; set; }
 
@@ -53,19 +52,10 @@ namespace LECOMS.Data.Entities
         public User? ApprovedByUser { get; set; }
 
         public DateTime? ApprovedAt { get; set; }
-
-        [MaxLength(500)]
-        public string? RejectionReason { get; set; }
-
-        public DateTime? ProcessedAt { get; set; }
-
-        [MaxLength(255)]
-        public string? TransactionReference { get; set; }
-
         public DateTime? CompletedAt { get; set; }
 
         [MaxLength(500)]
-        public string? FailureReason { get; set; }
+        public string? RejectionReason { get; set; }
 
         public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
 
