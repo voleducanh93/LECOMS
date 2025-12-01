@@ -33,6 +33,28 @@ namespace LECOMS.API.Controllers
             _userManager = userManager;
         }
 
+        [HttpPost("init-schema")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> InitSchema([FromServices] RecombeeBootstrap bootstrap)
+        {
+            var res = new APIResponse();
+            try
+            {
+                await bootstrap.InitSchemaAsync();
+
+                res.StatusCode = HttpStatusCode.OK;
+                res.Result = "Recombee schema initialized successfully.";
+            }
+            catch (Exception ex)
+            {
+                res.IsSuccess = false;
+                res.StatusCode = HttpStatusCode.InternalServerError;
+                res.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)res.StatusCode, res);
+        }
+
         [HttpPost("sync-products")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SyncProducts()
