@@ -23,20 +23,11 @@
         /// </summary>
         Rejected = 2,
 
-        /// <summary>
-        /// Đang xử lý chuyển khoản ngân hàng
-        /// </summary>
-        Processing = 3,
 
         /// <summary>
         /// Đã chuyển khoản thành công
         /// </summary>
-        Completed = 4,
+        Completed = 3,
 
-        /// <summary>
-        /// Chuyển khoản thất bại
-        /// Cần hoàn tiền vào wallet
-        /// </summary>
-        Failed = 5
     }
 }
