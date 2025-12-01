@@ -43,7 +43,7 @@ namespace LECOMS.Service.Services
                         await ReleaseOrderBalancesAsync(scope);
 
                         // 2. Process withdrawals
-                        await ProcessWithdrawalsAsync(scope);
+                        //await ProcessWithdrawalsAsync(scope);
                     }
 
                     // Run every 1 hour
@@ -127,18 +127,18 @@ namespace LECOMS.Service.Services
         /// <summary>
         /// Process approved Yêu cầu rút tiền
         /// </summary>
-        private async Task ProcessWithdrawalsAsync(IServiceScope scope)
-        {
-            try
-            {
-                var withdrawalService = scope.ServiceProvider.GetRequiredService<IWithdrawalService>();
+        //private async Task ProcessWithdrawalsAsync(IServiceScope scope)
+        //{
+        //    try
+        //    {
+        //        var withdrawalService = scope.ServiceProvider.GetRequiredService<IWithdrawalService>();
 
-                await withdrawalService.ProcessApprovedWithdrawalsAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in ProcessWithdrawalsAsync");
-            }
-        }
+        //        await withdrawalService.ProcessApprovedWithdrawalsAsync();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error in ProcessWithdrawalsAsync");
+        //    }
+        //}
     }
 }

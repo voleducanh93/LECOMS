@@ -330,6 +330,60 @@ namespace LECOMS.Common.Helper
             CreateMap<PlatformWalletTransaction, PlatformWalletTransactionDTO>()
                 .ForMember(d => d.Type, o => o.MapFrom(s => s.Type.ToString()));
 
+
+            // ===================== WITHDRAWAL DTO MAPPING ==========================
+
+            // List Item (Customer)
+            CreateMap<CustomerWithdrawalRequest, WithdrawalListItemDTO>()
+                .ForMember(d => d.BankAccountNumberMasked,
+                    o => o.MapFrom(s =>
+                        s.BankAccountNumber.Length <= 4
+                            ? s.BankAccountNumber
+                            : new string('*', s.BankAccountNumber.Length - 4) + s.BankAccountNumber.Substring(s.BankAccountNumber.Length - 4)
+                    ));
+
+            // Detail (Shop)
+            CreateMap<WithdrawalRequest, ShopWithdrawalDetailDTO>()
+                .ForMember(d => d.Bank, o => o.MapFrom(s => new BankInfoDTO
+                {
+                    BankName = s.BankName,
+                    BankAccountName = s.BankAccountName,
+                    BankAccountNumber = s.BankAccountNumber,
+                    BankBranch = s.BankBranch
+                }))
+                .ForMember(d => d.Shop, o => o.MapFrom(s => new SimpleShopDTO
+                {
+                    ShopId = s.ShopId,
+                    ShopName = s.Shop.Name,
+                    ShopAvatar = s.Shop.ShopAvatar
+                }));
+
+
+            // List Item (Customer)
+            CreateMap<CustomerWithdrawalRequest, WithdrawalListItemDTO>()
+                .ForMember(d => d.BankAccountNumberMasked,
+                    o => o.MapFrom(s =>
+                        s.BankAccountNumber.Length <= 4
+                            ? s.BankAccountNumber
+                            : new string('*', s.BankAccountNumber.Length - 4) + s.BankAccountNumber.Substring(s.BankAccountNumber.Length - 4)
+                    ));
+
+            // Detail (Customer)
+            CreateMap<CustomerWithdrawalRequest, CustomerWithdrawalDetailDTO>()
+                .ForMember(d => d.Bank, o => o.MapFrom(s => new BankInfoDTO
+                {
+                    BankName = s.BankName,
+                    BankAccountName = s.BankAccountName,
+                    BankAccountNumber = s.BankAccountNumber,
+                    BankBranch = s.BankBranch
+                }))
+                .ForMember(d => d.Customer, o => o.MapFrom(s => new SimpleCustomerDTO
+                {
+                    CustomerId = s.CustomerId,
+                    UserName = s.Customer.UserName,
+                    Avatar = s.Customer.ImageUrl
+                }));
+
         }
     }
 }
