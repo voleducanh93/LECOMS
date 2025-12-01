@@ -85,7 +85,17 @@ builder.Services.AddQuartz(q =>
         .ForJob(recombeeJobKey)
         .WithIdentity("RecombeeSyncJob-trigger")
         .WithCronSchedule("0 0 3 * * ?"));
+    // ===============================
+    // RECOMBEE SYNC COURSES JOB
+    // ===============================
+    var recombeeCourseJobKey = new JobKey("RecombeeSyncCoursesJob");
+    q.AddJob<RecombeeSyncCoursesJob>(opts => opts.WithIdentity(recombeeCourseJobKey));
 
+    q.AddTrigger(opts => opts
+        .ForJob(recombeeCourseJobKey)
+        .WithIdentity("RecombeeSyncCoursesJob-trigger")
+        .WithCronSchedule("0 5 3 * * ?")    // chạy 3:05 sáng hằng ngày
+    );
     // ===========================
     // VOUCHER EXPIRE JOB
     // ===========================

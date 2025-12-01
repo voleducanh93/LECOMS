@@ -33,6 +33,86 @@ namespace LECOMS.API.Controllers
             _userManager = userManager;
         }
 
+        [HttpPost("sync-products")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> SyncProducts()
+        {
+            var res = new APIResponse();
+            try
+            {
+                int count = await _recombee.SyncProductsAsync();
+
+                res.StatusCode = HttpStatusCode.OK;
+                res.Result = new
+                {
+                    synced = count,
+                    message = "✅ Đồng bộ sản phẩm sang Recommbee thành công."
+                };
+            }
+            catch (Exception ex)
+            {
+                res.IsSuccess = false;
+                res.ErrorMessages.Add(ex.Message);
+                res.StatusCode = HttpStatusCode.InternalServerError;
+            }
+
+            return StatusCode((int)res.StatusCode, res);
+        }
+
+        [HttpPost("sync-courses")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> SyncCourses()
+        {
+            var res = new APIResponse();
+            try
+            {
+                int count = await _recombee.SyncCoursesAsync();
+
+                res.StatusCode = HttpStatusCode.OK;
+                res.Result = new
+                {
+                    synced = count,
+                    message = "✅ Đồng bộ khóa học sang Recommbee thành công."
+                };
+            }
+            catch (Exception ex)
+            {
+                res.IsSuccess = false;
+                res.ErrorMessages.Add(ex.Message);
+                res.StatusCode = HttpStatusCode.InternalServerError;
+            }
+
+            return StatusCode((int)res.StatusCode, res);
+        }
+
+        [HttpPost("sync-all")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> SyncAll()
+        {
+            var res = new APIResponse();
+            try
+            {
+                int p = await _recombee.SyncProductsAsync();
+                int c = await _recombee.SyncCoursesAsync();
+
+                res.StatusCode = HttpStatusCode.OK;
+                res.Result = new
+                {
+                    productsSynced = p,
+                    coursesSynced = c,
+                    message = "🔥 Đã sync toàn bộ PRODUCTS + COURSES lên Recommbee."
+                };
+            }
+            catch (Exception ex)
+            {
+                res.IsSuccess = false;
+                res.ErrorMessages.Add(ex.Message);
+                res.StatusCode = HttpStatusCode.InternalServerError;
+            }
+
+            return StatusCode((int)res.StatusCode, res);
+        }
+
         // --------------------------------------------------------------
         // 1) HOMEPAGE → RECOMMEND PRODUCTS
         // --------------------------------------------------------------

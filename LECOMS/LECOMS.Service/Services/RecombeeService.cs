@@ -56,6 +56,38 @@ namespace LECOMS.Service.Services
 
             return synced;
         }
+        public async Task<int> SyncCoursesAsync()
+        {
+            var courses = await _uow.Courses.Query()
+                .Include(c => c.Category)
+                .Include(c => c.Shop)
+                .ToListAsync();
+
+            int synced = 0;
+
+            foreach (var c in courses)
+            {
+                var itemValues = new Dictionary<string, object>
+                {
+                    ["type"] = "course",
+                    ["title"] = c.Title,
+                    ["slug"] = c.Slug,
+                    ["categoryId"] = c.CategoryId,
+                    ["categoryName"] = c.Category?.Name,
+                    ["shopId"] = c.ShopId,
+                    ["shopName"] = c.Shop?.Name,
+                    ["thumbnailUrl"] = c.CourseThumbnail
+                };
+
+                await _client.SendAsync(
+                    new SetItemValues(c.Id, itemValues, cascadeCreate: true)
+                );
+
+                synced++;
+            }
+
+            return synced;
+        }
 
         // ===========================================================================
         // 2️⃣ HOMEPAGE BROWSE → RECOMMENDED + CATEGORY + BEST SELLER
