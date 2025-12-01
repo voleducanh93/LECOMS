@@ -361,6 +361,25 @@ namespace LECOMS.Service.Services
             return list.OrderBy(r => r.RequestedAt).Select(MapToDto).ToList();
         }
 
+        public async Task<RefundRequestDTO?> GetByOrderIdAsync(string orderId, string userId)
+        {
+            var refund = await _uow.RefundRequests.GetAsync(
+                r => r.OrderId == orderId,
+                includeProperties: "Order,RequestedByUser,ShopResponseByUser,AdminResponseByUser");
+
+            if (refund == null)
+                return null;
+
+            // Chỉ cho xem nếu là người mua hoặc là seller của shop đó
+            bool isCustomer = refund.RequestedBy == userId;
+            bool isSeller = refund.Order?.Shop?.SellerId == userId;
+
+            if (!isCustomer && !isSeller)
+                throw new InvalidOperationException("Bạn không có quyền xem refund của đơn này.");
+
+            return MapToDto(refund);
+        }
+
 
         // ============================================================
         // MAPPER
