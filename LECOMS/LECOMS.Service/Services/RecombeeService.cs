@@ -114,6 +114,7 @@ namespace LECOMS.Service.Services
                 {
                     id = g.Key,
                     name = g.First().Category.Name,
+                    slug = g.First().Category.Slug,
                     products = _mapper.Map<IEnumerable<ProductDTO>>(g.Take(4))
                 })
                 .ToList();
@@ -263,6 +264,7 @@ namespace LECOMS.Service.Services
                 {
                     id = g.Key,
                     name = g.First().Category.Name,
+                    slug = g.First().Category.Slug,
                     products = _mapper.Map<IEnumerable<ProductDTO>>(g.Take(8))
                 })
                 .ToList();
