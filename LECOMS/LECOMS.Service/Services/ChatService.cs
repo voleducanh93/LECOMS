@@ -236,7 +236,7 @@ namespace LECOMS.Service.Services
         {
             return await _uow.Conversations.GetAllAsync(
                 c => c.BuyerId == userId,
-            includeProperties: "Product,Product.Images,Buyer,Seller"
+                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller,Seller.Shop"
             );
         }
 
@@ -248,7 +248,7 @@ namespace LECOMS.Service.Services
         {
             return await _uow.Conversations.GetAllAsync(
                 c => c.SellerId == sellerId && c.IsAIChat == false,
-            includeProperties: "Product,Product.Images,Buyer,Seller"
+                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller,Seller.Shop"
             );
         }
 
@@ -289,7 +289,7 @@ namespace LECOMS.Service.Services
         {
             var conv = await _uow.Conversations.GetAsync(
                 c => c.Id == conversationId && c.BuyerId == userId,
-                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller"
+                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller,Seller.Shop"
             );
 
             if (conv == null)
@@ -302,7 +302,8 @@ namespace LECOMS.Service.Services
         {
             var conv = await _uow.Conversations.GetAsync(
                 c => c.Id == conversationId && c.SellerId == sellerId && c.IsAIChat == false,
-                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller"
+                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller,Seller.Shop"
+
             );
 
             if (conv == null)
