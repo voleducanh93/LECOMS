@@ -334,6 +334,130 @@ namespace LECOMS.Service.Services
                 newArrivalProducts = newArrivalDto
             };
         }
+        public async Task<object> GetBrowseCoursesFeedAsync(string userId)
+        {
+            // --------------------------------------------------
+            // 1) Recommended courses từ Recombee
+            // --------------------------------------------------
+            var rec = await _client.SendAsync(
+                new RecommendItemsToUser(userId, 20, cascadeCreate: true)
+            );
+
+            var recIds = rec.Recomms.Select(r => r.Id).ToList();
+
+            List<Course> recommendedCourses;
+
+            // Nếu Recombee rỗng → fallback
+            if (!recIds.Any())
+            {
+                recommendedCourses = await _uow.Courses.Query()
+                    .Include(c => c.Category)
+                    .Include(c => c.Shop)
+                    .OrderByDescending(c => c.Id)   // fallback theo tạo mới
+                    .Take(20)
+                    .ToListAsync();
+            }
+            else
+            {
+                recommendedCourses = await _uow.Courses.Query()
+                    .Include(c => c.Category)
+                    .Include(c => c.Shop)
+                    .Where(c => recIds.Contains(c.Id))
+                    .ToListAsync();
+            }
+
+            var recommendedCoursesDto = _mapper.Map<IEnumerable<CourseDTO>>(recommendedCourses);
+
+
+            // --------------------------------------------------
+            // 2) Recommended categories (không bao giờ rỗng)
+            // --------------------------------------------------
+            List<object> recommendedCategories = new List<object>();
+
+            if (recommendedCourses.Any())
+            {
+                // Lấy categories từ recommended
+                recommendedCategories = recommendedCourses
+                    .GroupBy(c => c.CategoryId)
+                    .Select(g => new
+                    {
+                        id = g.Key,
+                        name = g.First().Category.Name,
+                        slug = g.First().Category.Slug,
+                        courses = _mapper.Map<IEnumerable<CourseDTO>>(g.Take(8))
+                    })
+                    .ToList<object>();
+            }
+            else
+            {
+                // --------------------------------------------------
+                // Fallback nếu recommendedCourses rỗng
+                // --------------------------------------------------
+
+                var allCourses = await _uow.Courses.Query()
+                    .Include(c => c.Category)
+                    .ToListAsync(); // load vào memory
+
+                var topCategories = allCourses
+                    .GroupBy(c => c.CategoryId)
+                    .OrderByDescending(g => g.Count())
+                    .Take(3)
+                    .ToList();
+
+                recommendedCategories = topCategories
+                    .Select(g => new
+                    {
+                        id = g.Key,
+                        name = g.First().Category.Name,
+                        slug = g.First().Category.Slug,
+                        courses = _mapper.Map<IEnumerable<CourseDTO>>(g.Take(8))
+                    })
+                    .ToList<object>();
+            }
+
+
+            // --------------------------------------------------
+            // 3) New Arrival Courses (fallback thêm dữ liệu)
+            // --------------------------------------------------
+            var newArrivals = await _uow.Courses.Query()
+                .Include(c => c.Category)
+                .Include(c => c.Shop)
+                .OrderByDescending(c => c.Id)
+                .Take(10)
+                .ToListAsync();
+
+            var newArrivalsDto = _mapper.Map<IEnumerable<CourseDTO>>(newArrivals);
+
+
+            // --------------------------------------------------
+            // 4) Popular Categories (nếu cần thêm section)
+            // --------------------------------------------------
+            var popularCategories = await _uow.Courses.Query()
+                .Include(c => c.Category)
+                .GroupBy(c => c.CategoryId)
+                .Select(g => new
+                {
+                    id = g.Key,
+                    name = g.First().Category.Name,
+                    slug = g.First().Category.Slug,
+                    count = g.Count()
+                })
+                .OrderByDescending(x => x.count)
+                .Take(5)
+                .ToListAsync();
+
+
+            // --------------------------------------------------
+            // FINAL RESPONSE
+            // --------------------------------------------------
+            return new
+            {
+                recommendedCourses = recommendedCoursesDto,
+                recommendedCategories = recommendedCategories,
+                newArrivalCourses = newArrivalsDto,
+                popularCategories = popularCategories
+            };
+        }
 
     }
 }

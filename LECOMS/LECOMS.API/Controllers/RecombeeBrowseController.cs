@@ -175,7 +175,7 @@ namespace LECOMS.API.Controllers
                 var userId = _userManager.GetUserId(User);
 
                 res.StatusCode = HttpStatusCode.OK;
-                res.Result = await _recombee.RecommendCoursesForUserAsync(userId);
+                res.Result = await _recombee.GetBrowseCoursesFeedAsync(userId);
             }
             catch (Exception ex)
             {
@@ -183,6 +183,7 @@ namespace LECOMS.API.Controllers
                 res.ErrorMessages.Add(ex.Message);
                 res.StatusCode = HttpStatusCode.InternalServerError;
             }
+
             return StatusCode((int)res.StatusCode, res);
         }
 
