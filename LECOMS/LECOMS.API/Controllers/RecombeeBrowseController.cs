@@ -148,7 +148,9 @@ namespace LECOMS.API.Controllers
                 var userId = _userManager.GetUserId(User);
 
                 res.StatusCode = HttpStatusCode.OK;
-                res.Result = await _recombee.RecommendProductsForUserAsync(userId);
+
+                // ⭐ Quan trọng: dùng feed tổng hợp
+                res.Result = await _recombee.GetBrowseFeedAsync(userId);
             }
             catch (Exception ex)
             {
@@ -158,6 +160,7 @@ namespace LECOMS.API.Controllers
             }
             return StatusCode((int)res.StatusCode, res);
         }
+
 
         // --------------------------------------------------------------
         // 2) HOMEPAGE → RECOMMEND COURSES

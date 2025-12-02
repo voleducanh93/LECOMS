@@ -222,5 +222,116 @@ namespace LECOMS.Service.Services
 
             return _mapper.Map<IEnumerable<CourseDTO>>(courses);
         }
+        public async Task<object> GetBrowseFeedAsync(string userId)
+        {
+            // --------------------------------------------------
+            // 1) Recommended items (Recombee)
+            // --------------------------------------------------
+            var rec = await _client.SendAsync(
+                new RecommendItemsToUser(userId, 20, cascadeCreate: true)
+            );
+
+            var recIds = rec.Recomms.Select(r => r.Id).ToList();
+
+            // Nếu Recombee rỗng → fallback mặc định
+            var recommendedProducts = await _uow.Products.Query()
+                .Include(p => p.Images)
+                .Include(p => p.Category)
+                .Include(p => p.Shop)
+                .Where(p => recIds.Contains(p.Id))
+                .ToListAsync();
+
+            if (!recommendedProducts.Any())
+            {
+                recommendedProducts = await _uow.Products.Query()
+                    .Include(p => p.Images)
+                    .Include(p => p.Category)
+                    .Include(p => p.Shop)
+                    .OrderByDescending(p => p.LastUpdatedAt)
+                    .Take(20)
+                    .ToListAsync();
+            }
+
+            var recommendedProductsDto = _mapper.Map<IEnumerable<ProductDTO>>(recommendedProducts);
+
+            // --------------------------------------------------
+            // 2) Recommended categories (group theo category)
+            // --------------------------------------------------
+            var recommendedCategories = recommendedProducts
+                .GroupBy(p => p.CategoryId)
+                .Select(g => new
+                {
+                    id = g.Key,
+                    name = g.First().Category.Name,
+                    products = _mapper.Map<IEnumerable<ProductDTO>>(g.Take(8))
+                })
+                .ToList();
+
+            // --------------------------------------------------
+            // 3) Best Sellers
+            // --------------------------------------------------
+            var bestIds = await _uow.OrderDetails.Query()
+                .GroupBy(o => o.ProductId)
+                .OrderByDescending(g => g.Count())
+                .Take(10)
+                .Select(g => g.Key)
+                .ToListAsync();
+
+            var bestSeller = await _uow.Products.Query()
+                .Include(p => p.Images)
+                .Include(p => p.Category)
+                .Include(p => p.Shop)
+                .Where(p => bestIds.Contains(p.Id))
+                .ToListAsync();
+
+            var bestSellerDto = _mapper.Map<IEnumerable<ProductDTO>>(bestSeller);
+
+            // --------------------------------------------------
+            // 4) Trending (7 ngày gần nhất)
+            // --------------------------------------------------
+            var trendingIds = await _uow.OrderDetails.Query()
+                .Include(od => od.Order)
+                .Where(od => od.Order.CreatedAt >= DateTime.UtcNow.AddDays(-7))
+                .GroupBy(od => od.ProductId)
+                .OrderByDescending(g => g.Count())
+                .Take(10)
+                .Select(g => g.Key)
+                .ToListAsync();
+
+            var trendingProducts = await _uow.Products.Query()
+                .Include(p => p.Images)
+                .Include(p => p.Category)
+                .Include(p => p.Shop)
+                .Where(p => trendingIds.Contains(p.Id))
+                .ToListAsync();
+
+            var trendingDto = _mapper.Map<IEnumerable<ProductDTO>>(trendingProducts);
+
+            // --------------------------------------------------
+            // 5) New Arrivals (sản phẩm mới nhất)
+            // --------------------------------------------------
+            var newArrival = await _uow.Products.Query()
+                .Include(p => p.Images)
+                .Include(p => p.Category)
+                .Include(p => p.Shop)
+                .OrderByDescending(p => p.LastUpdatedAt)
+                .Take(12)
+                .ToListAsync();
+
+            var newArrivalDto = _mapper.Map<IEnumerable<ProductDTO>>(newArrival);
+
+            // --------------------------------------------------
+            // FINAL RESPONSE
+            // --------------------------------------------------
+            return new
+            {
+                recommendedProducts = recommendedProductsDto,
+                recommendedCategories = recommendedCategories,
+                trendingProducts = trendingDto,
+                bestSellerProducts = bestSellerDto,
+                newArrivalProducts = newArrivalDto
+            };
+        }
+
     }
 }
