@@ -219,23 +219,25 @@ namespace LECOMS.Service.Services
 
         public async Task<bool> CompleteLessonAsync(string userId, string lessonId)
         {
-            // 1. Load lesson
+            // 1. Load lesson + Section + Course
             var lesson = await _uow.Lessons.GetAsync(
                 l => l.Id == lessonId,
-                includeProperties: "Section"
+                includeProperties: "Section,Section.Course"
             );
 
             if (lesson == null)
                 throw new KeyNotFoundException("Bài học không được tìm thấy.");
 
-            // ⭐ Load EarnRule: CompleteLesson
+            var courseId = lesson.Section.CourseId;
+
+            // 2. Earn rule (XP reward)
             var earnRule = await _uow.EarnRules.GetAsync(
                 r => r.Action == "CompleteLesson" && r.Active
             );
 
             int xpReward = earnRule?.Points ?? 5;
 
-            // 2. Load or create progress
+            // 3. Load or create progress
             var progress = await _uow.UserLessonProgresses.GetProgressAsync(userId, lessonId);
 
             if (progress == null)
@@ -252,21 +254,16 @@ namespace LECOMS.Service.Services
 
                 await _uow.UserLessonProgresses.AddAsync(progress);
             }
-            else
+            else if (!progress.IsCompleted)
             {
-                if (!progress.IsCompleted)
-                {
-                    progress.IsCompleted = true;
-                    progress.CompletedAt = DateTime.UtcNow;
-                    progress.XpEarned = xpReward;
+                progress.IsCompleted = true;
+                progress.CompletedAt = DateTime.UtcNow;
+                progress.XpEarned = xpReward;
 
-                    await _uow.UserLessonProgresses.UpdateAsync(progress);
-                }
+                await _uow.UserLessonProgresses.UpdateAsync(progress);
             }
 
-            // 3. Update course progress
-            var courseId = lesson.Section.CourseId;
-
+            // 4. Update enrollment progress
             var enrollment = await _uow.Enrollments.GetAsync(
                 e => e.UserId == userId && e.CourseId == courseId,
                 includeProperties: "Course,Course.Sections.Lessons"
@@ -274,21 +271,42 @@ namespace LECOMS.Service.Services
 
             if (enrollment != null)
             {
-                var allLessons = enrollment.Course.Sections.SelectMany(s => s.Lessons).Count();
+                // Get all lessons of this course
+                var lessonIdsOfCourse = enrollment.Course.Sections
+                    .SelectMany(s => s.Lessons)
+                    .Select(l => l.Id)
+                    .ToList();
 
-                var completedLessons = await _uow.UserLessonProgresses.Query()
-                    .Where(p => p.UserId == userId && p.IsCompleted)
+                int totalLessons = lessonIdsOfCourse.Count;
+
+                // Number of completed lessons of this course only
+                int completedLessons = await _uow.UserLessonProgresses.Query()
+                    .Where(p => p.UserId == userId &&
+                                p.IsCompleted &&
+                                lessonIdsOfCourse.Contains(p.LessonId))
                     .CountAsync();
 
-                enrollment.Progress = (int)((double)completedLessons / allLessons * 100);
+                // Calculate percent
+                int percent = totalLessons == 0
+                    ? 0
+                    : (int)(completedLessons * 100.0 / totalLessons);
+
+                if (percent > 100) percent = 100;
+
+                enrollment.Progress = percent;
+
+                // Mark course completed
+                if (percent == 100 && enrollment.CompletedAt == null)
+                {
+                    enrollment.CompletedAt = DateTime.UtcNow;
+                }
+
                 await _uow.Enrollments.UpdateAsync(enrollment);
             }
 
             await _uow.CompleteAsync();
 
-            // ===============================
-            // ⭐ GAMIFICATION EVENT HERE ⭐
-            // ===============================
+            // 5. Gamification event
             await _gamification.HandleEventAsync(userId, new GamificationEventDTO
             {
                 Action = "CompleteLesson",
@@ -297,7 +315,6 @@ namespace LECOMS.Service.Services
 
             return true;
         }
-
 
     }
 }

@@ -322,10 +322,40 @@ namespace LECOMS.Service.Services
 
         private async Task<Leaderboard> GetOrCreateLeaderboardAsync(string code, string period, DateTime start, DateTime end)
         {
-            var lb = await _uow.Leaderboards.GetAsync(
-                l => l.Code == code && l.StartAt <= DateTime.UtcNow && l.EndAt >= DateTime.UtcNow);
-            if (lb != null) return lb;
+            // 🔍 1) Lấy đúng leaderboard theo Code
+            var lb = await _uow.Leaderboards.GetAsync(l => l.Code == code);
 
+            // 🔥 Nếu đã tồn tại → update StartAt / EndAt nếu cần
+            if (lb != null)
+            {
+                bool changed = false;
+
+                // reset lại theo kỳ hiện tại
+                if (lb.StartAt != start)
+                {
+                    lb.StartAt = start;
+                    changed = true;
+                }
+
+                if (lb.EndAt != end)
+                {
+                    lb.EndAt = end;
+                    changed = true;
+                }
+
+                if (lb.Period != period)
+                {
+                    lb.Period = period;
+                    changed = true;
+                }
+
+                if (changed)
+                    await _uow.Leaderboards.UpdateAsync(lb);
+
+                return lb;
+            }
+
+            // 🆕 2) Nếu chưa có → tạo mới
             lb = new Leaderboard
             {
                 Id = Guid.NewGuid().ToString(),
@@ -334,10 +364,12 @@ namespace LECOMS.Service.Services
                 StartAt = start,
                 EndAt = end
             };
+
             await _uow.Leaderboards.AddAsync(lb);
             await _uow.CompleteAsync();
             return lb;
         }
+
 
         private async Task AddScoreToLeaderboard(Leaderboard lb, string userId, int delta)
         {

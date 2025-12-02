@@ -121,7 +121,7 @@ namespace LECOMS.Service.Services
 
             await _unitOfWork.Lessons.AddAsync(lesson);
             await _unitOfWork.CompleteAsync();
-
+            
             // Load lại để include Section (nếu cần)
             lesson = await _unitOfWork.Lessons.GetAsync(
                 l => l.Id == lesson.Id,
