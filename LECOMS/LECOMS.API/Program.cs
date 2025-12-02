@@ -144,16 +144,8 @@ builder.Services.AddQuartz(q =>
 });
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
-builder.Services.AddSignalR(options =>
-{
-    options.EnableDetailedErrors = true;
+builder.Services.AddSignalR();
 
-    // Server gửi ping mỗi 10s để tránh idle disconnect
-    options.KeepAliveInterval = TimeSpan.FromSeconds(10);
-
-    // Cho phép client im lặng tối đa 40s
-    options.ClientTimeoutInterval = TimeSpan.FromSeconds(40);
-});
 // Add UserManager and SignInManager for dependency injection
 builder.Services.AddScoped<UserManager<User>>();
 builder.Services.AddScoped<SignInManager<User>>();
@@ -285,11 +277,7 @@ using (var scope = app.Services.CreateScope())
 //if (app.Environment.IsDevelopment())
 //{
 app.UseSwagger();
-app.UseWebSockets(new WebSocketOptions
-{
-    KeepAliveInterval = TimeSpan.FromSeconds(10), // ping WebSocket
-    ReceiveBufferSize = 4 * 1024
-});
+app.UseWebSockets();
 app.UseSwaggerUI();
 //}
 //else
