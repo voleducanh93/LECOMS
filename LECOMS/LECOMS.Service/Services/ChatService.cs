@@ -27,7 +27,6 @@ namespace LECOMS.Service.Services
             _ai = aiProductChatService;
         }
 
-
         // ========================================================
         // 1. START Chat with Seller
         // ========================================================
@@ -72,7 +71,6 @@ namespace LECOMS.Service.Services
             return _mapper.Map<ConversationDTO>(conv);
         }
 
-
         // ========================================================
         // 2. START Chat with AI
         // ========================================================
@@ -109,7 +107,6 @@ namespace LECOMS.Service.Services
 
             return _mapper.Map<ConversationDTO>(loaded);
         }
-
 
         // ========================================================
         // 3. SEND message to seller
@@ -150,9 +147,8 @@ namespace LECOMS.Service.Services
             return await MapMessageAsync(message);
         }
 
-
         // ========================================================
-        // 4. SEND message to AI
+        // 4. SEND message to AI — bản cũ (1 step) vẫn giữ lại cho compatible
         // ========================================================
         public async Task<MessageDTO> SendAIMessage(Guid conversationId, string senderId, string content)
         {
@@ -167,6 +163,7 @@ namespace LECOMS.Service.Services
             if (!conversation.IsAIChat)
                 throw new InvalidOperationException("Đây không phải là cuộc trò chuyện AI.");
 
+            // lưu user
             var userMessage = new Message
             {
                 Id = Guid.NewGuid(),
@@ -200,116 +197,9 @@ namespace LECOMS.Service.Services
             return await MapMessageAsync(aiMsg);
         }
 
-
         // ========================================================
-        // 5. GET ALL messages + mark IsRead
+        // 4b. SEND message to AI — tách làm 2 bước (user + reply)
         // ========================================================
-        public async Task<IEnumerable<MessageDTO>> GetMessages(Guid conversationId, string currentUserId)
-        {
-            var conv = await _uow.Conversations.GetAsync(c => c.Id == conversationId);
-
-            if (conv == null)
-                throw new KeyNotFoundException("Không tìm thấy cuộc trò chuyện");
-
-            var messages = await _uow.Messages.GetByConversationAsync(conversationId);
-
-            var unread = messages
-                .Where(m => !m.IsRead && m.SenderId != currentUserId)
-                .ToList();
-
-            if (unread.Any())
-            {
-                foreach (var m in unread)
-                    m.IsRead = true;
-
-                await _uow.CompleteAsync();
-            }
-
-            return await MapMessagesAsync(messages);
-        }
-
-
-        // ========================================================
-        // 6. GET conversations (BUYER)
-        // ========================================================
-        public async Task<IEnumerable<Conversation>> GetUserConversationsAsync(string userId)
-        {
-            return await _uow.Conversations.GetAllAsync(
-                c => c.BuyerId == userId,
-            includeProperties: "Product,Product.Images,Buyer,Seller"
-            );
-        }
-
-
-        // ========================================================
-        // 7. GET conversations (SELLER)
-        // ========================================================
-        public async Task<IEnumerable<Conversation>> GetSellerConversationsAsync(string sellerId)
-        {
-            return await _uow.Conversations.GetAllAsync(
-                c => c.SellerId == sellerId && c.IsAIChat == false,
-            includeProperties: "Product,Product.Images,Buyer,Seller"
-            );
-        }
-
-
-        // ========================================================
-        // Helper: Map Message + include Sender info
-        // ========================================================
-        private async Task<MessageDTO> MapMessageAsync(Message msg)
-        {
-            var dto = _mapper.Map<MessageDTO>(msg);
-
-            if (msg.SenderId == "AI_SYSTEM")
-            {
-                dto.SenderName = "AI Assistant";
-                dto.SenderAvatar = "https://i.ibb.co/8mCVxNd/ai-avatar.png";
-            }
-            else
-            {
-                var user = await _uow.Users.GetAsync(u => u.Id == msg.SenderId);
-                dto.SenderName = user?.FullName;
-                dto.SenderAvatar = user?.ImageUrl;
-            }
-
-            return dto;
-        }
-
-
-        private async Task<IEnumerable<MessageDTO>> MapMessagesAsync(IEnumerable<Message> msgs)
-        {
-            var list = new List<MessageDTO>();
-
-            foreach (var msg in msgs)
-                list.Add(await MapMessageAsync(msg));
-
-            return list;
-        }
-        public async Task<ConversationDTO> GetUserConversationById(Guid conversationId, string userId)
-        {
-            var conv = await _uow.Conversations.GetAsync(
-                c => c.Id == conversationId && c.BuyerId == userId,
-                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller"
-            );
-
-            if (conv == null)
-                throw new UnauthorizedAccessException("Bạn không sở hữu cuộc trò chuyện này.");
-
-            return _mapper.Map<ConversationDTO>(conv);
-        }
-
-        public async Task<ConversationDTO> GetSellerConversationById(Guid conversationId, string sellerId)
-        {
-            var conv = await _uow.Conversations.GetAsync(
-                c => c.Id == conversationId && c.SellerId == sellerId && c.IsAIChat == false,
-                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller"
-            );
-
-            if (conv == null)
-                throw new UnauthorizedAccessException("Bạn không sở hữu cuộc trò chuyện này.");
-
-            return _mapper.Map<ConversationDTO>(conv);
-        }
         public async Task<MessageDTO> SendAIUserMessage(Guid conversationId, string senderId, string content)
         {
             var conversation = await _uow.Conversations.GetAsync(
@@ -341,6 +231,7 @@ namespace LECOMS.Service.Services
 
             return await MapMessageAsync(userMsg);
         }
+
         public async Task<MessageDTO> SendAIReply(Guid conversationId, string senderId, string content)
         {
             var conversation = await _uow.Conversations.GetAsync(
@@ -376,5 +267,130 @@ namespace LECOMS.Service.Services
             return await MapMessageAsync(aiMsg);
         }
 
+        // ========================================================
+        // 5. GET ALL messages + mark IsRead
+        // ========================================================
+        public async Task<IEnumerable<MessageDTO>> GetMessages(Guid conversationId, string currentUserId)
+        {
+            var conv = await _uow.Conversations.GetAsync(c => c.Id == conversationId);
+
+            if (conv == null)
+                throw new KeyNotFoundException("Không tìm thấy cuộc trò chuyện");
+
+            var messages = await _uow.Messages.GetByConversationAsync(conversationId);
+
+            var unread = messages
+                .Where(m => !m.IsRead && m.SenderId != currentUserId)
+                .ToList();
+
+            if (unread.Any())
+            {
+                foreach (var m in unread)
+                    m.IsRead = true;
+
+                await _uow.CompleteAsync();
+            }
+
+            return await MapMessagesAsync(messages);
+        }
+
+        // ========================================================
+        // 6. GET conversations (BUYER)
+        // ========================================================
+        public async Task<IEnumerable<Conversation>> GetUserConversationsAsync(string userId)
+        {
+            return await _uow.Conversations.GetAllAsync(
+                c => c.BuyerId == userId,
+                includeProperties: "Product,Product.Images,Buyer,Seller"
+            );
+        }
+
+        // ========================================================
+        // 7. GET conversations (SELLER)
+        // ========================================================
+        public async Task<IEnumerable<Conversation>> GetSellerConversationsAsync(string sellerId)
+        {
+            return await _uow.Conversations.GetAllAsync(
+                c => c.SellerId == sellerId && c.IsAIChat == false,
+                includeProperties: "Product,Product.Images,Buyer,Seller"
+            );
+        }
+
+        // ========================================================
+        // 8. GET ONE conversation (BUYER / SELLER)
+        // ========================================================
+        public async Task<ConversationDTO> GetUserConversationById(Guid conversationId, string userId)
+        {
+            var conv = await _uow.Conversations.GetAsync(
+                c => c.Id == conversationId && c.BuyerId == userId,
+                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller"
+            );
+
+            if (conv == null)
+                throw new UnauthorizedAccessException("Bạn không sở hữu cuộc trò chuyện này.");
+
+            return _mapper.Map<ConversationDTO>(conv);
+        }
+
+        public async Task<ConversationDTO> GetSellerConversationById(Guid conversationId, string sellerId)
+        {
+            var conv = await _uow.Conversations.GetAsync(
+                c => c.Id == conversationId && c.SellerId == sellerId && c.IsAIChat == false,
+                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller"
+            );
+
+            if (conv == null)
+                throw new UnauthorizedAccessException("Bạn không sở hữu cuộc trò chuyện này.");
+
+            return _mapper.Map<ConversationDTO>(conv);
+        }
+
+        // ========================================================
+        // 9. SUMMARY cho realtime danh sách
+        // ========================================================
+        public async Task<ConversationDTO> GetConversationSummary(Guid conversationId)
+        {
+            var conv = await _uow.Conversations.GetAsync(
+                c => c.Id == conversationId,
+                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller"
+            );
+
+            if (conv == null)
+                throw new KeyNotFoundException("Không tìm thấy cuộc trò chuyện.");
+
+            return _mapper.Map<ConversationDTO>(conv);
+        }
+
+        // ========================================================
+        // Helper: Map Message + include Sender info
+        // ========================================================
+        private async Task<MessageDTO> MapMessageAsync(Message msg)
+        {
+            var dto = _mapper.Map<MessageDTO>(msg);
+
+            if (msg.SenderId == "AI_SYSTEM")
+            {
+                dto.SenderName = "AI Assistant";
+                dto.SenderAvatar = "https://i.ibb.co/8mCVxNd/ai-avatar.png";
+            }
+            else
+            {
+                var user = await _uow.Users.GetAsync(u => u.Id == msg.SenderId);
+                dto.SenderName = user?.FullName;
+                dto.SenderAvatar = user?.ImageUrl;
+            }
+
+            return dto;
+        }
+
+        private async Task<IEnumerable<MessageDTO>> MapMessagesAsync(IEnumerable<Message> msgs)
+        {
+            var list = new List<MessageDTO>();
+
+            foreach (var msg in msgs)
+                list.Add(await MapMessageAsync(msg));
+
+            return list;
+        }
     }
 }
