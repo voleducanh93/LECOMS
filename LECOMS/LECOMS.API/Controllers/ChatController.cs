@@ -9,9 +9,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using System.Net;
-using System.Threading.Tasks;
-using System;
-using System.Collections.Generic;
 
 namespace LECOMS.API.Controllers
 {
@@ -100,25 +97,10 @@ namespace LECOMS.API.Controllers
             try
             {
                 var userId = _userManager.GetUserId(User);
-
-                // Lưu message
                 var msg = await _chatService.SendSellerMessage(conversationId, userId, dto.Content);
 
-                // 🔥 Broadcast message vào room cuộc trò chuyện
-                await _hub.Clients.Group($"CONV_{conversationId}")
+                await _hub.Clients.Group(conversationId.ToString())
                     .SendAsync("ReceiveMessage", msg);
-
-                // 🔥 Lấy summary của conversation để cập nhật danh sách realtime
-                var convSummary = await _chatService.GetConversationSummary(conversationId);
-
-                await _hub.Clients.Group($"USER_{convSummary.BuyerId}")
-                    .SendAsync("UpdateConversationList", convSummary);
-
-                if (!string.IsNullOrEmpty(convSummary.SellerId))
-                {
-                    await _hub.Clients.Group($"USER_{convSummary.SellerId}")
-                        .SendAsync("UpdateConversationList", convSummary);
-                }
 
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = msg;
@@ -148,22 +130,16 @@ namespace LECOMS.API.Controllers
                 // 1) Lưu tin nhắn của user
                 var userMsg = await _chatService.SendAIUserMessage(conversationId, userId, dto.Content);
 
-                // 🔥 Broadcast tin nhắn USER
-                await _hub.Clients.Group($"CONV_{conversationId}")
+                // 🔥 Broadcast tin nhắn của USER
+                await _hub.Clients.Group(conversationId.ToString())
                     .SendAsync("ReceiveMessage", userMsg);
 
                 // 2) AI trả lời
                 var aiMsg = await _chatService.SendAIReply(conversationId, userId, dto.Content);
 
-                // 🔥 Broadcast tin nhắn AI
-                await _hub.Clients.Group($"CONV_{conversationId}")
+                // 🔥 Broadcast tin nhắn của AI
+                await _hub.Clients.Group(conversationId.ToString())
                     .SendAsync("ReceiveMessage", aiMsg);
-
-                // 🔥 Cập nhật danh sách conversation cho buyer
-                var convSummary = await _chatService.GetConversationSummary(conversationId);
-
-                await _hub.Clients.Group($"USER_{convSummary.BuyerId}")
-                    .SendAsync("UpdateConversationList", convSummary);
 
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = aiMsg;
@@ -177,6 +153,7 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+
 
         // --------------------------
         // GET MESSAGES
@@ -254,7 +231,6 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
-
         // --------------------------
         // GET 1 CONVERSATION (BUYER)
         // --------------------------
@@ -282,6 +258,7 @@ namespace LECOMS.API.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
+
         // --------------------------
         // GET 1 CONVERSATION (SELLER)
         // --------------------------
@@ -308,5 +285,6 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+
     }
 }
