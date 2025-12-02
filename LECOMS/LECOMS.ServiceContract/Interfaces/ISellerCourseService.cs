@@ -33,7 +33,8 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<bool> DeleteCourseAsync(string courseId, string sellerId);
         Task<IEnumerable<SectionDTO>> GetSectionsByCourseAsync(string courseId);
         Task<IEnumerable<LessonDto>> GetLessonsBySectionAsync(string sectionId);
-        Task<CourseDTO> GetCourseBySlugAsync(string slug);
+        Task<CourseDTO> GetCourseBySlugAsync(string slug, string? userId);
+        Task<Course> GetCourseBySlugForRecommendAsync(string slug, string? userId);
 
     }
 }

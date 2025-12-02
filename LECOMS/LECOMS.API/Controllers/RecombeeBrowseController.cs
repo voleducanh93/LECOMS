@@ -223,9 +223,15 @@ namespace LECOMS.API.Controllers
             var res = new APIResponse();
             try
             {
-                var course = await _courseService.GetCourseBySlugAsync(slug);
-                var userId = _userManager.GetUserId(User) ?? "guest";
+                // ⭐ Lấy userId nếu có, còn không thì guest
+                var userId = User?.Identity?.IsAuthenticated == true
+                                ? _userManager.GetUserId(User)
+                                : "guest";
 
+                // ⭐ Lấy course không check approval (vì chỉ dùng để recommend)
+                var course = await _courseService.GetCourseBySlugForRecommendAsync(slug, userId);
+
+                // ⭐ tracking behavior
                 await _tracking.TrackViewAsync(userId, course.Id);
 
                 res.StatusCode = HttpStatusCode.OK;
@@ -237,7 +243,9 @@ namespace LECOMS.API.Controllers
                 res.ErrorMessages.Add(ex.Message);
                 res.StatusCode = HttpStatusCode.BadRequest;
             }
+
             return StatusCode((int)res.StatusCode, res);
         }
+
     }
 }

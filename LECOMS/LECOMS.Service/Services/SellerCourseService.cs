@@ -531,14 +531,18 @@ namespace LECOMS.Service.Services
         public async Task<CourseDTO> GetCourseBySlugAsync(string slug, string? userId)
         {
             var course = await _unitOfWork.Courses.GetAsync(
-                c => c.Slug == slug
-                  && c.Active == 1
-                  && c.ApprovalStatus == ApprovalStatus.Approved,
+                c => c.Slug == slug && c.Active == 1,
                 includeProperties: "Category,Shop"
             );
 
             if (course == null)
-                throw new KeyNotFoundException("Course không tìm thấy.");
+                throw new KeyNotFoundException("Course không tồn tại.");
+
+            bool isSellerOwner = (userId != null && course.Shop.SellerId == userId);
+
+            // ⭐ Customer chỉ được xem khi Approved
+            if (!isSellerOwner && course.ApprovalStatus != ApprovalStatus.Approved)
+                throw new UnauthorizedAccessException("Course chưa được duyệt.");
 
             return new CourseDTO
             {
@@ -555,5 +559,25 @@ namespace LECOMS.Service.Services
                 Active = course.Active
             };
         }
+        public async Task<Course> GetCourseBySlugForRecommendAsync(string slug, string? userId)
+        {
+            var course = await _unitOfWork.Courses.GetAsync(
+                c => c.Slug == slug && c.Active == 1,
+                includeProperties: "Shop"
+            );
+
+            if (course == null)
+                throw new KeyNotFoundException("Course không tồn tại.");
+
+            // ⭐ Seller luôn xem được
+            bool isSellerOwner = (userId != null && course.Shop.SellerId == userId);
+
+            // ⭐ Chỉ nếu là Customer bình thường -> enforce Approved
+            if (!isSellerOwner && course.ApprovalStatus != ApprovalStatus.Approved)
+                throw new UnauthorizedAccessException("Course chưa được duyệt.");
+
+            return course;
+        }
+
     }
 }

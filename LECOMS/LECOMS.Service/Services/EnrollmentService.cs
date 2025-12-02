@@ -107,6 +107,10 @@ namespace LECOMS.Service.Services
         }
         public async Task<object> GetLearningDetailAsync(string userId, string courseId)
         {
+            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(courseId))
+                throw new ArgumentException("Invalid userId or courseId.");
+
+            // 1) Load enrollment + Course + Shop + Category
             var enrollment = await _uow.Enrollments.GetAsync(
                 e => e.UserId == userId && e.CourseId == courseId,
                 includeProperties: "Course,Course.Shop,Course.Category"
@@ -117,83 +121,84 @@ namespace LECOMS.Service.Services
 
             var course = enrollment.Course;
 
-            // Load Sections + Lessons
+            // 2) Load all Sections + Lessons in 1 query
             var sections = await _uow.Sections.Query()
                 .Where(s => s.CourseId == courseId)
                 .Include(s => s.Lessons)
+                .OrderBy(s => s.OrderIndex)
                 .ToListAsync();
 
-            course.Sections = sections;
-
-            // Load user lesson progress
+            // 3) Load all user progress of this user
             var progressList = await _uow.UserLessonProgresses.Query()
                 .Where(lp => lp.UserId == userId)
                 .ToListAsync();
 
-            var allLessons = sections.SelectMany(s => s.Lessons).ToList();
+            // 4) Load ALL linked products for EVERY lesson in 1 single query
+            var lessonIds = sections.SelectMany(s => s.Lessons).Select(l => l.Id).ToList();
 
+            var allLinked = await _uow.LessonProducts.Query()
+                .Where(lp => lessonIds.Contains(lp.LessonId))
+                .Include(lp => lp.Product).ThenInclude(p => p.Category)
+                .Include(lp => lp.Product).ThenInclude(p => p.Images)
+                .Include(lp => lp.Product).ThenInclude(p => p.Shop)
+                .ToListAsync();
+
+            // COUNT PROGRESS
+            var allLessons = sections.SelectMany(s => s.Lessons).ToList();
             int totalLessons = allLessons.Count;
+
             int completedLessons = allLessons.Count(l =>
-                progressList.Any(p => p.LessonId == l.Id && p.IsCompleted));
+                progressList.Any(p => p.LessonId == l.Id && p.IsCompleted)
+            );
 
             double percent = totalLessons == 0 ? 0 : (completedLessons * 100.0 / totalLessons);
 
-            // Build final result with linked products
-            var resultSections = await Task.WhenAll(
-                sections
-                    .OrderBy(s => s.OrderIndex)
-                    .Select(async s => new
+            if (percent > 100) percent = 100;
+
+            // BUILD RESULT
+            var resultSections = sections.Select(s => new
+            {
+                id = s.Id,
+                title = s.Title,
+                orderIndex = s.OrderIndex,
+
+                lessons = s.Lessons
+                    .OrderBy(l => l.OrderIndex)
+                    .Select(l =>
                     {
-                        id = s.Id,
-                        title = s.Title,
-                        orderIndex = s.OrderIndex,
+                        var lp = progressList.FirstOrDefault(p => p.LessonId == l.Id);
 
-                        lessons = await Task.WhenAll(
-                            s.Lessons
-                                .OrderBy(l => l.OrderIndex)
-                                .Select(async l =>
-                                {
-                                    var lp = progressList.FirstOrDefault(p => p.LessonId == l.Id);
+                        var linked = allLinked.Where(x => x.LessonId == l.Id).ToList();
 
-                                    var linked = await _uow.LessonProducts.GetAllAsync(
-                                        x => x.LessonId == l.Id,
-                                        includeProperties: "Product,Product.Category,Product.Images,Product.Shop"
-                                    );
+                        var linkedProducts = linked.Select(x => new
+                        {
+                            id = x.Product.Id,
+                            name = x.Product.Name,
+                            price = x.Product.Price,
+                            slug = x.Product.Slug,
+                            categoryId = x.Product.CategoryId,
+                            categoryName = x.Product.Category?.Name,
+                            categorySlug = x.Product.Category?.Slug,
+                            thumbnailUrl = x.Product.Images
+                                             .OrderBy(i => i.OrderIndex)
+                                             .FirstOrDefault(i => i.IsPrimary)?.Url,
+                            shopName = x.Product.Shop?.Name
+                        }).ToList();
 
-                                    var linkedProducts = linked.Select(x => new
-                                    {
-                                        id = x.Product.Id,
-                                        name = x.Product.Name,
-                                        price = x.Product.Price,
-                                        slug = x.Product.Slug,
-                                        categoryId = x.Product.CategoryId,
-                                        categoryName = x.Product.Category?.Name,
-                                        categorySlug = x.Product.Category?.Slug,
-                                        thumbnailUrl = x.Product.Images
-                                                         .OrderBy(i => i.OrderIndex)
-                                                         .FirstOrDefault(i => i.IsPrimary)?.Url,
-                                        shopName = x.Product.Shop?.Name
-                                    }).ToList();
-
-
-                                    return new
-                                    {
-                                        id = l.Id,
-                                        title = l.Title,
-                                        type = l.Type.ToString(),
-                                        durationSeconds = l.DurationSeconds,
-                                        contentUrl = l.ContentUrl,
-                                        orderIndex = l.OrderIndex,
-                                        isCompleted = lp?.IsCompleted ?? false,
-                                        xpReward = lp?.XpEarned ?? 0,
-
-                                        // ⭐ PRODUCTS FOR THIS LESSON
-                                        linkedProducts = linkedProducts.Any() ? linkedProducts : null
-                                    };
-                                })
-                        )
+                        return new
+                        {
+                            id = l.Id,
+                            title = l.Title,
+                            type = l.Type.ToString(),
+                            durationSeconds = l.DurationSeconds,
+                            contentUrl = l.ContentUrl,
+                            orderIndex = l.OrderIndex,
+                            isCompleted = lp?.IsCompleted ?? false,
+                            xpReward = lp?.XpEarned ?? 0,
+                            linkedProducts = linkedProducts.Any() ? linkedProducts : null
+                        };
                     })
-            );
+            });
 
             return new
             {
@@ -215,6 +220,7 @@ namespace LECOMS.Service.Services
                 sections = resultSections
             };
         }
+
 
 
         public async Task<bool> CompleteLessonAsync(string userId, string lessonId)
