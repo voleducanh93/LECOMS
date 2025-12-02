@@ -528,7 +528,7 @@ namespace LECOMS.Service.Services
         /// <summary>
         /// Lấy course public theo slug (chỉ Approved)
         /// </summary>
-        public async Task<CourseDTO> GetCourseBySlugAsync(string slug)
+        public async Task<CourseDTO> GetCourseBySlugAsync(string slug, string? userId)
         {
             var course = await _unitOfWork.Courses.GetAsync(
                 c => c.Slug == slug
