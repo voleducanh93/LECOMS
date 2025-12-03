@@ -253,6 +253,19 @@ namespace LECOMS.Service.Services
         {
             var wallet = await GetOrCreateWalletAsync(shopId);
 
+            // Load danh sách yêu cầu rút tiền
+            var withdrawals = await _unitOfWork.WithdrawalRequests.GetAllAsync(
+                w => w.ShopId == shopId
+            );
+
+            var pendingWithdrawal = withdrawals
+                .Where(w => w.Status == WithdrawalStatus.Pending)
+                .Sum(w => w.Amount);
+
+            var approvedWithdrawal = withdrawals
+                .Where(w => w.Status == WithdrawalStatus.Approved)
+                .Sum(w => w.Amount);
+
             var pendingOrdersCount = await _unitOfWork.Orders.CountAsync(
                 o => o.ShopId == shopId &&
                      o.PaymentStatus == PaymentStatus.Paid &&
@@ -266,9 +279,14 @@ namespace LECOMS.Service.Services
                 TotalWithdrawn = wallet.TotalWithdrawn,
                 TotalRefunded = wallet.TotalRefunded,
                 PendingOrdersCount = pendingOrdersCount,
-                LastUpdated = wallet.LastUpdated
+                LastUpdated = wallet.LastUpdated,
+
+                // ⭐ TRẢ RA FIELD MỚI
+                PendingWithdrawalAmount = pendingWithdrawal,
+                ApprovedWithdrawalAmount = approvedWithdrawal
             };
         }
+
 
         public async Task<ShopWallet> DeductPendingOnlyAsync(int shopId, decimal amount, WalletTransactionType type, string referenceId,string description)
         {

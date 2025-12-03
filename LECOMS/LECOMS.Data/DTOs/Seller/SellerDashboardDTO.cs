@@ -120,7 +120,7 @@ namespace LECOMS.Data.DTOs.Seller
     {
         public decimal AvailableBalance { get; set; }      // Số dư khả dụng
         public decimal PendingBalance { get; set; }        // Đang giữ (chưa release)
-        public decimal TotalBalance => AvailableBalance + PendingBalance;
+        public decimal TotalEarned => AvailableBalance + PendingBalance;
 
         public decimal PendingWithdrawalAmount { get; set; }   // Đã gửi yêu cầu rút, đang chờ duyệt
         public decimal ApprovedWithdrawalAmount { get; set; }  // Tổng tiền rút đã approved (trong range)

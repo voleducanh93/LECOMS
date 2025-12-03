@@ -91,6 +91,8 @@ namespace LECOMS.API.Controllers
                     totalWithdrawn = summary.TotalWithdrawn,
                     totalRefunded = summary.TotalRefunded,
                     pendingOrdersCount = summary.PendingOrdersCount,
+                    PendingWithdrawalAmount = summary.PendingWithdrawalAmount,
+                    ApprovedWithdrawalAmount = summary.ApprovedWithdrawalAmount,
                     lastUpdated = summary.LastUpdated
                 });
             }
