@@ -66,6 +66,11 @@ namespace LECOMS.Data.Entities
         /// </summary>
         public bool AutoApproveRefund { get; set; } = false;
 
+        /// <summary>
+        /// SellerRefundResponseHours
+        /// </summary>
+        public int SellerRefundResponseHours { get; set; }
+
         // ============ PAYOS SETTINGS ⭐ MỚI ============
 
         /// <summary>

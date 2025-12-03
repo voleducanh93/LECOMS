@@ -141,6 +141,22 @@ builder.Services.AddQuartz(q =>
         )
     );
 
+    // ==========================
+    // AUTO ESCALATE REFUND JOB
+    // ==========================
+    var escalateRefundKey = new JobKey("AutoEscalateRefundJob");
+    q.AddJob<AutoEscalateRefundJob>(opts => opts.WithIdentity(escalateRefundKey));
+
+    q.AddTrigger(t => t
+        .ForJob(escalateRefundKey)
+        .WithIdentity("AutoEscalateRefundJob-trigger")
+        .WithSimpleSchedule(x => x
+            .WithIntervalInHours(1)  // chạy mỗi 1 giờ
+            .RepeatForever()
+        )
+    );
+
+
 });
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
