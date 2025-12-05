@@ -16,15 +16,18 @@ namespace LECOMS.Service.Services
         private readonly IUnitOfWork _uow;
         private readonly IMapper _mapper;
         private readonly IAIProductChatService _ai;
+        private readonly INotificationService _notification; // ⭐ Thêm mới
 
         public ChatService(
             IUnitOfWork uow,
             IMapper mapper,
-            IAIProductChatService aiProductChatService)
+            IAIProductChatService aiProductChatService,
+            INotificationService notification)
         {
             _uow = uow;
             _mapper = mapper;
             _ai = aiProductChatService;
+            _notification = notification; // ⭐ Gán service
         }
 
         // ========================================================
@@ -109,7 +112,7 @@ namespace LECOMS.Service.Services
         }
 
         // ========================================================
-        // 3. SEND message to seller
+        // 3. SEND message (BUYER <-> SELLER)
         // ========================================================
         public async Task<MessageDTO> SendSellerMessage(Guid conversationId, string senderId, string content)
         {
@@ -144,11 +147,28 @@ namespace LECOMS.Service.Services
 
             await _uow.CompleteAsync();
 
+            // ===================================
+            // 🔔 SEND NOTIFICATION FOR NEW MESSAGE
+            // ===================================
+            string receiverId = senderId == conversation.BuyerId
+                ? conversation.SellerId
+                : conversation.BuyerId;
+
+            if (!string.IsNullOrEmpty(receiverId))
+            {
+                await _notification.CreateAsync(
+                    receiverId,
+                    "ChatMessage",
+                    "Bạn có tin nhắn mới",
+                    content.Length > 80 ? content.Substring(0, 80) + "..." : content
+                );
+            }
+
             return await MapMessageAsync(message);
         }
 
         // ========================================================
-        // 4. SEND message to AI — bản cũ (1 step) vẫn giữ lại cho compatible
+        // 4. SEND message to AI — original version
         // ========================================================
         public async Task<MessageDTO> SendAIMessage(Guid conversationId, string senderId, string content)
         {
@@ -163,7 +183,7 @@ namespace LECOMS.Service.Services
             if (!conversation.IsAIChat)
                 throw new InvalidOperationException("Đây không phải là cuộc trò chuyện AI.");
 
-            // lưu user
+            // User message
             var userMessage = new Message
             {
                 Id = Guid.NewGuid(),
@@ -198,7 +218,7 @@ namespace LECOMS.Service.Services
         }
 
         // ========================================================
-        // 4b. SEND message to AI — tách làm 2 bước (user + reply)
+        // 4b. SEND User message to AI
         // ========================================================
         public async Task<MessageDTO> SendAIUserMessage(Guid conversationId, string senderId, string content)
         {
@@ -232,6 +252,9 @@ namespace LECOMS.Service.Services
             return await MapMessageAsync(userMsg);
         }
 
+        // ========================================================
+        // 4c. SEND AI reply
+        // ========================================================
         public async Task<MessageDTO> SendAIReply(Guid conversationId, string senderId, string content)
         {
             var conversation = await _uow.Conversations.GetAsync(
@@ -301,7 +324,7 @@ namespace LECOMS.Service.Services
         {
             return await _uow.Conversations.GetAllAsync(
                 c => c.BuyerId == userId,
-    includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller,Seller.Shop"
+                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller,Seller.Shop"
             );
         }
 
@@ -312,7 +335,7 @@ namespace LECOMS.Service.Services
         {
             return await _uow.Conversations.GetAllAsync(
                 c => c.SellerId == sellerId && c.IsAIChat == false,
-    includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller,Seller.Shop"
+                includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller,Seller.Shop"
             );
         }
 
@@ -324,7 +347,6 @@ namespace LECOMS.Service.Services
             var conv = await _uow.Conversations.GetAsync(
                 c => c.Id == conversationId && c.BuyerId == userId,
                 includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller,Seller.Shop"
-
             );
 
             if (conv == null)
@@ -338,7 +360,6 @@ namespace LECOMS.Service.Services
             var conv = await _uow.Conversations.GetAsync(
                 c => c.Id == conversationId && c.SellerId == sellerId && c.IsAIChat == false,
                 includeProperties: "Product,Product.Images,Product.Shop,Buyer,Seller,Seller.Shop"
-
             );
 
             if (conv == null)

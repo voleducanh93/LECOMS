@@ -94,5 +94,22 @@ namespace LECOMS.Service.Services
             }
             await _uow.CompleteAsync();
         }
+        // ⭐⭐ MỚI: Broadcast cho toàn bộ user đang active
+        public async Task<int> BroadcastToAllUsersAsync(string type, string title, string? content = null)
+        {
+            // Lấy tất cả user đang active
+            var users = await _uow.Users.GetAllUsersAsync(); // ⭐ dùng hàm có sẵn
+            var activeUsers = users.Where(u => u.IsActive).ToList();
+
+            int count = 0;
+
+            foreach (var user in users)
+            {
+                await CreateAsync(user.Id, type, title, content);
+                count++;
+            }
+
+            return count;
+        }
     }
 }

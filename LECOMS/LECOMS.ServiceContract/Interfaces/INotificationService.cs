@@ -9,5 +9,7 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<int> GetUnreadCountAsync(string userId);
         Task MarkAsReadAsync(string id, string userId);
         Task MarkAllAsReadAsync(string userId);
+        // ⭐ THÊM MỚI: Admin broadcast cho toàn bộ user
+        Task<int> BroadcastToAllUsersAsync(string type, string title, string? content = null);
     }
 }
