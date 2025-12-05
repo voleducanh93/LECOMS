@@ -50,6 +50,7 @@ namespace LECOMS.API.Controllers
                         minWithdrawalAmount = config.MinWithdrawalAmount,
                         maxWithdrawalAmount = config.MaxWithdrawalAmount,
                         maxRefundDays = config.MaxRefundDays,
+                        sellerRefundResponseHours = config.SellerRefundResponseHours,
 
                         // Hide sensitive info
                         // payOSEnvironment, clientId, apiKey, etc.
@@ -162,6 +163,12 @@ namespace LECOMS.API.Controllers
                     return BadRequest(new { success = false, message = "Max refund days must be between 0 and 365" });
                 }
 
+                if (request.SellerRefundResponseHours < 1 || request.SellerRefundResponseHours > 168)
+                {
+                    return BadRequest(new { success = false, message = "SellerRefundResponseHours phải từ 1 đến 168 (tối đa 7 ngày)" });
+                }
+
+
                 // Lấy config hiện tại
                 var config = await _unitOfWork.PlatformConfigs.GetConfigAsync();
 
@@ -172,6 +179,7 @@ namespace LECOMS.API.Controllers
                 config.MaxWithdrawalAmount = request.MaxWithdrawalAmount;
                 config.AutoApproveWithdrawal = request.AutoApproveWithdrawal;
                 config.MaxRefundDays = request.MaxRefundDays;
+                config.SellerRefundResponseHours = request.SellerRefundResponseHours;
                 config.AutoApproveRefund = request.AutoApproveRefund;
                 config.EnableEmailNotification = request.EnableEmailNotification;
                 config.EnableSMSNotification = request.EnableSMSNotification;
@@ -387,6 +395,54 @@ namespace LECOMS.API.Controllers
             }
         }
 
+
+        [HttpPatch("admin/refund-response-hours")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateRefundResponseHours([FromBody] UpdateRefundResponseHoursRequest request)
+        {
+            try
+            {
+                if (request.Hours < 1 || request.Hours > 168)
+                {
+                    return BadRequest(new { success = false, message = "Giờ phản hồi phải từ 1 đến 168 (tối đa 7 ngày)" });
+                }
+
+                var adminId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(adminId))
+                    return Unauthorized();
+
+                var config = await _unitOfWork.PlatformConfigs.GetConfigAsync();
+
+                var oldHours = config.SellerRefundResponseHours;
+                config.SellerRefundResponseHours = request.Hours;
+                config.LastUpdatedBy = adminId;
+                config.LastUpdated = DateTime.UtcNow;
+
+                await _unitOfWork.PlatformConfigs.UpdateConfigAsync(config);
+
+                _logger.LogInformation(
+                    "SellerRefundResponseHours updated from {OldHours} to {NewHours} by admin {AdminId}",
+                    oldHours, request.Hours, adminId);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Thời gian phản hồi refund của seller đã đổi từ {oldHours}h → {request.Hours}h",
+                    data = new
+                    {
+                        oldHours,
+                        newHours = request.Hours,
+                        updatedAt = config.LastUpdated
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating SellerRefundResponseHours");
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
+        }
+
         // ==================== HELPER METHODS ====================
 
         /// <summary>
@@ -416,6 +472,8 @@ namespace LECOMS.API.Controllers
 
         // Order Settings
         public int OrderHoldingDays { get; set; }
+
+        public int SellerRefundResponseHours { get; set; }
 
         // Withdrawal Settings
         public decimal MinWithdrawalAmount { get; set; }
@@ -451,5 +509,13 @@ namespace LECOMS.API.Controllers
     public class UpdateHoldingPeriodRequest
     {
         public int Days { get; set; }
+    }
+
+    /// <summary>
+    /// Request DTO cho update ResponseHoursRequest
+    /// </summary>
+    public class UpdateRefundResponseHoursRequest
+    {
+        public int Hours { get; set; }
     }
 }

@@ -64,13 +64,33 @@ namespace LECOMS.Service.Jobs
 
                 foreach (var order in orders)
                 {
+
                     try
                     {
+                        // ❗ BỔ SUNG: Nếu đơn hàng đang có yêu cầu hoàn tiền đang xử lý
+                        // thì KHÔNG được release tiền cho shop
+                        var pendingRefund = await _uow.RefundRequests.GetAsync(
+                            r => r.OrderId == order.Id &&
+                                 (r.Status == RefundStatus.PendingShop ||
+                                  r.Status == RefundStatus.PendingAdmin ||
+                                  r.Status == RefundStatus.ShopApproved)
+                        );
+
+                        if (pendingRefund != null)
+                        {
+                            _logger.LogInformation(
+                                "⏸ Bỏ qua đơn {OrderCode} vì đang có yêu cầu hoàn tiền trạng thái {Status}.",
+                                order.OrderCode,
+                                pendingRefund.Status);
+
+                            continue;
+                        }
+
                         var tx = await _uow.Transactions.GetByOrderIdAsync(order.Id);
 
                         if (tx == null)
                         {
-                            _logger.LogWarning("Không tìm thấy transaction cho Order {OrderId}", order.Id);
+                            _logger.LogWarning("Không tìm thấy giao dịch (Transaction) cho đơn hàng {OrderId}.", order.Id);
                             continue;
                         }
 

@@ -42,6 +42,9 @@ namespace LECOMS.ServiceContract.Interfaces
         public decimal TotalWithdrawn { get; set; }
         public decimal TotalRefunded { get; set; }
         public int PendingOrdersCount { get; set; }
+        // SellerDashboard-specific
+        public decimal PendingWithdrawalAmount { get; set; }
+        public decimal ApprovedWithdrawalAmount { get; set; }
         public DateTime LastUpdated { get; set; }
     }
 }
