@@ -23,6 +23,7 @@ namespace LECOMS.Service.Services
         private readonly IPlatformWalletService _platformWalletService;
         private readonly ILogger<OrderService> _logger;
         private readonly IGamificationService _gamification; // ⭐ thêm
+        private readonly INotificationService _notification;
 
         private const decimal FIXED_SHIPPING_FEE = 30000m;
 
@@ -34,7 +35,8 @@ namespace LECOMS.Service.Services
             IVoucherService voucherService,
             ILogger<OrderService> logger,
             IPlatformWalletService platformWalletService,
-            IGamificationService gamification)
+            IGamificationService gamification,
+            INotificationService notification)
         {
             _uow = uow;
             _paymentService = paymentService;
@@ -44,6 +46,7 @@ namespace LECOMS.Service.Services
             _logger = logger;
             _platformWalletService = platformWalletService;
             _gamification = gamification;
+            _notification = notification;
         }
 
         // =====================================================================
@@ -247,6 +250,22 @@ namespace LECOMS.Service.Services
 
                 await _uow.CompleteAsync();
                 await tx.CommitAsync();
+                // =============================
+                // 🔔 NOTIFICATION — NEW ORDER FOR SELLER
+                // =============================
+                foreach (var order in createdOrders)
+                {
+                    var shop = await _uow.Shops.GetAsync(s => s.Id == order.ShopId);
+                    if (shop != null && !string.IsNullOrEmpty(shop.SellerId))
+                    {
+                        await _notification.CreateAsync(
+                            shop.SellerId,
+                            "OrderNew",
+                            $"Bạn có đơn hàng mới #{order.OrderCode}",
+                            $"Khách hàng {order.User?.FullName ?? order.UserId} đã đặt đơn hàng tổng {order.Total:N0}đ."
+                        );
+                    }
+                }
 
                 return new CheckoutResultDTO
                 {
@@ -313,15 +332,51 @@ namespace LECOMS.Service.Services
         {
             var order = await _uow.Orders.GetAsync(
                 o => o.Id == orderId,
-                includeProperties: "Shop,User,Details,Details.Product,Details.Product.Images,Details.Product.Category"
-            );
+                includeProperties: "Shop,User");
 
             if (order == null)
                 throw new InvalidOperationException("Order không tìm thấy");
 
-            order.Status = Enum.Parse<OrderStatus>(status);
+            // ✔ Parse status đúng
+            var newStatus = Enum.Parse<OrderStatus>(status);
+
+            order.Status = newStatus;
             await _uow.Orders.UpdateAsync(order);
             await _uow.CompleteAsync();
+
+            // =======================================
+            // 🔔 NOTIFICATION — Order Status to Buyer
+            // =======================================
+            string title = "";
+            string? content = null;
+
+            switch (newStatus)
+            {
+                case OrderStatus.Processing:
+                    title = $"Đơn hàng #{order.OrderCode} đã được xác nhận";
+                    content = $"Shop {order.Shop?.Name} đang chuẩn bị đơn.";
+                    break;
+
+                case OrderStatus.Shipping:
+                    title = $"Đơn hàng #{order.OrderCode} đang được giao";
+                    content = $"Đơn hàng đang trên đường đến bạn.";
+                    break;
+
+                case OrderStatus.Completed:
+                    title = $"Đơn hàng #{order.OrderCode} đã giao thành công";
+                    content = $"Cảm ơn bạn đã mua hàng tại {order.Shop?.Name}.";
+                    break;
+            }
+
+            if (!string.IsNullOrWhiteSpace(title))
+            {
+                await _notification.CreateAsync(
+                    order.UserId,
+                    "OrderStatus",
+                    title,
+                    content
+                );
+            }
 
             return MapToDTO(order);
         }

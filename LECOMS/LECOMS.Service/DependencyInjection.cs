@@ -62,6 +62,7 @@
             services.AddTransient<IFeedbackService, FeedbackService>();
             services.AddTransient<ISellerDashboardService, SellerDashboardService>();
             services.AddTransient<IAchievementService, AchievementService>();
+            services.AddTransient<INotificationService, NotificationService>();
             services.AddScoped<IAdminDashboardService, AdminDashboardService>();
             return services;
             }
