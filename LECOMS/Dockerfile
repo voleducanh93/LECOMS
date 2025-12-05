@@ -33,3 +33,8 @@ EXPOSE 8080
 
 # Tránh phải ghi đúng tên DLL: chạy DLL đầu tiên tìm thấy
 ENTRYPOINT ["dotnet", "LECOMS.API.dll"]
+# =======================
+# 🩺 HEALTH CHECK
+# =======================
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD curl --fail http://localhost:8080/health || exit 1
