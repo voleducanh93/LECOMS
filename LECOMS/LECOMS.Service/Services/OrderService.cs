@@ -74,6 +74,21 @@ namespace LECOMS.Service.Services
                 if (!selectedItems.Any())
                     throw new InvalidOperationException("No valid products selected.");
 
+                var userShopIds = selectedItems
+                   .Select(i => i.Product.ShopId)
+                   .Distinct()
+                   .ToList();
+
+                foreach (var shopId in userShopIds)
+                {
+                    var shop = await _uow.Shops.GetAsync(s => s.Id == shopId);
+                    if (shop != null && shop.SellerId == userId)
+                    {
+                        throw new InvalidOperationException(
+                            $"Bạn không thể mua sản phẩm từ shop '{shop.Name}' của chính mình.");
+                    }
+                }
+
                 // Group theo shop
                 var grouped = selectedItems.GroupBy(i => i.Product.ShopId).ToList();
                 var createdOrders = new List<Order>();
@@ -420,7 +435,7 @@ namespace LECOMS.Service.Services
         {
             var order = await _uow.Orders.GetAsync(
                 o => o.Id == orderId,
-                includeProperties: "User,Shop,Details,Details.Product")
+                includeProperties: "User,Shop,Details,Details.Product,Details.Product.Images,Details.Product.Category")
                 ?? throw new InvalidOperationException("Order không tìm thấy.");
 
             // Kiểm tra quyền hủy đơn
