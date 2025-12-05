@@ -263,6 +263,58 @@ namespace LECOMS.API.Controllers
         }
 
         // =====================================================================
+        // CANCEL ORDER
+        // =====================================================================
+        [HttpPost("{orderId}/cancel")]
+        [Authorize(Roles = "Customer, Seller")]
+        public async Task<IActionResult> CancelOrder(string orderId, [FromBody] CancelOrderRequest request)
+        {
+            var response = new APIResponse();
+
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                var result = await _orderService.CancelOrderAsync(orderId, userId, request.CancelReason);
+
+                response.IsSuccess = true;
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
+
+                return Ok(response);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.Forbidden;
+                response.ErrorMessages.Add(ex.Message);
+                return StatusCode(403, response);
+            }
+            catch (InvalidOperationException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.BadRequest;
+                response.ErrorMessages.Add(ex.Message);
+                return BadRequest(response);
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+                return StatusCode(500, response);
+            }
+        }
+
+        // DTO for cancel request
+        public class CancelOrderRequest
+        {
+            public string CancelReason { get; set; } = string.Empty;
+        }
+
+        // =====================================================================
         // DTO FOR STATUS UPDATE
         // =====================================================================
         public class UpdateOrderStatusRequest

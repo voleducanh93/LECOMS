@@ -416,6 +416,99 @@ namespace LECOMS.Service.Services
             return MapToDTO(order);
         }
 
+        public async Task<OrderDTO> CancelOrderAsync(string orderId, string userId, string cancelReason)
+        {
+            var order = await _uow.Orders.GetAsync(
+                o => o.Id == orderId,
+                includeProperties: "User,Shop,Details,Details.Product")
+                ?? throw new InvalidOperationException("Order không tìm thấy.");
+
+            // Kiểm tra quyền hủy đơn
+            var user = await _uow.Users.GetAsync(u => u.Id == userId);
+            bool isCustomer = order.UserId == userId;
+            bool isSeller = user?.Shop?.Id == order.ShopId;
+
+            if (!isCustomer && !isSeller)
+                throw new UnauthorizedAccessException("Bạn không có quyền hủy đơn hàng này.");
+
+            // Chỉ cho phép hủy đơn ở trạng thái Pending, Paid, Processing
+            if (order.Status != OrderStatus.Pending &&
+                order.Status != OrderStatus.Paid &&
+                order.Status != OrderStatus.Processing)
+                throw new InvalidOperationException(
+                    "Không thể hủy đơn hàng ở trạng thái hiện tại.  Chỉ có thể hủy đơn Pending/Paid/Processing.");
+
+            // Hoàn lại stock sản phẩm
+            foreach (var detail in order.Details)
+            {
+                var product = detail.Product;
+                if (product != null)
+                {
+                    product.Stock += detail.Quantity;
+                    await _uow.Products.UpdateAsync(product);
+                }
+            }
+
+            // Xử lý hoàn tiền nếu đã thanh toán
+            if (order.PaymentStatus == PaymentStatus.Paid)
+            {
+                // Hoàn tiền về CustomerWallet
+                await _customerWalletService.AddBalanceAsync(
+                    order.UserId,
+                    order.Total,
+                    order.Id,
+                    $"Hoàn tiền đơn hàng {order.OrderCode} - Lý do: {cancelReason}");
+
+                // Trừ tiền trong ShopWallet. PendingBalance
+                await _shopWalletService.DeductPendingOnlyAsync(
+                    order.ShopId,
+                    order.Total - order.ShippingFee,
+                    WalletTransactionType.Refund,
+                    order.Id,
+                    $"Hoàn tiền đơn hàng {order.OrderCode} - Lý do: {cancelReason}");
+
+                order.PaymentStatus = PaymentStatus.Refunded;
+            }
+
+            // Cập nhật trạng thái đơn hàng
+            order.Status = OrderStatus.Cancelled;
+            await _uow.Orders.UpdateAsync(order);
+
+            // Cập nhật transaction
+            var tx = await _uow.Transactions.GetByOrderIdAsync(orderId);
+            if (tx != null)
+            {
+                tx.Status = TransactionStatus.Cancelled;
+                await _uow.Transactions.UpdateAsync(tx);
+            }
+
+            await _uow.CompleteAsync();
+
+            // Gửi thông báo
+            string notificationMessage = isCustomer
+                ? $"Khách hàng đã hủy đơn hàng {order.OrderCode}.  Lý do: {cancelReason}"
+                : $"Shop đã hủy đơn hàng {order.OrderCode}. Lý do: {cancelReason}";
+
+            if (isCustomer && !string.IsNullOrEmpty(order.Shop?.SellerId))
+            {
+                await _notification.CreateAsync(
+                    order.Shop.SellerId,
+                    "Đơn hàng bị hủy",
+                    notificationMessage,
+                    $"/shop/orders/{order.Id}");
+            }
+            else if (isSeller)
+            {
+                await _notification.CreateAsync(
+                    order.UserId,
+                    "Đơn hàng bị hủy",
+                    notificationMessage,
+                    $"/orders/{order.Id}");
+            }
+
+            return MapToDTO(order);
+        }
+
         // =====================================================================
         // SUPPORT
         // =====================================================================
