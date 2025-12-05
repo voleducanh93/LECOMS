@@ -30,11 +30,12 @@ namespace LECOMS.API.Controllers
         }
 
         // ================================================================
-        // CUSTOMER: Create feedback
+        // CUSTOMER: Create feedback với upload ảnh tích hợp
         // ================================================================
         [HttpPost]
         [Authorize(Roles = "Customer,Seller")]
-        public async Task<IActionResult> CreateFeedback(CreateFeedbackRequestDTO dto)
+        [Consumes("multipart/form-data")] // Quan trọng: Cho phép nhận file upload
+        public async Task<IActionResult> CreateFeedback([FromForm] CreateFeedbackRequestDTO dto)
         {
             Reset();
 
@@ -49,6 +50,7 @@ namespace LECOMS.API.Controllers
                     return Unauthorized(_response);
                 }
 
+                // Service sẽ xử lý upload ảnh và tạo feedback
                 var result = await _feedbackService.CreateFeedbackAsync(userId, dto);
                 _response.Result = result;
             }
@@ -63,11 +65,12 @@ namespace LECOMS.API.Controllers
         }
 
         // ==========================
-        // CUSTOMER/SELLER: Update feedback của mình
+        // CUSTOMER/SELLER: Update feedback với upload ảnh tích hợp
         // ==========================
         [HttpPut("{feedbackId}")]
         [Authorize(Roles = "Customer,Seller")]
-        public async Task<IActionResult> UpdateFeedback(string feedbackId, [FromBody] UpdateFeedbackRequestDTO dto)
+        [Consumes("multipart/form-data")] // Cho phép nhận file upload
+        public async Task<IActionResult> UpdateFeedback(string feedbackId, [FromForm] UpdateFeedbackRequestDTO dto)
         {
             Reset();
 

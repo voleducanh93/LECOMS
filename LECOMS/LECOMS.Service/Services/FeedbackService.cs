@@ -14,10 +14,12 @@ namespace LECOMS.Service.Services
     public class FeedbackService : IFeedbackService
     {
         private readonly IUnitOfWork _uow;
+        private readonly IPhotoService _photoService;
 
-        public FeedbackService(IUnitOfWork uow)
+        public FeedbackService(IUnitOfWork uow, IPhotoService photoService)
         {
             _uow = uow;
+            _photoService = photoService;
         }
 
         public async Task<FeedbackDTO> CreateFeedbackAsync(string userId, CreateFeedbackRequestDTO dto)
@@ -64,18 +66,39 @@ namespace LECOMS.Service.Services
 
             await _uow.Feedbacks.AddAsync(feedback);
 
-            // Thêm hình ảnh nếu có
-            if (dto.ImageUrls != null && dto.ImageUrls.Any())
+            // ========================================
+            // XỬ LÝ UPLOAD HÌNH ẢNH TRỰC TIẾP
+            // ========================================
+            if (dto.Images != null && dto.Images.Any())
             {
-                foreach (var url in dto.ImageUrls)
+                foreach (var file in dto.Images)
                 {
-                    var img = new FeedbackImage
+                    if (file != null && file.Length > 0)
                     {
-                        FeedbackId = feedback.Id,
-                        Url = url
-                    };
-                    await _uow.FeedbackImages.AddAsync(img);
-                    feedback.Images.Add(img);
+                        try
+                        {
+                            // Upload từng ảnh lên Cloudinary
+                            var uploadResult = await _photoService.AddPhotoAsync(file);
+
+                            if (uploadResult?.SecureUrl != null)
+                            {
+                                // Lưu URL vào database
+                                var img = new FeedbackImage
+                                {
+                                    FeedbackId = feedback.Id,
+                                    Url = uploadResult.SecureUrl.AbsoluteUri
+                                };
+                                await _uow.FeedbackImages.AddAsync(img);
+                                feedback.Images.Add(img);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // Log lỗi nhưng không fail toàn bộ request
+                            // Bạn có thể thêm logging ở đây
+                            Console.WriteLine($"Error uploading image {file.FileName}: {ex.Message}");
+                        }
+                    }
                 }
             }
 
@@ -406,7 +429,7 @@ namespace LECOMS.Service.Services
 
             var feedback = await _uow.Feedbacks.GetAsync(
                 f => f.Id == feedbackId,
-                includeProperties: "User,Images,Reply"
+                includeProperties: "User,Images,Reply,Reply.Images"
             );
 
             if (feedback == null)
@@ -419,10 +442,10 @@ namespace LECOMS.Service.Services
             feedback.Rating = dto.Rating;
             feedback.Content = dto.Content;
 
-            // Xử lý ảnh:
-            // - Nếu ImageUrls = null => giữ nguyên
-            // - Nếu ImageUrls != null => replace toàn bộ
-            if (dto.ImageUrls != null)
+            // ========================================
+            // XỬ LÝ UPLOAD HÌNH ẢNH MỚI
+            // ========================================
+            if (dto.Images != null && dto.Images.Any())
             {
                 // Xóa ảnh cũ
                 if (feedback.Images != null && feedback.Images.Any())
@@ -434,16 +457,33 @@ namespace LECOMS.Service.Services
                     feedback.Images.Clear();
                 }
 
-                // Thêm ảnh mới
-                foreach (var url in dto.ImageUrls)
+                // Upload và thêm ảnh mới
+                foreach (var file in dto.Images)
                 {
-                    var img = new FeedbackImage
+                    if (file != null && file.Length > 0)
                     {
-                        FeedbackId = feedback.Id,
-                        Url = url
-                    };
-                    await _uow.FeedbackImages.AddAsync(img);
-                    feedback.Images.Add(img);
+                        try
+                        {
+                            // Upload lên Cloudinary
+                            var uploadResult = await _photoService.AddPhotoAsync(file);
+
+                            if (uploadResult?.SecureUrl != null)
+                            {
+                                // Lưu URL vào database
+                                var img = new FeedbackImage
+                                {
+                                    FeedbackId = feedback.Id,
+                                    Url = uploadResult.SecureUrl.AbsoluteUri
+                                };
+                                await _uow.FeedbackImages.AddAsync(img);
+                                feedback.Images.Add(img);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error uploading image {file.FileName}: {ex.Message}");
+                        }
+                    }
                 }
             }
 
@@ -453,7 +493,7 @@ namespace LECOMS.Service.Services
             // Load lại cho chắc navigation
             var full = await _uow.Feedbacks.GetAsync(
                 f => f.Id == feedbackId,
-                includeProperties: "User,Images,Reply"
+                includeProperties: "User,Images,Reply,Reply. Images"
             );
 
             return MapToDTO(full);

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,7 +14,7 @@ namespace LECOMS.Data.DTOs.Feedback
         public int Rating { get; set; }    // 1-5
         public string Content { get; set; }
 
-        // FE sẽ upload ảnh trước, rồi gửi list URL vào
-        public List<string>? ImageUrls { get; set; }
+        // Upload file ảnh trực tiếp - Frontend gửi file qua form-data
+        public List<IFormFile>? Images { get; set; }
     }
 }
