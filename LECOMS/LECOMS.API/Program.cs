@@ -1,5 +1,6 @@
 ﻿using LECOMS.API.Hubs;
 using LECOMS.Common.Helper;
+using LECOMS.Common.Hubs;
 using LECOMS.Data.Entities;
 using LECOMS.Service;
 using LECOMS.Service.Jobs;
@@ -286,6 +287,7 @@ app.UseSwaggerUI();
 //    app.UseHsts();
 //}
 app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.UseCors("AllowFrontend"); // Enable CORS Policy
 

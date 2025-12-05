@@ -70,6 +70,7 @@ namespace LECOMS.RepositoryContract.Interfaces
         IFeedbackImageRepository FeedbackImages { get; }
         IRepository<Badge> Badges { get; }
         IRepository<UserBadge> UserBadges { get; }
+        INotificationRepository Notifications { get; }
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
         bool HasActiveTransaction { get; }

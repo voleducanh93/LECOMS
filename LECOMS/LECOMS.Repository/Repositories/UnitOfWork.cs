@@ -70,6 +70,7 @@ namespace LECOMS.Repository.Repositories
         public IFeedbackImageRepository FeedbackImages { get; }
         public IRepository<Badge> Badges { get;  }
         public IRepository<UserBadge> UserBadges { get; }
+        public INotificationRepository Notifications { get; }
 
 
         public UnitOfWork(LecomDbContext context, IUserRepository userRepository, IShopRepository shopRepository, ICourseRepository courseRepo, ICourseSectionRepository sectionRepo,
@@ -94,7 +95,7 @@ namespace LECOMS.Repository.Repositories
     ICommunityPostRepository communityPostRepository, ICommentRepository commentRepository, ITransactionOrderRepository transactionOrderRepository, 
     ITransactionOrderBreakdownRepository transactionOrderBreakdownRepository, IPlatformWalletRepository platformWalletRepository, 
     IPlatformWalletTransactionRepository platformWalletTransactionRepository, IFeedbackRepository feedbackRepository, 
-    IFeedbackReplyRepository feedbackReplyRepository, IFeedbackImageRepository feedbackImageRepository)
+    IFeedbackReplyRepository feedbackReplyRepository, IFeedbackImageRepository feedbackImageRepository, INotificationRepository notificationRepository)
 
         {
             _context = context;
@@ -153,6 +154,7 @@ namespace LECOMS.Repository.Repositories
             FeedbackImages = feedbackImageRepository;
             Badges = new Repository<Badge>(context);
             UserBadges = new Repository<UserBadge>(context);
+            Notifications = notificationRepository;
 
         }
         public async Task<int> CompleteAsync()

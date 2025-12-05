@@ -69,6 +69,7 @@ namespace LECOMS.Repository
             services.AddScoped<IFeedbackRepository, FeedbackRepository>();
             services.AddScoped<IFeedbackImageRepository, FeedbackImageRepository>();
             services.AddScoped<IFeedbackReplyRepository, FeedbackReplyRepository>();
+            services.AddScoped<INotificationRepository, NotificationRepository>();  
             //DI Unit Of Work
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             return services;
