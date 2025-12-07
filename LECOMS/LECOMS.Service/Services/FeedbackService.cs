@@ -429,7 +429,7 @@ namespace LECOMS.Service.Services
 
             var feedback = await _uow.Feedbacks.GetAsync(
                 f => f.Id == feedbackId,
-                includeProperties: "User,Images,Reply,Reply.Images"
+                includeProperties: "User,Images,Reply"
             );
 
             if (feedback == null)
@@ -493,7 +493,7 @@ namespace LECOMS.Service.Services
             // Load lại cho chắc navigation
             var full = await _uow.Feedbacks.GetAsync(
                 f => f.Id == feedbackId,
-                includeProperties: "User,Images,Reply,Reply. Images"
+                includeProperties: "User,Images,Reply"
             );
 
             return MapToDTO(full);
