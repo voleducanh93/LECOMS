@@ -72,6 +72,15 @@ namespace LECOMS.Service.Services
             };
 
             await _unitOfWork.CustomerWithdrawalRequests.AddAsync(request);
+
+            // ⭐ TRỪ TIỀN NGAY KHI TẠO YÊU CẦU
+            await _customerWalletService.DeductBalanceAsync(
+                dto.CustomerId,
+                dto.Amount,
+                WalletTransactionType.Withdrawal,
+                request.Id,
+                $"Giữ tiền cho yêu cầu rút tiền vào {dto.BankName}");
+
             await _unitOfWork.CompleteAsync();
 
             return request;
@@ -99,12 +108,12 @@ namespace LECOMS.Service.Services
             if (!hasBalance)
                 throw new InvalidOperationException("Số dư không đủ để rút");
 
-            await _customerWalletService.DeductBalanceAsync(
-                withdrawal.CustomerId,
-                withdrawal.Amount,
-                WalletTransactionType.Withdrawal,
-                withdrawal.Id,
-                $"Rút tiền vào tài khoản {withdrawal.BankName}");
+            //await _customerWalletService.DeductBalanceAsync(
+            //    withdrawal.CustomerId,
+            //    withdrawal.Amount,
+            //    WalletTransactionType.Withdrawal,
+            //    withdrawal.Id,
+            //    $"Rút tiền vào tài khoản {withdrawal.BankName}");
 
             withdrawal.Status = WithdrawalStatus.Approved;
             withdrawal.ApprovedBy = adminId;
@@ -123,8 +132,15 @@ namespace LECOMS.Service.Services
                             ?? throw new InvalidOperationException("Yêu cầu không tìm thấy");
 
             if (withdrawal.Status != WithdrawalStatus.Approved)
-                throw new InvalidOperationException("Chỉ complete khi Approved");
+                throw new InvalidOperationException("Chỉ complete được khi đã Approved");
 
+            // ⭐ CẬP NHẬT TotalWithdrawn khi hoàn tất rút tiền
+            var wallet = await _customerWalletService.GetOrCreateWalletAsync(withdrawal.CustomerId);
+            wallet.TotalWithdrawn += withdrawal.Amount;
+            wallet.LastUpdated = DateTime.UtcNow;
+            await _unitOfWork.CustomerWallets.UpdateAsync(wallet);
+
+            // Cập nhật status của withdrawal request
             withdrawal.Status = WithdrawalStatus.Completed;
             withdrawal.CompletedAt = DateTime.UtcNow;
 
@@ -141,6 +157,12 @@ namespace LECOMS.Service.Services
 
             if (withdrawal.Status != WithdrawalStatus.Pending)
                 throw new InvalidOperationException("Chỉ reject được khi Pending");
+
+            await _customerWalletService.AddBalanceAsync(
+                withdrawal.CustomerId,
+                withdrawal.Amount,
+                withdrawal.Id,
+                $"Hoàn tiền do Admin từ chối yêu cầu rút tiền: {reason}");
 
             withdrawal.Status = WithdrawalStatus.Rejected;
             withdrawal.RejectionReason = reason;
@@ -163,6 +185,13 @@ namespace LECOMS.Service.Services
 
             if (withdrawal.CustomerId != customerId)
                 throw new UnauthorizedAccessException("Bạn không có quyền hủy yêu cầu này");
+
+            // ⭐ HOÀN LẠI TIỀN
+            await _customerWalletService.AddBalanceAsync(
+                withdrawal.CustomerId,
+                withdrawal.Amount,
+                withdrawal.Id,
+                "Hoàn tiền do khách hàng tự hủy yêu cầu rút tiền");
 
             withdrawal.Status = WithdrawalStatus.Rejected;
             withdrawal.RejectionReason = "Khách hàng tự hủy";

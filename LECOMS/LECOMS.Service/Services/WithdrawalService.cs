@@ -49,7 +49,7 @@ namespace LECOMS.Service.Services
             if (!canWithdraw)
             {
                 var wallet = await _shopWalletService.GetOrCreateWalletAsync(dto.ShopId);
-                throw new InvalidOperationException($"Số dư khả dụng không đủ. Có: {wallet.AvailableBalance:N0}, Yêu cầu: {dto.Amount:N0}");
+                throw new InvalidOperationException($"Số dư khả dụng không đủ.  Có: {wallet.AvailableBalance:N0}, Yêu cầu: {dto.Amount:N0}");
             }
 
             var shopWallet = await _shopWalletService.GetOrCreateWalletAsync(dto.ShopId);
@@ -69,6 +69,15 @@ namespace LECOMS.Service.Services
             };
 
             await _unitOfWork.WithdrawalRequests.AddAsync(request);
+
+            // ⭐ TRỪ TIỀN NGAY KHI TẠO YÊU CẦU (khỏi AvailableBalance)
+            await _shopWalletService.DeductBalanceAsync(
+                dto.ShopId,
+                dto.Amount,
+                WalletTransactionType.Withdrawal,
+                request.Id,
+                $"Giữ tiền cho yêu cầu rút tiền vào {dto.BankName}");
+
             await _unitOfWork.CompleteAsync();
 
             return request;
@@ -95,12 +104,12 @@ namespace LECOMS.Service.Services
             if (!canWithdraw)
                 throw new InvalidOperationException("Số dư không đủ để rút");
 
-            await _shopWalletService.DeductBalanceAsync(
-                withdrawal.ShopId,
-                withdrawal.Amount,
-                WalletTransactionType.Withdrawal,
-                withdrawal.Id,
-                $"Rút tiền vào tài khoản {withdrawal.BankName}");
+            //await _shopWalletService.DeductBalanceAsync(
+            //    withdrawal.ShopId,
+            //    withdrawal.Amount,
+            //    WalletTransactionType.Withdrawal,
+            //    withdrawal.Id,
+            //    $"Rút tiền vào tài khoản {withdrawal.BankName}");
 
             withdrawal.Status = WithdrawalStatus.Approved;
             withdrawal.ApprovedBy = adminId;
@@ -121,6 +130,13 @@ namespace LECOMS.Service.Services
             if (withdrawal.Status != WithdrawalStatus.Approved)
                 throw new InvalidOperationException("Chỉ complete được khi đã Approved");
 
+            // ⭐ CẬP NHẬT TotalWithdrawn khi hoàn tất rút tiền
+            var wallet = await _shopWalletService.GetOrCreateWalletAsync(withdrawal.ShopId);
+            wallet.TotalWithdrawn += withdrawal.Amount;
+            wallet.LastUpdated = DateTime.UtcNow;
+            await _unitOfWork.ShopWallets.UpdateAsync(wallet);
+
+            // Cập nhật status của withdrawal request
             withdrawal.Status = WithdrawalStatus.Completed;
             withdrawal.CompletedAt = DateTime.UtcNow;
 
@@ -159,6 +175,12 @@ namespace LECOMS.Service.Services
 
             if (withdrawal.Shop.SellerId != sellerUserId)
                 throw new UnauthorizedAccessException("Bạn không có quyền hủy yêu cầu này");
+
+            await _shopWalletService.AddAvailableBalanceAsync(
+                withdrawal.ShopId,
+                withdrawal.Amount,
+                withdrawal.Id,
+               "Hoàn tiền do người bán tự hủy yêu cầu rút tiền");
 
             withdrawal.Status = WithdrawalStatus.Rejected;
             withdrawal.RejectionReason = "Người bán tự hủy";

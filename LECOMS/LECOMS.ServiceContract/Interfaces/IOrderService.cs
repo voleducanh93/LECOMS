@@ -59,5 +59,12 @@ namespace LECOMS.ServiceContract.Interfaces
         /// Customer xác nhận đã nhận hàng
         /// </summary>
         Task<OrderDTO> ConfirmReceivedAsync(string orderId, string userId);
+
+        /// <summary>
+        /// Hủy đơn hàng (Customer hoặc Seller)
+        /// - Nếu đã thanh toán → hoàn tiền về CustomerWallet
+        /// - Hoàn lại stock sản phẩm
+        /// </summary>
+        Task<OrderDTO> CancelOrderAsync(string orderId, string userId, string cancelReason);
     }
 }
