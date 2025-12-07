@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace LECOMS.Common.Hubs
 {
-    [Authorize]
     public class NotificationHub : Hub
     {
         public override async Task OnConnectedAsync()
