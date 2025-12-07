@@ -201,13 +201,14 @@ builder.Services.AddAuthentication(options =>
         OnMessageReceived = context =>
         {
             var accessToken = context.Request.Query["access_token"];
-            //sửa lại
+
             if (!string.IsNullOrEmpty(accessToken) &&
     (context.HttpContext.Request.Path.StartsWithSegments("/hubs/chat")
      || context.HttpContext.Request.Path.StartsWithSegments("/hubs/notifications")))
             {
                 context.Token = accessToken;
             }
+
 
             return Task.CompletedTask;
         }

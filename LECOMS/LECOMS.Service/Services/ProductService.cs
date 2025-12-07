@@ -34,9 +34,8 @@ namespace LECOMS.Service.Services
                 throw new InvalidOperationException("Không tìm thấy cửa hàng.");
 
             var products = await _uow.Products.GetAllByShopAsync(shopId, includeProperties: "Category,Images");
-            var dto = _mapper.Map<ProductDTO>(product);
-            dto.TotalSold = await GetTotalSoldAsync(dto.Id);
-            return dto;
+            return _mapper.Map<IEnumerable<ProductDTO>>(products);
+
         }
 
         /// <summary>
@@ -52,9 +51,8 @@ namespace LECOMS.Service.Services
             if (product == null)
                 throw new KeyNotFoundException("Product không tìm thấy.");
 
-            var dto = _mapper.Map<ProductDTO>(product);
-            dto.TotalSold = await GetTotalSoldAsync(dto.Id);
-            return dto;
+            return _mapper.Map<ProductDTO>(product);
+
         }
 
         /// <summary>
@@ -284,9 +282,8 @@ namespace LECOMS.Service.Services
             if (product == null)
                 throw new KeyNotFoundException("Product không tìm thấy.");
 
-            var dto = _mapper.Map<ProductDTO>(product);
-            dto.TotalSold = await GetTotalSoldAsync(dto.Id);
-            return dto;
+            return _mapper.Map<ProductDTO>(product);
+
         }
         private async Task<int> GetTotalSoldAsync(string productId)
         {
