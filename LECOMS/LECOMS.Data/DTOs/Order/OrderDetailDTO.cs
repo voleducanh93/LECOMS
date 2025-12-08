@@ -14,11 +14,5 @@
         public decimal LineTotal => Quantity * UnitPrice;
 
         public string? ProductCategory { get; set; }
-
-        // Mới: FE dùng để ẩn/hiện nút đánh giá
-        public bool HasFeedback { get; set; } = false;
-
-        // Tùy chọn: trả FeedbackId nếu cần (link trực tiếp)
-        public string? FeedbackId { get; set; }
     }
 }

@@ -781,36 +781,5 @@ namespace LECOMS.Service.Services
             return MapToDTO(full);
         }
 
-        // ---------------------------
-        // CHECK / BULK CHECK helpers
-        // ---------------------------
-        public async Task<bool> HasFeedbackAsync(string userId, string orderId, string productId)
-        {
-            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(orderId) || string.IsNullOrEmpty(productId))
-                return false;
-
-            var existing = await _uow.Feedbacks.GetAsync(f =>
-                f.UserId == userId &&
-                f.OrderId == orderId &&
-                f.ProductId == productId
-            );
-
-            return existing != null;
-        }
-
-        public async Task<IEnumerable<string>> GetFeedbackedProductIdsInOrderAsync(string userId, string orderId)
-        {
-            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(orderId))
-                return Enumerable.Empty<string>();
-
-            // Lấy tất cả feedback của user cho order này, trả về distinct productId
-            var list = await _uow.Feedbacks.GetAllAsync(
-                f => f.UserId == userId && f.OrderId == orderId,
-                includeProperties: null
-            );
-
-            return list.Select(f => f.ProductId).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
-        }
-
     }
 }

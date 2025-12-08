@@ -24,8 +24,6 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<FeedbackDTO> DeleteFeedbackReplyAsync(string sellerUserId, string feedbackId);
         Task<FeedbackDTO> CreateFeedbackByUrlsAsync(string userId, CreateFeedbackRequestDTOV2 dto);
         Task<FeedbackDTO> UpdateFeedbackByUrlsAsync(string userId, string feedbackId, UpdateFeedbackRequestDTOV2 dto);
-        Task<bool> HasFeedbackAsync(string userId, string orderId, string productId);
-        Task<IEnumerable<string>> GetFeedbackedProductIdsInOrderAsync(string userId, string orderId);
     }
 
 }
