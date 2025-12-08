@@ -640,5 +640,146 @@ namespace LECOMS.Service.Services
             return MapToDTO(full);
         }
 
+        // -----------------------------------------------------------------------
+        // NEW: Create feedback using ImageUrls list (old style)
+        // -----------------------------------------------------------------------
+        public async Task<FeedbackDTO> CreateFeedbackByUrlsAsync(string userId, CreateFeedbackRequestDTOV2 dto)
+        {
+            if (dto.Rating < 1 || dto.Rating > 5)
+                throw new InvalidOperationException("Đánh giá phải nằm trong khoảng từ 1 đến 5.");
+
+            // Verify order & product
+            var order = await _uow.Orders.GetAsync(
+                o => o.Id == dto.OrderId &&
+                     o.UserId == userId &&
+                     o.PaymentStatus == PaymentStatus.Paid &&
+                     o.Status == OrderStatus.Completed,
+                includeProperties: "Details,User"
+            );
+
+            if (order == null)
+                throw new InvalidOperationException("Đơn đặt hàng không đủ điều kiện để phản hồi.");
+
+            var orderedProduct = order.Details.FirstOrDefault(d => d.ProductId == dto.ProductId);
+            if (orderedProduct == null)
+                throw new InvalidOperationException("Không tìm thấy sản phẩm theo thứ tự này.");
+
+            // Check uniqueness
+            var existing = await _uow.Feedbacks.GetAsync(f =>
+                f.OrderId == dto.OrderId &&
+                f.ProductId == dto.ProductId &&
+                f.UserId == userId
+            );
+
+            if (existing != null)
+                throw new InvalidOperationException("Bạn đã đưa ra phản hồi cho sản phẩm này theo thứ tự này.");
+
+            // Create feedback
+            var feedback = new Feedback
+            {
+                OrderId = dto.OrderId,
+                UserId = userId,
+                ProductId = dto.ProductId,
+                ShopId = order.ShopId,
+                Rating = dto.Rating,
+                Content = dto.Content,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _uow.Feedbacks.AddAsync(feedback);
+
+            // If ImageUrls provided, save them
+            if (dto.ImageUrls != null && dto.ImageUrls.Any())
+            {
+                foreach (var url in dto.ImageUrls)
+                {
+                    if (string.IsNullOrWhiteSpace(url)) continue;
+
+                    var img = new FeedbackImage
+                    {
+                        FeedbackId = feedback.Id,
+                        Url = url.Trim()
+                    };
+                    await _uow.FeedbackImages.AddAsync(img);
+                    feedback.Images.Add(img);
+                }
+            }
+
+            await _uow.CompleteAsync();
+
+            // Reload full feedback for DTO mapping
+            var fullFeedback = await _uow.Feedbacks.GetAsync(
+                f => f.Id == feedback.Id,
+                includeProperties: "User,Images,Reply"
+            );
+
+            return MapToDTO(fullFeedback);
+        }
+
+        // -----------------------------------------------------------------------
+        // NEW: Update feedback using ImageUrls list (old style)
+        // If dto.ImageUrls == null => keep existing images
+        // If dto.ImageUrls != null => replace existing images with provided list
+        // -----------------------------------------------------------------------
+        public async Task<FeedbackDTO> UpdateFeedbackByUrlsAsync(string userId, string feedbackId, UpdateFeedbackRequestDTOV2 dto)
+        {
+            if (dto.Rating < 1 || dto.Rating > 5)
+                throw new InvalidOperationException("Đánh giá phải nằm trong khoảng từ 1 đến 5.");
+
+            var feedback = await _uow.Feedbacks.GetAsync(
+                f => f.Id == feedbackId,
+                includeProperties: "User,Images,Reply"
+            );
+
+            if (feedback == null)
+                throw new InvalidOperationException("Không tìm thấy phản hồi.");
+
+            if (feedback.UserId != userId)
+                throw new InvalidOperationException("Bạn chỉ có thể cập nhật phản hồi của riêng bạn.");
+
+            // Update fields
+            feedback.Rating = dto.Rating;
+            feedback.Content = dto.Content;
+
+            // If ImageUrls provided => replace
+            if (dto.ImageUrls != null)
+            {
+                // delete old images
+                if (feedback.Images != null && feedback.Images.Any())
+                {
+                    foreach (var img in feedback.Images.ToList())
+                    {
+                        await _uow.FeedbackImages.DeleteAsync(img);
+                    }
+                    feedback.Images.Clear();
+                }
+
+                // add new images from URLs
+                foreach (var url in dto.ImageUrls)
+                {
+                    if (string.IsNullOrWhiteSpace(url)) continue;
+
+                    var img = new FeedbackImage
+                    {
+                        FeedbackId = feedback.Id,
+                        Url = url.Trim()
+                    };
+                    await _uow.FeedbackImages.AddAsync(img);
+                    feedback.Images.Add(img);
+                }
+            }
+            // else dto.ImageUrls == null => keep existing images
+
+            await _uow.Feedbacks.UpdateAsync(feedback);
+            await _uow.CompleteAsync();
+
+            var full = await _uow.Feedbacks.GetAsync(
+                f => f.Id == feedbackId,
+                includeProperties: "User,Images,Reply"
+            );
+
+            return MapToDTO(full);
+        }
+
     }
 }

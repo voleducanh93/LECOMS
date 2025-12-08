@@ -29,6 +29,79 @@ namespace LECOMS.API.Controllers
             _response.StatusCode = HttpStatusCode.OK;
         }
 
+        // -----------------------------
+        // Thêm endpoint: Create feedback (old style: send ImageUrls in JSON)
+        // POST /api/Feedback/by-urls
+        // -----------------------------
+        [HttpPost("by-urls")]
+        [Authorize(Roles = "Customer,Seller")]
+        [Consumes("application/json")]
+        public async Task<IActionResult> CreateFeedbackByUrls([FromBody] CreateFeedbackRequestDTOV2 dto)
+        {
+            Reset();
+
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    _response.IsSuccess = false;
+                    _response.StatusCode = HttpStatusCode.Unauthorized;
+                    _response.ErrorMessages.Add("Unauthorized");
+                    return Unauthorized(_response);
+                }
+
+                // Service hiện có xử lý ImageUrls (thêm FeedbackImage records)
+                var result = await _feedbackService.CreateFeedbackByUrlsAsync(userId, dto);
+                _response.Result = result;
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.StatusCode = HttpStatusCode.BadRequest;
+                _response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)_response.StatusCode, _response);
+        }
+
+
+        // -----------------------------
+        // Thêm endpoint: Update feedback (old style: send ImageUrls in JSON)
+        // PUT /api/Feedback/{feedbackId}/by-urls
+        // -----------------------------
+        [HttpPut("{feedbackId}/by-urls")]
+        [Authorize(Roles = "Customer,Seller")]
+        [Consumes("application/json")]
+        public async Task<IActionResult> UpdateFeedbackByUrls(string feedbackId, [FromBody] UpdateFeedbackRequestDTOV2 dto)
+        {
+            Reset();
+
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    _response.IsSuccess = false;
+                    _response.StatusCode = HttpStatusCode.Unauthorized;
+                    _response.ErrorMessages.Add("Unauthorized");
+                    return StatusCode((int)_response.StatusCode, _response);
+                }
+
+                var result = await _feedbackService.UpdateFeedbackByUrlsAsync(userId, feedbackId, dto);
+                _response.StatusCode = HttpStatusCode.OK;
+                _response.Result = result;
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.StatusCode = HttpStatusCode.BadRequest;
+                _response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)_response.StatusCode, _response);
+        }
+
         // ================================================================
         // CUSTOMER: Create feedback với upload ảnh tích hợp
         // ================================================================
