@@ -1,6 +1,7 @@
 ﻿using LECOMS.Common.Helper;
 using LECOMS.Data.DTOs.Order;
 using LECOMS.Data.Entities;
+using LECOMS.Service.Services;
 using LECOMS.ServiceContract.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -21,15 +22,18 @@ namespace LECOMS.API.Controllers
         private readonly IOrderService _orderService;
         private readonly IPaymentService _paymentService;
         private readonly UserManager<User> _userManager;
+        private readonly IFeedbackService _feedbackService;
 
         public OrdersController(
             IOrderService orderService,
             IPaymentService paymentService,
-            UserManager<User> userManager)
+            UserManager<User> userManager,
+            IFeedbackService feedbackService)
         {
             _orderService = orderService;
             _paymentService = paymentService;
             _userManager = userManager;
+            _feedbackService = feedbackService;
         }
 
         // =====================================================================
@@ -91,9 +95,105 @@ namespace LECOMS.API.Controllers
                     return NotFound(response);
                 }
 
+                // Lấy userId nếu có (controller có [Authorize] nên thường sẽ có)
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                // Bulk: lấy danh sách productId đã feedback trong order (tránh gọi existence từng item)
+                var feedbackedProductIds = (userId != null)
+                    ? (await _feedbackService.GetFeedbackedProductIdsInOrderAsync(userId, id))
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase)
+                    : new System.Collections.Generic.HashSet<string>();
+
+                // Map order.Details -> OrderDetailDTO (nếu order trả entity có Details)
+                var detailDtos = new System.Collections.Generic.List<OrderDetailDTO>();
+
+                try
+                {
+                    // Nếu GetByIdAsync trả về Order entity với Details navigation
+                    if (order is OrderDTO orderDto && orderDto.Details != null)
+                    {
+                        detailDtos = orderDto.Details.Select(d => new OrderDetailDTO
+                        {
+                            Id = d.Id,
+                            ProductId = d.ProductId,
+                            ProductName = d.ProductName,
+                            ProductImage = d.ProductImage,
+                            Quantity = d.Quantity,
+                            UnitPrice = d.UnitPrice,
+                            ProductCategory = d.ProductCategory,
+                            HasFeedback = !string.IsNullOrEmpty(d.ProductId) && feedbackedProductIds.Contains(d.ProductId),
+                            FeedbackId = d.FeedbackId
+                        }).ToList();
+                    }
+                    else
+                    {
+                        // Nếu order là DTO khác, cố gắng reflect Details property
+                        var detailsProp = order.GetType().GetProperty("Details");
+                        if (detailsProp != null)
+                        {
+                            var detailsObj = detailsProp.GetValue(order) as System.Collections.IEnumerable;
+                            if (detailsObj != null)
+                            {
+                                foreach (var item in detailsObj)
+                                {
+                                    var idProp = item.GetType().GetProperty("Id");
+                                    var productIdProp = item.GetType().GetProperty("ProductId");
+                                    var qtyProp = item.GetType().GetProperty("Quantity");
+                                    var priceProp = item.GetType().GetProperty("UnitPrice");
+                                    var productProp = item.GetType().GetProperty("Product");
+
+                                    var dto = new OrderDetailDTO();
+
+                                    if (idProp != null) dto.Id = idProp.GetValue(item)?.ToString();
+                                    if (productIdProp != null) dto.ProductId = productIdProp.GetValue(item)?.ToString() ?? string.Empty;
+                                    if (qtyProp != null && int.TryParse(qtyProp.GetValue(item)?.ToString(), out int q)) dto.Quantity = q;
+                                    if (priceProp != null && decimal.TryParse(priceProp.GetValue(item)?.ToString(), out decimal p)) dto.UnitPrice = p;
+
+                                    if (productProp != null)
+                                    {
+                                        var prod = productProp.GetValue(item);
+                                        if (prod != null)
+                                        {
+                                            var nameProp = prod.GetType().GetProperty("Name");
+                                            var imgProp = prod.GetType().GetProperty("ImageUrl");
+                                            var catProp = prod.GetType().GetProperty("Category");
+
+                                            if (nameProp != null) dto.ProductName = nameProp.GetValue(prod)?.ToString() ?? string.Empty;
+                                            if (imgProp != null) dto.ProductImage = imgProp.GetValue(prod)?.ToString();
+                                            if (catProp != null)
+                                            {
+                                                var cat = catProp.GetValue(prod);
+                                                if (cat != null)
+                                                {
+                                                    var catNameProp = cat.GetType().GetProperty("Name");
+                                                    if (catNameProp != null) dto.ProductCategory = catNameProp.GetValue(cat)?.ToString();
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    dto.HasFeedback = !string.IsNullOrEmpty(dto.ProductId) && feedbackedProductIds.Contains(dto.ProductId);
+                                    dto.FeedbackId = null;
+
+                                    detailDtos.Add(dto);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // nếu mapping fail, trả details rỗng (FE có thể gọi bulk endpoint thay thế)
+                    detailDtos = new System.Collections.Generic.List<OrderDetailDTO>();
+                }
+
                 response.IsSuccess = true;
                 response.StatusCode = HttpStatusCode.OK;
-                response.Result = order;
+                response.Result = new
+                {
+                    order = order,
+                    details = detailDtos
+                };
 
                 return Ok(response);
             }
@@ -101,7 +201,7 @@ namespace LECOMS.API.Controllers
             {
                 response.IsSuccess = false;
                 response.StatusCode = HttpStatusCode.InternalServerError;
-                response.ErrorMessages.Add("Failed to fetch order.");
+                response.ErrorMessages.Add("Không thể tìm nạp đơn đặt hàng.");
                 return StatusCode(500, response);
             }
         }
