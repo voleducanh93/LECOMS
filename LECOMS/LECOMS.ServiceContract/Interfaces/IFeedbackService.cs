@@ -22,6 +22,8 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<bool> DeleteFeedbackByAdminAsync(string adminUserId, string feedbackId);
         Task<FeedbackDTO> UpdateFeedbackReplyAsync(string sellerUserId, string feedbackId, UpdateReplyFeedbackRequestDTO dto);
         Task<FeedbackDTO> DeleteFeedbackReplyAsync(string sellerUserId, string feedbackId);
+        Task<FeedbackDTO> CreateFeedbackByUrlsAsync(string userId, CreateFeedbackRequestDTOV2 dto);
+        Task<FeedbackDTO> UpdateFeedbackByUrlsAsync(string userId, string feedbackId, UpdateFeedbackRequestDTOV2 dto);
     }
 
 }
