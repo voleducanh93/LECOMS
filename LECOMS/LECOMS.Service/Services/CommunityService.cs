@@ -61,7 +61,6 @@ namespace LECOMS.Service.Services
                 // ⭐ lấy 2 comment mới nhất
                 Comments = p.Comments
                     .OrderByDescending(c => c.CreatedAt)
-                    .Take(2)
                     .Select(c => new CommentDTO
                     {
                         Id = c.Id,
