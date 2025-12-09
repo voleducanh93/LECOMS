@@ -510,6 +510,17 @@ namespace LECOMS.Service.Services
             }
             else
             {
+                // ===========================
+                // 🔥 CHECK USER ĐÃ CÓ VOUCHER CHƯA
+                // ===========================
+                var existing = await _uow.UserVouchers.GetAsync(
+                    x => x.UserId == userId && x.Voucher.Code == dto.RewardCode,
+                    includeProperties: "Voucher"
+                );
+
+                if (existing != null)
+                    throw new InvalidOperationException("Bạn đã đổi voucher này rồi.");
+
                 var voucher = await _uow.Vouchers.GetByCodeAsync(dto.RewardCode)
                               ?? throw new InvalidOperationException("Không tìm thấy mã phần thưởng.");
 
