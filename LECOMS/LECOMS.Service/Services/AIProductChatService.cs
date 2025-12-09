@@ -20,7 +20,7 @@ namespace LECOMS.Service.Services
 
         public async Task<string> GetProductAnswerAsync(Product product, string userMessage)
         {
-            string systemPrompt = $@"
+            string systemPrompt = @$"
 Bạn là trợ lý tư vấn mua hàng chuyên nghiệp.
 Thông tin sản phẩm:
 - Tên: {product.Name}
@@ -29,12 +29,8 @@ Thông tin sản phẩm:
 Hãy trả lời ngắn gọn, dễ hiểu và tự nhiên giống nhân viên bán hàng.
 ";
 
-            // 🔥 Model Google Gemini mới → VALID 100%
-            var model = "models/gemini-2.5-flash";
-
-            var url =
-                $"https://generativelanguage.googleapis.com/v1/{model}:generateContent?key={_apiKey}";
-
+            string model = "models/gemini-2.5-flash";
+            string url = $"https://generativelanguage.googleapis.com/v1beta/{model}:generateContent?key={_apiKey}";
 
             var payload = new
             {
@@ -51,27 +47,55 @@ Hãy trả lời ngắn gọn, dễ hiểu và tự nhiên giống nhân viên b
                 }
             };
 
-            var jsonBody = new StringContent(
+            var body = new StringContent(
                 JsonSerializer.Serialize(payload),
                 Encoding.UTF8,
                 "application/json"
             );
 
-            var res = await _client.PostAsync(url, jsonBody);
-            var raw = await res.Content.ReadAsStringAsync();
+            // ========================================
+            // 🔥 Retry logic khi bị quota / rate limit
+            // ========================================
+            int retries = 0;
 
-            using var doc = JsonDocument.Parse(raw);
-            var root = doc.RootElement;
+        RETRY_LABEL:
 
-            // Nếu lỗi trả về
-            if (root.TryGetProperty("error", out var err))
-            {
-                return $"AI gặp lỗi: {err.GetProperty("message").GetString()}";
-            }
+            var response = await _client.PostAsync(url, body);
+            var raw = await response.Content.ReadAsStringAsync();
 
-            // Parse nội dung AI trả lời
             try
             {
+                using var doc = JsonDocument.Parse(raw);
+                var root = doc.RootElement;
+
+                // ❌ Nếu API trả về lỗi
+                if (root.TryGetProperty("error", out var err))
+                {
+                    string message = err.GetProperty("message").GetString() ?? "";
+
+                    // ------------------------------------------------
+                    // 🔥 Quota exceeded → Retry sau 15s (tối đa 2 lần)
+                    // ------------------------------------------------
+                    if (message.Contains("quota", StringComparison.OrdinalIgnoreCase) ||
+                        message.Contains("rate", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (retries < 2)
+                        {
+                            retries++;
+                            await Task.Delay(15000); // chờ 15 giây
+                            goto RETRY_LABEL;
+                        }
+
+                        // fallback sau khi retry hết
+                        return "🚫 AI đang quá tải hoặc vượt quota. Vui lòng thử lại sau 1 phút.";
+                    }
+
+                    return $"AI gặp lỗi: {message}";
+                }
+
+                // ------------------------------------------------
+                // 🔥 Parse content hợp lệ
+                // ------------------------------------------------
                 string content =
                     root.GetProperty("candidates")[0]
                         .GetProperty("content")
