@@ -278,10 +278,10 @@ namespace LECOMS.Service.Services
             if (enrollment != null)
             {
                 // Get all lessons of this course
-                var lessonIdsOfCourse = enrollment.Course.Sections
-                    .SelectMany(s => s.Lessons)
+                var lessonIdsOfCourse = await _uow.Lessons.Query()
+                    .Where(l => l.Section.CourseId == courseId)
                     .Select(l => l.Id)
-                    .ToList();
+                    .ToListAsync();
 
                 int totalLessons = lessonIdsOfCourse.Count;
 
