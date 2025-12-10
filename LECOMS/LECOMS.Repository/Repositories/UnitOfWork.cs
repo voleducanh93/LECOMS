@@ -70,6 +70,9 @@ namespace LECOMS.Repository.Repositories
         public IFeedbackImageRepository FeedbackImages { get; }
         public IRepository<Badge> Badges { get;  }
         public IRepository<UserBadge> UserBadges { get; }
+        public IRepository<AchievementDefinition> AchievementDefinitions { get; }
+        public IRepository<UserAchievementProgress> UserAchievementProgresses { get; }
+
         public INotificationRepository Notifications { get; }
 
 
@@ -154,6 +157,9 @@ namespace LECOMS.Repository.Repositories
             FeedbackImages = feedbackImageRepository;
             Badges = new Repository<Badge>(context);
             UserBadges = new Repository<UserBadge>(context);
+            AchievementDefinitions = new Repository<AchievementDefinition>(context);
+            UserAchievementProgresses = new Repository<UserAchievementProgress>(context);
+
             Notifications = notificationRepository;
 
         }

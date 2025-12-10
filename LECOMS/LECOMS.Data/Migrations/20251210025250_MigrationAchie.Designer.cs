@@ -4,6 +4,7 @@ using LECOMS.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LECOMS.Data.Migrations
 {
     [DbContext(typeof(LecomDbContext))]
-    partial class LecomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251210025250_MigrationAchie")]
+    partial class MigrationAchie
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1331,6 +1334,34 @@ namespace LECOMS.Data.Migrations
                     b.HasIndex("ReferenceId", "ReferenceType");
 
                     b.ToTable("PlatformWalletTransactions", (string)null);
+                });
+
+            modelBuilder.Entity("LECOMS.Data.Entities.PointLedger", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("BalanceAfter")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PointWalletId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PointWalletId", "CreatedAt");
+
+                    b.ToTable("PointLedgers");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.PointWallet", b =>
@@ -2667,40 +2698,6 @@ namespace LECOMS.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("PointLedger", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("Amount")
-                        .HasColumnType("int");
-
-                    b.Property<int>("BalanceAfter")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PointWalletId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("Points")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PointWalletId", "CreatedAt");
-
-                    b.ToTable("PointLedgers");
-                });
-
             modelBuilder.Entity("LECOMS.Data.Entities.Address", b =>
                 {
                     b.HasOne("LECOMS.Data.Entities.User", "User")
@@ -3140,6 +3137,17 @@ namespace LECOMS.Data.Migrations
                     b.Navigation("PlatformWallet");
                 });
 
+            modelBuilder.Entity("LECOMS.Data.Entities.PointLedger", b =>
+                {
+                    b.HasOne("LECOMS.Data.Entities.PointWallet", "Wallet")
+                        .WithMany()
+                        .HasForeignKey("PointWalletId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Wallet");
+                });
+
             modelBuilder.Entity("LECOMS.Data.Entities.PointWallet", b =>
                 {
                     b.HasOne("LECOMS.Data.Entities.User", "User")
@@ -3547,17 +3555,6 @@ namespace LECOMS.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("PointLedger", b =>
-                {
-                    b.HasOne("LECOMS.Data.Entities.PointWallet", "Wallet")
-                        .WithMany()
-                        .HasForeignKey("PointWalletId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Wallet");
                 });
 
             modelBuilder.Entity("LECOMS.Data.Entities.Cart", b =>

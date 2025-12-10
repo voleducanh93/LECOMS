@@ -71,6 +71,9 @@ namespace LECOMS.RepositoryContract.Interfaces
         IRepository<Badge> Badges { get; }
         IRepository<UserBadge> UserBadges { get; }
         INotificationRepository Notifications { get; }
+        // ACHIEVEMENTS (NEW)
+        IRepository<AchievementDefinition> AchievementDefinitions { get; }
+        IRepository<UserAchievementProgress> UserAchievementProgresses { get; }
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
         bool HasActiveTransaction { get; }

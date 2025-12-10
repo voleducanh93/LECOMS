@@ -15,12 +15,13 @@ namespace LECOMS.Service.Services
         private readonly IUnitOfWork _uow;
 
         private readonly IGamificationService _gamification;
+        private readonly IAchievementService _achievement;
 
-        public EnrollmentService(IUnitOfWork uow, IGamificationService gamification)
+        public EnrollmentService(IUnitOfWork uow, IGamificationService gamification, IAchievementService achievement)
         {
             _uow = uow;
             _gamification = gamification;
-
+            _achievement = achievement;
         }
 
         public async Task<EnrollmentDTO> EnrollAsync(string userId, string courseId)
@@ -45,6 +46,11 @@ namespace LECOMS.Service.Services
 
             await _uow.Enrollments.AddAsync(enrollment);
             await _uow.CompleteAsync();
+            // ================================
+            // ⭐ ACHIEVEMENTS — COURSE EVENTS
+            // ================================
+            await _achievement.IncreaseProgressAsync(userId, "ACHV_FIRST_COURSE_ENROLLMENT", 1);
+            await _achievement.IncreaseProgressAsync(userId, "ACHV_5_COURSE_ENROLLMENT", 1);
 
             return new EnrollmentDTO
             {
@@ -318,6 +324,12 @@ namespace LECOMS.Service.Services
                 Action = "CompleteLesson",
                 ReferenceId = lessonId
             });
+            // ================================
+            // ⭐ ACHIEVEMENTS — LESSON EVENTS
+            // ================================
+            await _achievement.IncreaseProgressAsync(userId, "ACHV_FIRST_LESSON", 1);
+            await _achievement.IncreaseProgressAsync(userId, "ACHV_3_LESSONS", 1);
+            await _achievement.IncreaseProgressAsync(userId, "ACHV_10_LESSONS", 1);
 
             return true;
         }

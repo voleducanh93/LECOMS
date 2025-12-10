@@ -24,7 +24,7 @@ namespace LECOMS.Service.Services
         private readonly ILogger<OrderService> _logger;
         private readonly IGamificationService _gamification; // ⭐ thêm
         private readonly INotificationService _notification;
-
+        private readonly IAchievementService _achievement;
         private const decimal FIXED_SHIPPING_FEE = 30000m;
 
         public OrderService(
@@ -36,7 +36,8 @@ namespace LECOMS.Service.Services
             ILogger<OrderService> logger,
             IPlatformWalletService platformWalletService,
             IGamificationService gamification,
-            INotificationService notification)
+            INotificationService notification,
+            IAchievementService achievement)
         {
             _uow = uow;
             _paymentService = paymentService;
@@ -47,6 +48,7 @@ namespace LECOMS.Service.Services
             _platformWalletService = platformWalletService;
             _gamification = gamification;
             _notification = notification;
+            _achievement = achievement;
         }
 
         // =====================================================================
@@ -281,6 +283,12 @@ namespace LECOMS.Service.Services
                         );
                     }
                 }
+                // ================================
+                // ⭐ ACHIEVEMENTS — PURCHASE EVENTS
+                // ================================
+                await _achievement.IncreaseProgressAsync(userId, "ACHV_FIRST_PURCHASE", 1);
+                await _achievement.IncreaseProgressAsync(userId, "ACHV_5_PURCHASES", 1);
+                await _achievement.IncreaseProgressAsync(userId, "ACHV_10_PURCHASES", 1);
 
                 return new CheckoutResultDTO
                 {
