@@ -42,12 +42,23 @@ namespace LECOMS.Service.Services
         // ----------------------------------------------------------------------
         public async Task<ShopDTO> CreateShopAsync(string sellerId, SellerRegistrationRequestDTO dto)
         {
-            // ⚠ Kiểm tra seller có shop nào còn Pending hoặc Approved không
+            // Lấy shop hiện có của seller (nếu có)
             var existing = await _uow.Shops.GetAsync(s => s.SellerId == sellerId);
 
             if (existing != null)
             {
-                throw new InvalidOperationException("Bạn đã có cửa hàng đang hoạt động hoặc chờ duyệt.");
+                // ❌ Nếu shop đang Pending hoặc Approved → KHÔNG cho đăng ký lại
+                if (existing.Status == "Pending" || existing.Status == "Approved")
+                {
+                    throw new InvalidOperationException("Bạn đã có cửa hàng đang hoạt động hoặc chờ duyệt.");
+                }
+
+                // ♻ Nếu bị Rejected → XÓA SHOP để đăng ký lại
+                if (existing.Status == "Rejected")
+                {
+                    await _uow.Shops.DeleteAsync(existing);
+                    await _uow.CompleteAsync();
+                }
             }
 
             // Kiểm tra category tồn tại
@@ -55,6 +66,7 @@ namespace LECOMS.Service.Services
             if (category == null)
                 throw new InvalidOperationException("Không tìm thấy danh mục đã chọn.");
 
+            // 🚀 Tạo shop mới
             var shop = new Shop
             {
                 Name = dto.ShopName,
@@ -82,7 +94,7 @@ namespace LECOMS.Service.Services
             await _uow.Shops.AddAsync(shop);
             await _uow.CompleteAsync();
 
-            // Tạo ShopWallet mới
+            // Tạo ShopWallet
             var wallet = new ShopWallet
             {
                 Id = Guid.NewGuid().ToString(),
