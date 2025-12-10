@@ -5,6 +5,7 @@ using LECOMS.ServiceContract.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Net;
 
 namespace LECOMS.API.Controllers.Gamification
 {
@@ -33,7 +34,12 @@ namespace LECOMS.API.Controllers.Gamification
             var userId = _userManager.GetUserId(User);
             var list = await _service.GetAllAsync(userId);
 
-            return Ok(new { achievements = list });
+            return Ok(new APIResponse
+            {
+                StatusCode = HttpStatusCode.OK,
+                IsSuccess = true,
+                Result = new { achievements = list }
+            });
         }
 
         // =============================================================
@@ -45,7 +51,12 @@ namespace LECOMS.API.Controllers.Gamification
             var userId = _userManager.GetUserId(User);
             var list = await _service.GetRecentAsync(userId);
 
-            return Ok(new { recentAchievements = list });
+            return Ok(new APIResponse
+            {
+                StatusCode = HttpStatusCode.OK,
+                IsSuccess = true,
+                Result = new { recentAchievements = list }
+            });
         }
 
         // =============================================================
@@ -57,10 +68,15 @@ namespace LECOMS.API.Controllers.Gamification
             var userId = _userManager.GetUserId(User);
             var history = await _service.GetHistoryAsync(userId);
 
-            return Ok(new
+            return Ok(new APIResponse
             {
-                total = history.Count(),
-                history
+                StatusCode = HttpStatusCode.OK,
+                IsSuccess = true,
+                Result = new
+                {
+                    total = history.Count(),
+                    history
+                }
             });
         }
 
@@ -71,16 +87,27 @@ namespace LECOMS.API.Controllers.Gamification
         public async Task<IActionResult> Claim(int id)
         {
             var userId = _userManager.GetUserId(User);
-
             var success = await _service.ClaimRewardAsync(userId, id);
 
             if (!success)
-                return BadRequest(new
+            {
+                return BadRequest(new APIResponse
                 {
-                    message = "Cannot claim reward. Achievement not completed or already claimed."
+                    StatusCode = HttpStatusCode.BadRequest,
+                    IsSuccess = false,
+                    ErrorMessages = new List<string>
+                    {
+                        "Cannot claim reward. Achievement not completed or already claimed."
+                    }
                 });
+            }
 
-            return Ok(new { message = "Reward claimed successfully!" });
+            return Ok(new APIResponse
+            {
+                StatusCode = HttpStatusCode.OK,
+                IsSuccess = true,
+                Result = new { message = "Reward claimed successfully!" }
+            });
         }
     }
 }
