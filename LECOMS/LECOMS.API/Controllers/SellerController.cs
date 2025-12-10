@@ -317,5 +317,30 @@ namespace LECOMS.API.Controllers
                 return StatusCode((int)response.StatusCode, response);
             }
         }
+        /// <summary>
+        /// Admin lấy danh sách shop (lọc theo status nếu cần)
+        /// </summary>
+        [HttpGet("admin")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAllShops([FromQuery] string? status = null)
+        {
+            var response = new APIResponse();
+
+            try
+            {
+                var result = await _shopService.GetAllAsync(status);
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
+
     }
 }
