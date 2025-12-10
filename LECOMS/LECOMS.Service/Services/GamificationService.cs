@@ -317,6 +317,11 @@ namespace LECOMS.Service.Services
             var monthStart = new DateTime(now.Year, now.Month, 1);
             var monthEnd = monthStart.AddMonths(1).AddSeconds(-1);
             var monthlyLb = await GetOrCreateLeaderboardAsync("GLOBAL_MONTHLY", "Monthly", monthStart, monthEnd);
+            // ⭐⭐ ALL-TIME ⭐⭐
+            var allLb = await GetOrCreateLeaderboardAsync(
+                "GLOBAL_ALL", "AllTime",
+                DateTime.MinValue, DateTime.MaxValue
+            );
             await AddScoreToLeaderboard(monthlyLb, userId, deltaScore);
         }
 
