@@ -47,26 +47,56 @@ namespace LECOMS.Service.Services
 
             if (existing != null)
             {
-                // ❌ Nếu shop đang Pending hoặc Approved → KHÔNG cho đăng ký lại
+                // Nếu shop đang Pending hoặc Approved → KHÔNG cho đăng ký lại
                 if (existing.Status == "Pending" || existing.Status == "Approved")
                 {
                     throw new InvalidOperationException("Bạn đã có cửa hàng đang hoạt động hoặc chờ duyệt.");
                 }
 
-                // ♻ Nếu bị Rejected → XÓA SHOP để đăng ký lại
+                // Nếu shop đang Rejected → UPDATE lại hồ sơ, reset về Pending
                 if (existing.Status == "Rejected")
                 {
-                    await _uow.Shops.DeleteAsync(existing);
+                    existing.Name = dto.ShopName;
+                    existing.Description = dto.ShopDescription;
+                    existing.PhoneNumber = dto.ShopPhoneNumber;
+                    existing.Address = dto.ShopAddress;
+                    existing.BusinessType = dto.BusinessType;
+                    existing.OwnershipDocumentUrl = dto.OwnershipDocumentUrl;
+                    existing.ShopAvatar = dto.ShopAvatar;
+                    existing.ShopBanner = dto.ShopBanner;
+                    existing.ShopFacebook = dto.ShopFacebook;
+                    existing.ShopTiktok = dto.ShopTiktok;
+                    existing.ShopInstagram = dto.ShopInstagram;
+                    existing.CategoryId = dto.CategoryId;
+                    existing.AcceptedTerms = dto.AcceptedTerms;
+                    existing.OwnerFullName = dto.OwnerFullName;
+                    existing.OwnerDateOfBirth = dto.OwnerDateOfBirth;
+                    existing.OwnerPersonalIdNumber = dto.OwnerPersonalIdNumber;
+                    existing.OwnerPersonalIdFrontUrl = dto.OwnerPersonalIdFrontUrl;
+                    existing.OwnerPersonalIdBackUrl = dto.OwnerPersonalIdBackUrl;
+
+                    existing.Status = "Pending";
+                    existing.RejectedReason = null;   // reset lý do cũ
+
+                    await _uow.Shops.UpdateAsync(existing);
                     await _uow.CompleteAsync();
+
+                    var updated = await _uow.Shops.GetAsync(
+                        s => s.Id == existing.Id,
+                        includeProperties: "Category"
+                    );
+
+                    return _mapper.Map<ShopDTO>(updated);
                 }
             }
+
+            // === Không có shop cũ → tạo shop mới như bình thường ===
 
             // Kiểm tra category tồn tại
             var category = await _uow.CourseCategories.GetAsync(c => c.Id == dto.CategoryId);
             if (category == null)
                 throw new InvalidOperationException("Không tìm thấy danh mục đã chọn.");
 
-            // 🚀 Tạo shop mới
             var shop = new Shop
             {
                 Name = dto.ShopName,
@@ -94,7 +124,7 @@ namespace LECOMS.Service.Services
             await _uow.Shops.AddAsync(shop);
             await _uow.CompleteAsync();
 
-            // Tạo ShopWallet
+            // Tạo ShopWallet mới
             var wallet = new ShopWallet
             {
                 Id = Guid.NewGuid().ToString(),
@@ -115,6 +145,7 @@ namespace LECOMS.Service.Services
 
             return _mapper.Map<ShopDTO>(shop);
         }
+
 
         // ----------------------------------------------------------------------
         // GET SHOP BY SELLER
