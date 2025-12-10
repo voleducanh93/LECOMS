@@ -341,6 +341,38 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+        /// <summary>
+        /// Admin xem chi tiết shop theo ID
+        /// </summary>
+        [HttpGet("{id:int}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetShopById(int id)
+        {
+            var response = new APIResponse();
+            try
+            {
+                var shop = await _shopService.GetByIdAsync(id);
+                if (shop == null)
+                {
+                    response.IsSuccess = false;
+                    response.StatusCode = HttpStatusCode.NotFound;
+                    response.ErrorMessages.Add("Không tìm thấy cửa hàng.");
+                }
+                else
+                {
+                    response.StatusCode = HttpStatusCode.OK;
+                    response.Result = shop;
+                }
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
 
     }
 }
