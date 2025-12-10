@@ -185,15 +185,19 @@ namespace LECOMS.Service.Services
         // ----------------------------------------------------------------------
         public async Task<ShopDTO> RejectShopAsync(int id, string adminId, string reason)
         {
-            var shop = await _uow.Shops.GetAsync(s => s.Id == id);
-            if (shop == null) throw new KeyNotFoundException("Không tìm thấy cửa hàng.");
+            var shop = await _uow.Shops.GetAsync(s => s.Id == id, includeProperties: "Category");
+            if (shop == null)
+                throw new KeyNotFoundException("Không tìm thấy cửa hàng.");
 
-            // Xoá shop hoàn toàn
-            await _uow.Shops.DeleteAsync(shop);
+            shop.Status = "Rejected";
+            shop.RejectedReason = reason;
+
+            await _uow.Shops.UpdateAsync(shop);
             await _uow.CompleteAsync();
 
-            return null; // Không trả shop vì shop đã bị xoá
+            return _mapper.Map<ShopDTO>(shop);
         }
+
 
         // ----------------------------------------------------------------------
         // PUBLIC: GET SHOP DETAIL

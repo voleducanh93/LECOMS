@@ -250,10 +250,11 @@ namespace LECOMS.API.Controllers
 
             try
             {
-                var result = await _shopService.RejectShopAsync(id, adminId, dto.Reason);
+                // ⭐ Reject nhưng KHÔNG DELETE
+                var shopDto = await _shopService.RejectShopAsync(id, adminId, dto.Reason);
 
                 response.StatusCode = HttpStatusCode.OK;
-                response.Result = result;  // ⭐ FE cần object shop đầy đủ !!!!
+                response.Result = shopDto;   // ⭐ Trả về ShopDTO đầy đủ → FE hiển thị lại đúng
             }
             catch (KeyNotFoundException)
             {
@@ -264,6 +265,7 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+
 
 
         // --------------------------------------------------------------------
