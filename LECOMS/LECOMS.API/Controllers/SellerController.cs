@@ -22,12 +22,13 @@ namespace LECOMS.API.Controllers
             _userManager = userManager;
         }
 
-        // -----------------------------------------------------------
-        // SELLER FUNCTIONALITY
-        // -----------------------------------------------------------
+        // --------------------------------------------------------------------
+        // SELLER - REGISTER SHOP
+        // --------------------------------------------------------------------
 
         /// <summary>
-        /// Seller đăng ký mở shop
+        /// Seller đăng ký mở shop (Status = Pending)
+        /// Không gán role Seller tại đây.
         /// </summary>
         [HttpPost("register")]
         [Authorize]
@@ -49,24 +50,8 @@ namespace LECOMS.API.Controllers
             {
                 var result = await _shopService.CreateShopAsync(userId, dto);
 
-                // ✅ Gán role Seller cho user
-                var user = await _userManager.FindByIdAsync(userId);
-                // ⚙️ Nếu user đang là Customer → remove luôn
-                //if (await _userManager.IsInRoleAsync(user, "Customer"))
-                //{
-                //    await _userManager.RemoveFromRoleAsync(user, "Customer");
-                //}
-
-                // ✅ Thêm role Seller (nếu chưa có)
-                if (!await _userManager.IsInRoleAsync(user, "Seller"))
-                {
-                    await _userManager.AddToRoleAsync(user, "Seller");
-                }
-
-                // 🔄 Reset refresh token để sinh token mới
-                user.RefreshToken = null;
-                await _userManager.UpdateAsync(user);
-
+                // ❌ KHÔNG GÁN ROLE SELLER TẠI ĐÂY
+                // User chỉ là Seller khi được Admin approve
 
                 response.StatusCode = HttpStatusCode.Created;
                 response.Result = result;
@@ -87,9 +72,10 @@ namespace LECOMS.API.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
-        /// <summary>
-        /// Seller xem shop của chính mình
-        /// </summary>
+        // --------------------------------------------------------------------
+        // SELLER - GET MY SHOP
+        // --------------------------------------------------------------------
+
         [HttpGet("my-shop")]
         [Authorize]
         public async Task<IActionResult> GetMyShop()
@@ -100,6 +86,7 @@ namespace LECOMS.API.Controllers
             try
             {
                 var shop = await _shopService.GetShopBySellerIdAsync(userId);
+
                 if (shop == null)
                 {
                     response.IsSuccess = false;
@@ -122,9 +109,10 @@ namespace LECOMS.API.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
-        /// <summary>
-        /// Seller cập nhật shop của mình
-        /// </summary>
+        // --------------------------------------------------------------------
+        // SELLER - UPDATE SHOP
+        // --------------------------------------------------------------------
+
         [HttpPut("{id:int}")]
         [Authorize]
         public async Task<IActionResult> UpdateShop(int id, [FromBody] ShopUpdateDTO dto)
@@ -164,9 +152,10 @@ namespace LECOMS.API.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
-        /// <summary>
-        /// Seller xóa shop của mình
-        /// </summary>
+        // --------------------------------------------------------------------
+        // SELLER - DELETE SHOP
+        // --------------------------------------------------------------------
+
         [HttpDelete("{id:int}")]
         [Authorize]
         public async Task<IActionResult> DeleteShop(int id)
@@ -200,79 +189,33 @@ namespace LECOMS.API.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
-        // -----------------------------------------------------------
+        // --------------------------------------------------------------------
         // ADMIN FUNCTIONALITY
-        // -----------------------------------------------------------
+        // --------------------------------------------------------------------
 
         /// <summary>
-        /// Admin lấy tất cả shop (lọc theo trạng thái nếu cần)
-        /// </summary>
-        [HttpGet("admin")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetAllShops([FromQuery] string? status = null)
-        {
-            var response = new APIResponse();
-            try
-            {
-                var result = await _shopService.GetAllAsync(status);
-                response.StatusCode = HttpStatusCode.OK;
-                response.Result = result;
-            }
-            catch (Exception ex)
-            {
-                response.IsSuccess = false;
-                response.StatusCode = HttpStatusCode.InternalServerError;
-                response.ErrorMessages.Add(ex.Message);
-            }
-
-            return StatusCode((int)response.StatusCode, response);
-        }
-
-        /// <summary>
-        /// Admin xem chi tiết shop theo ID
-        /// </summary>
-        [HttpGet("{id:int}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetShopById(int id)
-        {
-            var response = new APIResponse();
-            try
-            {
-                var shop = await _shopService.GetByIdAsync(id);
-                if (shop == null)
-                {
-                    response.IsSuccess = false;
-                    response.StatusCode = HttpStatusCode.NotFound;
-                    response.ErrorMessages.Add("Không tìm thấy cửa hàng.");
-                }
-                else
-                {
-                    response.StatusCode = HttpStatusCode.OK;
-                    response.Result = shop;
-                }
-            }
-            catch (Exception ex)
-            {
-                response.IsSuccess = false;
-                response.StatusCode = HttpStatusCode.InternalServerError;
-                response.ErrorMessages.Add(ex.Message);
-            }
-
-            return StatusCode((int)response.StatusCode, response);
-        }
-
-        /// <summary>
-        /// Admin duyệt shop
+        /// Admin duyệt shop → Gán role Seller tại đây.
         /// </summary>
         [HttpPost("admin/{id:int}/approve")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ApproveShop(int id)
         {
             var response = new APIResponse();
+
             try
             {
                 var adminId = _userManager.GetUserId(User);
                 var result = await _shopService.ApproveShopAsync(id, adminId);
+
+                // ⭐ Thêm role Seller cho chủ shop
+                var shop = result;
+                var user = await _userManager.FindByIdAsync(shop.SellerId);
+
+                if (user != null && !await _userManager.IsInRoleAsync(user, "Seller"))
+                {
+                    await _userManager.AddToRoleAsync(user, "Seller");
+                }
+
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = result;
             }
@@ -287,7 +230,7 @@ namespace LECOMS.API.Controllers
         }
 
         /// <summary>
-        /// Admin từ chối shop (có lý do)
+        /// Admin từ chối shop → XÓA SHOP (option 2)
         /// </summary>
         [HttpPost("admin/{id:int}/reject")]
         [Authorize(Roles = "Admin")]
@@ -304,11 +247,13 @@ namespace LECOMS.API.Controllers
             }
 
             var adminId = _userManager.GetUserId(User);
+
             try
             {
-                var result = await _shopService.RejectShopAsync(id, adminId, dto.Reason);
+                await _shopService.RejectShopAsync(id, adminId, dto.Reason);
+
                 response.StatusCode = HttpStatusCode.OK;
-                response.Result = result;
+                response.Result = new { message = "Shop rejected and deleted." };
             }
             catch (KeyNotFoundException)
             {
@@ -319,8 +264,13 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+
+        // --------------------------------------------------------------------
+        // CHECK REGISTER STATUS
+        // --------------------------------------------------------------------
+
         /// <summary>
-        /// Customer check trạng thái đăng ký shop (bao gồm lý do bị reject nếu có)
+        /// Customer check trạng thái đăng ký shop
         /// </summary>
         [HttpGet("register-status")]
         [Authorize]
@@ -333,7 +283,6 @@ namespace LECOMS.API.Controllers
             {
                 var shop = await _shopService.GetShopBySellerIdAsync(userId);
 
-                // ❌ Chưa đăng ký
                 if (shop == null)
                 {
                     response.StatusCode = HttpStatusCode.OK;
@@ -341,7 +290,6 @@ namespace LECOMS.API.Controllers
                     return Ok(response);
                 }
 
-                // ⏳ Đang chờ duyệt
                 if (shop.Status == "Pending")
                 {
                     response.StatusCode = HttpStatusCode.OK;
@@ -349,19 +297,6 @@ namespace LECOMS.API.Controllers
                     return Ok(response);
                 }
 
-                // ❌ Bị từ chối (có lý do)
-                if (shop.Status == "Rejected")
-                {
-                    response.StatusCode = HttpStatusCode.OK;
-                    response.Result = new
-                    {
-                        status = "Rejected",
-                        reason = shop.RejectedReason
-                    };
-                    return Ok(response);
-                }
-
-                // ⭐ Nếu đã được duyệt → vẫn chỉ trả Approved, không cần shop info
                 if (shop.Status == "Approved")
                 {
                     response.StatusCode = HttpStatusCode.OK;
@@ -369,7 +304,7 @@ namespace LECOMS.API.Controllers
                     return Ok(response);
                 }
 
-                // Dự phòng
+                // Không còn trạng thái Rejected vì shop bị xóa theo Option 2
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = new { status = shop.Status };
                 return Ok(response);
@@ -382,6 +317,5 @@ namespace LECOMS.API.Controllers
                 return StatusCode((int)response.StatusCode, response);
             }
         }
-
     }
 }

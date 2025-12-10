@@ -24,21 +24,33 @@ namespace LECOMS.Service.Services
             _uow = uow;
             _mapper = mapper;
         }
+
         public async Task<ShopDTO> GetByIdAsync(int id)
         {
             var shop = await _uow.Shops.GetAsync(s => s.Id == id, includeProperties: "Category");
             return shop == null ? null : _mapper.Map<ShopDTO>(shop);
         }
+
         public async Task<bool> HasShopAsync(string sellerId)
         {
+            // Không dùng nữa nếu chọn Option 2, nhưng giữ lại nếu chỗ khác cần
             return await _uow.Shops.ExistsBySellerIdAsync(sellerId);
         }
+
+        // ----------------------------------------------------------------------
+        // CREATE SHOP (Customer đăng ký)
+        // ----------------------------------------------------------------------
         public async Task<ShopDTO> CreateShopAsync(string sellerId, SellerRegistrationRequestDTO dto)
         {
-            if (await _uow.Shops.ExistsBySellerIdAsync(sellerId))
-                throw new InvalidOperationException("Người bán này đã có một cửa hàng.");
+            // ⚠ Kiểm tra seller có shop nào còn Pending hoặc Approved không
+            var existing = await _uow.Shops.GetAsync(s => s.SellerId == sellerId);
 
-            // ✅ Kiểm tra category tồn tại
+            if (existing != null)
+            {
+                throw new InvalidOperationException("Bạn đã có cửa hàng đang hoạt động hoặc chờ duyệt.");
+            }
+
+            // Kiểm tra category tồn tại
             var category = await _uow.CourseCategories.GetAsync(c => c.Id == dto.CategoryId);
             if (category == null)
                 throw new InvalidOperationException("Không tìm thấy danh mục đã chọn.");
@@ -70,6 +82,7 @@ namespace LECOMS.Service.Services
             await _uow.Shops.AddAsync(shop);
             await _uow.CompleteAsync();
 
+            // Tạo ShopWallet mới
             var wallet = new ShopWallet
             {
                 Id = Guid.NewGuid().ToString(),
@@ -91,13 +104,18 @@ namespace LECOMS.Service.Services
             return _mapper.Map<ShopDTO>(shop);
         }
 
-
+        // ----------------------------------------------------------------------
+        // GET SHOP BY SELLER
+        // ----------------------------------------------------------------------
         public async Task<ShopDTO> GetShopBySellerIdAsync(string sellerId)
         {
             var shop = await _uow.Shops.GetBySellerIdAsync(sellerId, includeProperties: "Category");
             return shop == null ? null : _mapper.Map<ShopDTO>(shop);
         }
 
+        // ----------------------------------------------------------------------
+        // ADMIN: GET ALL
+        // ----------------------------------------------------------------------
         public async Task<IEnumerable<ShopDTO>> GetAllAsync(string? status = null)
         {
             var shops = await _uow.Shops.GetAllAsync(
@@ -107,6 +125,9 @@ namespace LECOMS.Service.Services
             return _mapper.Map<IEnumerable<ShopDTO>>(shops);
         }
 
+        // ----------------------------------------------------------------------
+        // UPDATE SHOP (seller or admin)
+        // ----------------------------------------------------------------------
         public async Task<ShopDTO> UpdateShopAsync(int id, ShopUpdateDTO dto, string userId, bool isAdmin)
         {
             var shop = await _uow.Shops.GetAsync(s => s.Id == id);
@@ -116,13 +137,17 @@ namespace LECOMS.Service.Services
                 throw new UnauthorizedAccessException();
 
             _mapper.Map(dto, shop);
+
             await _uow.Shops.UpdateAsync(shop);
             await _uow.CompleteAsync();
-            shop = await _uow.Shops.GetAsync(s => s.Id == id, includeProperties: "Category");
 
+            shop = await _uow.Shops.GetAsync(s => s.Id == id, includeProperties: "Category");
             return _mapper.Map<ShopDTO>(shop);
         }
 
+        // ----------------------------------------------------------------------
+        // DELETE SHOP (seller tự xoá shop)
+        // ----------------------------------------------------------------------
         public async Task<bool> DeleteShopAsync(int id, string userId, bool isAdmin)
         {
             var shop = await _uow.Shops.GetAsync(s => s.Id == id);
@@ -133,9 +158,13 @@ namespace LECOMS.Service.Services
 
             await _uow.Shops.DeleteAsync(shop);
             await _uow.CompleteAsync();
+
             return true;
         }
 
+        // ----------------------------------------------------------------------
+        // ADMIN APPROVE SHOP
+        // ----------------------------------------------------------------------
         public async Task<ShopDTO> ApproveShopAsync(int id, string adminId)
         {
             var shop = await _uow.Shops.GetAsync(s => s.Id == id);
@@ -151,52 +180,51 @@ namespace LECOMS.Service.Services
             return _mapper.Map<ShopDTO>(shop);
         }
 
+        // ----------------------------------------------------------------------
+        // ADMIN REJECT SHOP (OPTION 2 → XÓA SHOP HOÀN TOÀN)
+        // ----------------------------------------------------------------------
         public async Task<ShopDTO> RejectShopAsync(int id, string adminId, string reason)
         {
             var shop = await _uow.Shops.GetAsync(s => s.Id == id);
             if (shop == null) throw new KeyNotFoundException("Không tìm thấy cửa hàng.");
 
-            shop.Status = "Rejected";
-            shop.RejectedReason = reason;
-
-            await _uow.Shops.UpdateAsync(shop);
+            // Xoá shop hoàn toàn
+            await _uow.Shops.DeleteAsync(shop);
             await _uow.CompleteAsync();
-            shop = await _uow.Shops.GetAsync(s => s.Id == id, includeProperties: "Category");
 
-            return _mapper.Map<ShopDTO>(shop);
+            return null; // Không trả shop vì shop đã bị xoá
         }
+
+        // ----------------------------------------------------------------------
+        // PUBLIC: GET SHOP DETAIL
+        // ----------------------------------------------------------------------
         public async Task<object> GetPublicShopDetailAsync(int shopId)
         {
             var shop = await _uow.Shops.GetAsync(
                 s => s.Id == shopId && s.Status.ToLower() == ShopStatus.Approved.ToString().ToLower(),
                 includeProperties: "Category"
-            ); 
+            );
+
             if (shop == null)
                 throw new KeyNotFoundException("Không tìm thấy cửa hàng.");
 
-            // Lấy sản phẩm của shop
             var products = await _uow.Products.GetAllAsync(
                 p => p.ShopId == shopId && p.Active == 1,
                 includeProperties: "Category,Images"
             );
 
-            // Lấy courses của shop
             var courses = await _uow.Courses.GetAllAsync(
                 c => c.ShopId == shopId && c.Active == 1,
                 includeProperties: "Category"
             );
 
-            var productDtos = _mapper.Map<IEnumerable<ProductDTO>>(products);
-            var courseDtos = _mapper.Map<IEnumerable<CourseDTO>>(courses);
-            var shopDto = _mapper.Map<ShopDTO>(shop);
-
             return new
             {
-                shop = shopDto,
-                products = productDtos,
-                courses = courseDtos
+                shop = _mapper.Map<ShopDTO>(shop),
+                products = _mapper.Map<IEnumerable<ProductDTO>>(products),
+                courses = _mapper.Map<IEnumerable<CourseDTO>>(courses)
             };
         }
-
     }
 }
+    
