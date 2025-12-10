@@ -250,10 +250,10 @@ namespace LECOMS.API.Controllers
 
             try
             {
-                await _shopService.RejectShopAsync(id, adminId, dto.Reason);
+                var result = await _shopService.RejectShopAsync(id, adminId, dto.Reason);
 
                 response.StatusCode = HttpStatusCode.OK;
-                response.Result = new { message = "Shop rejected and deleted." };
+                response.Result = result;  // ⭐ FE cần object shop đầy đủ !!!!
             }
             catch (KeyNotFoundException)
             {
@@ -264,6 +264,7 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+
 
         // --------------------------------------------------------------------
         // CHECK REGISTER STATUS
