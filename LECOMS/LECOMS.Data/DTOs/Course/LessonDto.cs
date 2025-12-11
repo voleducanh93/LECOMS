@@ -17,6 +17,9 @@ namespace LECOMS.Data.DTOs.Course
         public string? ContentUrl { get; set; }
         public int OrderIndex { get; set; }
         public List<LessonLinkedProductDTO>? LinkedProducts { get; set; }
+        public ApprovalStatus ApprovalStatus { get; set; }
+        public string? ModeratorNote { get; set; }
+
 
     }
 

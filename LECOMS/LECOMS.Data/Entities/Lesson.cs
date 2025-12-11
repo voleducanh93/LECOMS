@@ -22,6 +22,9 @@ namespace LECOMS.Data.Entities
         [MaxLength(1000)] public string? ContentUrl { get; set; }
         public int OrderIndex { get; set; }
         public ICollection<LessonProduct> LessonProducts { get; set; } = new List<LessonProduct>();
+        public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Pending;
+        public string? ModeratorNote { get; set; }
+
 
     }
 }

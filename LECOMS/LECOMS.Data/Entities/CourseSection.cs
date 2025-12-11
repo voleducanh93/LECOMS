@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LECOMS.Data.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -19,5 +20,8 @@ namespace LECOMS.Data.Entities
         public int OrderIndex { get; set; }
 
         public ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
+        public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Pending;
+        public string? ModeratorNote { get; set; }
+
     }
 }

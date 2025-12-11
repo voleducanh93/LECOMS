@@ -74,7 +74,9 @@ namespace LECOMS.Service.Services
                 Id = Guid.NewGuid().ToString(),
                 CourseId = dto.CourseId,
                 Title = dto.Title,
-                OrderIndex = dto.OrderIndex
+                OrderIndex = dto.OrderIndex,
+                ApprovalStatus = ApprovalStatus.Pending // ⭐
+
             };
 
             await _unitOfWork.Sections.AddAsync(section);
@@ -116,7 +118,9 @@ namespace LECOMS.Service.Services
                 Type = dto.Type,
                 DurationSeconds = dto.DurationSeconds,
                 ContentUrl = dto.ContentUrl?.Trim(),
-                OrderIndex = dto.OrderIndex
+                OrderIndex = dto.OrderIndex,
+                ApprovalStatus = ApprovalStatus.Pending // ⭐
+
             };
 
             await _unitOfWork.Lessons.AddAsync(lesson);
@@ -392,33 +396,45 @@ namespace LECOMS.Service.Services
             var course = await _unitOfWork.Courses.GetAsync(c => c.Id == courseId && c.ShopId == shop.Id);
             if (course == null) throw new KeyNotFoundException("Course không tìm thấy.");
 
-            if (!string.IsNullOrEmpty(dto.Title)) course.Title = dto.Title.Trim();
-            if (!string.IsNullOrEmpty(dto.Summary)) course.Summary = dto.Summary.Trim();
-            if (!string.IsNullOrEmpty(dto.CategoryId)) course.CategoryId = dto.CategoryId;
-            if (!string.IsNullOrEmpty(dto.CourseThumbnail)) course.CourseThumbnail = dto.CourseThumbnail;
-            if (dto.Active.HasValue) course.Active = dto.Active.Value;
-            // ---------- QUAN TRỌNG: Reset kiểm duyệt ----------
+            // Seller có quyền update dù Active = 0 (xoá mềm)
+            if (!string.IsNullOrEmpty(dto.Title))
+                course.Title = dto.Title.Trim();
+
+            if (!string.IsNullOrEmpty(dto.Summary))
+                course.Summary = dto.Summary.Trim();
+
+            if (!string.IsNullOrEmpty(dto.CategoryId))
+                course.CategoryId = dto.CategoryId;
+
+            if (!string.IsNullOrEmpty(dto.CourseThumbnail))
+                course.CourseThumbnail = dto.CourseThumbnail;
+
+            // ⭐ Cho phép khôi phục course đã xoá
+            if (dto.Active.HasValue)
+                course.Active = dto.Active.Value;
+
+            // ⭐ Mỗi lần seller update → bắt buộc Pending duyệt
             course.ApprovalStatus = ApprovalStatus.Pending;
             course.ModeratorNote = null;
 
             await _unitOfWork.Courses.UpdateAsync(course);
             await _unitOfWork.CompleteAsync();
 
-            var updated = await _unitOfWork.Courses.GetAsync(c => c.Id == course.Id, includeProperties: "Category,Shop");
             return new CourseDTO
             {
-                Id = updated.Id,
-                Title = updated.Title,
-                Slug = updated.Slug,
-                Summary = updated.Summary,
-                CategoryId = updated.CategoryId,
-                CategoryName = updated.Category.Name,
-                ShopId = updated.ShopId,
-                ShopName = updated.Shop.Name,
-                CourseThumbnail = updated.CourseThumbnail,
-                Active = updated.Active
+                Id = course.Id,
+                Title = course.Title,
+                Slug = course.Slug,
+                Summary = course.Summary,
+                CategoryId = course.CategoryId,
+                CategoryName = course.Category?.Name,
+                ShopId = course.ShopId,
+                ShopName = course.Shop?.Name,
+                CourseThumbnail = course.CourseThumbnail,
+                Active = course.Active
             };
         }
+
 
         public async Task<bool> DeleteCourseAsync(string courseId, string sellerId)
         {
@@ -464,6 +480,8 @@ namespace LECOMS.Service.Services
                     Id = section.Id,
                     Title = section.Title,
                     OrderIndex = section.OrderIndex,
+                    ApprovalStatus = section.ApprovalStatus,   // ⭐ NEW
+                    ModeratorNote = section.ModeratorNote,     // ⭐ NEW
                     Lessons = new List<LessonDto>()
                 };
 
@@ -494,7 +512,8 @@ namespace LECOMS.Service.Services
                         DurationSeconds = lesson.DurationSeconds,
                         ContentUrl = lesson.ContentUrl,
                         OrderIndex = lesson.OrderIndex,
-
+                        ApprovalStatus = lesson.ApprovalStatus,      // ⭐ NEW
+                        ModeratorNote = lesson.ModeratorNote,        // ⭐ NEW
                         LinkedProducts = linkedProducts.Any() ? linkedProducts : null
                     });
                 }
@@ -521,7 +540,9 @@ namespace LECOMS.Service.Services
                     Type = l.Type,
                     DurationSeconds = l.DurationSeconds,
                     ContentUrl = l.ContentUrl,
-                    OrderIndex = l.OrderIndex
+                    OrderIndex = l.OrderIndex,
+                    ApprovalStatus = l.ApprovalStatus,    // ⭐ NEW
+                    ModeratorNote = l.ModeratorNote       // ⭐ NEW
                 });
         }
 
