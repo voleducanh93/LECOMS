@@ -175,15 +175,18 @@ namespace LECOMS.Service.Services
         /// </summary>
         public async Task<bool> DeleteAsync(string id)
         {
-            var product = await _uow.Products.GetAsync(p => p.Id == id, includeProperties: "Images");
+            var product = await _uow.Products.GetAsync(p => p.Id == id);
             if (product == null) return false;
 
-            await _uow.ProductImages.DeleteAllByProductIdAsync(product.Id);
-            await _uow.Products.DeleteAsync(product);
+            product.Status = ProductStatus.Archived;
+            product.Active = 0; // ẩn khỏi public
+
+            await _uow.Products.UpdateAsync(product);
             await _uow.CompleteAsync();
 
             return true;
         }
+
 
         private static string GenerateSlug(string input)
         {
