@@ -20,7 +20,7 @@ namespace LECOMS.Repository.Repositories
         public async Task<IEnumerable<Product>> GetAllByShopAsync(int shopId, string? includeProperties = null)
         {
             IQueryable<Product> query = _db.Products
-                .Where(p => p.Active == 1 && p.ShopId == shopId)
+                .Where(p => p.ShopId == shopId) // ⭐ Không filter Active nữa
                 .Include(p => p.Category)
                 .Include(p => p.Images)
                 .OrderByDescending(p => p.LastUpdatedAt);

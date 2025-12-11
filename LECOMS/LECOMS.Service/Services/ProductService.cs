@@ -33,9 +33,13 @@ namespace LECOMS.Service.Services
             if (shop == null)
                 throw new InvalidOperationException("Không tìm thấy cửa hàng.");
 
-            var products = await _uow.Products.GetAllByShopAsync(shopId, includeProperties: "Category,Images");
-            return _mapper.Map<IEnumerable<ProductDTO>>(products);
+            var products = await _uow.Products.Query()
+                .Where(p => p.ShopId == shopId)   // ⭐ KHÔNG LỌC Active/Status
+                .Include(p => p.Category)
+                .Include(p => p.Images)
+                .ToListAsync();
 
+            return _mapper.Map<IEnumerable<ProductDTO>>(products);
         }
 
         /// <summary>
