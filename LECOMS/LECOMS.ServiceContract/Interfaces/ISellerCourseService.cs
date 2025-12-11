@@ -35,7 +35,10 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<IEnumerable<LessonDto>> GetLessonsBySectionAsync(string sectionId);
         Task<CourseDTO> GetCourseBySlugAsync(string slug, string? userId);
         Task<Course> GetCourseBySlugForRecommendAsync(string slug, string? userId);
+        // ⭐⭐ === THÊM 2 HÀM UPDATE === ⭐⭐
+        Task<CourseSection> UpdateSectionAsync(string sectionId, CreateSectionDto dto);
 
+        Task<Lesson> UpdateLessonAsync(string lessonId, CreateLessonDto dto);
     }
 }
     

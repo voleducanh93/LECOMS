@@ -289,6 +289,7 @@ namespace LECOMS.API.Controllers
                 section.ApprovalStatus = ApprovalStatus.Approved;
                 section.ModeratorNote = null;
 
+                await _uow.Sections.UpdateAsync(section);
                 await _uow.CompleteAsync();
 
                 response.StatusCode = HttpStatusCode.OK;
@@ -394,6 +395,7 @@ namespace LECOMS.API.Controllers
                 lesson.ApprovalStatus = ApprovalStatus.Approved;
                 lesson.ModeratorNote = null;
 
+                await _uow.Lessons.UpdateAsync(lesson);
                 await _uow.CompleteAsync();
 
                 response.StatusCode = HttpStatusCode.OK;
@@ -408,6 +410,7 @@ namespace LECOMS.API.Controllers
 
             return StatusCode((int)response.StatusCode, response);
         }
+
 
         [HttpPost("lessons/{id}/reject")]
         public async Task<IActionResult> RejectLesson(string id, [FromBody] ModeratorDecisionDto dto)

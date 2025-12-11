@@ -599,6 +599,47 @@ namespace LECOMS.Service.Services
 
             return course;
         }
+        public async Task<CourseSection> UpdateSectionAsync(string sectionId, CreateSectionDto dto)
+        {
+            var section = await _unitOfWork.Sections.GetAsync(s => s.Id == sectionId);
+            if (section == null) throw new KeyNotFoundException("Section không tồn tại.");
+
+            if (!string.IsNullOrWhiteSpace(dto.Title))
+                section.Title = dto.Title.Trim();
+
+            section.OrderIndex = dto.OrderIndex;
+
+            // ⭐ CHUYỂN VỀ PENDING KHI SELLER UPDATE
+            section.ApprovalStatus = ApprovalStatus.Pending;
+            section.ModeratorNote = null;
+
+            await _unitOfWork.Sections.UpdateAsync(section);
+            await _unitOfWork.CompleteAsync();
+
+            return section;
+        }
+
+        public async Task<Lesson> UpdateLessonAsync(string lessonId, CreateLessonDto dto)
+        {
+            var lesson = await _unitOfWork.Lessons.GetAsync(l => l.Id == lessonId);
+            if (lesson == null) throw new KeyNotFoundException("Lesson không tồn tại.");
+
+            lesson.Title = dto.Title.Trim();
+            lesson.Type = dto.Type;
+            lesson.DurationSeconds = dto.DurationSeconds;
+            lesson.ContentUrl = dto.ContentUrl?.Trim();
+            lesson.OrderIndex = dto.OrderIndex;
+
+            // ⭐ CHUYỂN VỀ PENDING KHI SELLER UPDATE
+            lesson.ApprovalStatus = ApprovalStatus.Pending;
+            lesson.ModeratorNote = null;
+
+            await _unitOfWork.Lessons.UpdateAsync(lesson);
+            await _unitOfWork.CompleteAsync();
+
+            return lesson;
+        }
+
 
     }
 }

@@ -332,5 +332,77 @@ namespace LECOMS.API.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
+        [HttpPut("sections/{id}")]
+        public async Task<IActionResult> UpdateSection(string id, [FromBody] CreateSectionDto dto)
+        {
+            var response = new APIResponse();
+            try
+            {
+                if (dto == null)
+                {
+                    response.IsSuccess = false;
+                    response.StatusCode = HttpStatusCode.BadRequest;
+                    response.ErrorMessages.Add("Payload cannot be null.");
+                    return StatusCode((int)response.StatusCode, response);
+                }
+
+                var result = await _service.UpdateSectionAsync(id, dto);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
+            }
+            catch (KeyNotFoundException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+
+        [HttpPut("lessons/{id}")]
+        public async Task<IActionResult> UpdateLesson(string id, [FromBody] CreateLessonDto dto)
+        {
+            var response = new APIResponse();
+            try
+            {
+                if (dto == null)
+                {
+                    response.IsSuccess = false;
+                    response.StatusCode = HttpStatusCode.BadRequest;
+                    response.ErrorMessages.Add("Payload cannot be null.");
+                    return StatusCode((int)response.StatusCode, response);
+                }
+
+                var result = await _service.UpdateLessonAsync(id, dto);
+
+                response.StatusCode = HttpStatusCode.OK;
+                response.Result = result;
+            }
+            catch (KeyNotFoundException ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.NotFound;
+                response.ErrorMessages.Add(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                response.IsSuccess = false;
+                response.StatusCode = HttpStatusCode.InternalServerError;
+                response.ErrorMessages.Add(ex.Message);
+            }
+
+            return StatusCode((int)response.StatusCode, response);
+        }
+
+
     }
 }
