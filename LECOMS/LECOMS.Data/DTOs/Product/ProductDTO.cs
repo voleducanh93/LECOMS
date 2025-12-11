@@ -27,6 +27,9 @@ namespace LECOMS.Data.DTOs.Product
         public string ShopName { get; set; }
         public string? ShopAvatar { get; set; }
         public string? ShopDescription { get; set; }
+        // ⭐ THÊM 2 CÁI NÀY
+        public ApprovalStatus ApprovalStatus { get; set; }
+        public string? ModeratorNote { get; set; }
 
     }
 }
