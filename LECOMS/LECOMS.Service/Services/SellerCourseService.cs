@@ -468,12 +468,11 @@ namespace LECOMS.Service.Services
         {
             var sections = await _unitOfWork.Sections.GetAllAsync(
                 s => s.CourseId == courseId,
-                includeProperties: "Lessons"
+                includeProperties: "Lessons.LessonProducts.Product.Shop,Lessons.LessonProducts.Product.Images"
             );
 
             if (!isSellerOwner)
             {
-                // CHỈ HIỂN THỊ SECTION ĐÃ APPROVED
                 sections = sections
                     .Where(s => s.ApprovalStatus == ApprovalStatus.Approved)
                     .ToList();
@@ -493,12 +492,10 @@ namespace LECOMS.Service.Services
                     Lessons = new List<LessonDto>()
                 };
 
-                // Lấy lessons
                 var lessons = section.Lessons;
 
                 if (!isSellerOwner)
                 {
-                    // CHỈ HIỂN THỊ BÀI HỌC ĐÃ APPROVED
                     lessons = lessons
                         .Where(l => l.ApprovalStatus == ApprovalStatus.Approved)
                         .ToList();
@@ -515,7 +512,23 @@ namespace LECOMS.Service.Services
                         DurationSeconds = lesson.DurationSeconds,
                         OrderIndex = lesson.OrderIndex,
                         ApprovalStatus = lesson.ApprovalStatus,
-                        ModeratorNote = lesson.ModeratorNote
+                        ModeratorNote = lesson.ModeratorNote,
+
+                        LinkedProducts = lesson.LessonProducts.Select(lp => new LessonLinkedProductDTO
+                        {
+                            Id = lp.Product.Id,
+                            Name = lp.Product.Name,
+                            Price = lp.Product.Price,
+
+                            // ⭐ Không dùng helper — inline logic
+                            ThumbnailUrl = lp.Product.Images
+                                .OrderByDescending(i => i.IsPrimary)
+                                .ThenBy(i => i.OrderIndex)
+                                .Select(i => i.Url)
+                                .FirstOrDefault(),
+
+                            ShopName = lp.Product.Shop?.Name
+                        }).ToList()
                     });
                 }
 
@@ -528,12 +541,12 @@ namespace LECOMS.Service.Services
         public async Task<IEnumerable<LessonDto>> GetLessonsBySectionAsync(string sectionId, bool isSellerOwner = false)
         {
             var lessons = await _unitOfWork.Lessons.GetAllAsync(
-                l => l.CourseSectionId == sectionId
+                l => l.CourseSectionId == sectionId,
+                includeProperties: "LessonProducts.Product.Shop,LessonProducts.Product.Images"
             );
 
             if (!isSellerOwner)
             {
-                // Customer chỉ nhìn thấy bài đã duyệt
                 lessons = lessons
                     .Where(l => l.ApprovalStatus == ApprovalStatus.Approved)
                     .ToList();
@@ -551,7 +564,23 @@ namespace LECOMS.Service.Services
                     ContentUrl = l.ContentUrl,
                     OrderIndex = l.OrderIndex,
                     ApprovalStatus = l.ApprovalStatus,
-                    ModeratorNote = l.ModeratorNote
+                    ModeratorNote = l.ModeratorNote,
+
+                    LinkedProducts = l.LessonProducts.Select(lp => new LessonLinkedProductDTO
+                    {
+                        Id = lp.Product.Id,
+                        Name = lp.Product.Name,
+                        Price = lp.Product.Price,
+
+                        // ⭐ Không dùng helper — inline logic
+                        ThumbnailUrl = lp.Product.Images
+                            .OrderByDescending(i => i.IsPrimary)
+                            .ThenBy(i => i.OrderIndex)
+                            .Select(i => i.Url)
+                            .FirstOrDefault(),
+
+                        ShopName = lp.Product.Shop?.Name
+                    }).ToList()
                 });
         }
 
