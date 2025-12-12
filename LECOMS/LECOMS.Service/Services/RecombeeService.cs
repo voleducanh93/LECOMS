@@ -3,6 +3,7 @@ using LECOMS.Data.DTOs.Course;
 using LECOMS.Data.DTOs.Product;
 using LECOMS.Data.DTOs.Recombee;
 using LECOMS.Data.Entities;
+using LECOMS.Data.Enum;
 using LECOMS.RepositoryContract.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Recombee.ApiClient;
@@ -32,7 +33,16 @@ namespace LECOMS.Service.Services
         // ===========================================================================
         public async Task<int> SyncProductsAsync()
         {
-            var products = await _uow.Products.GetAllAsync(includeProperties: "Category,Shop,Images");
+            var products = await _uow.Products.Query()
+                .Include(p => p.Category)
+                .Include(p => p.Shop)
+                .Include(p => p.Images)
+                .Where(p =>
+                    p.Active == 1 &&
+                    p.ApprovalStatus == ApprovalStatus.Approved &&
+                    p.Status == ProductStatus.Published
+                )
+                .ToListAsync();
             int synced = 0;
 
             foreach (var p in products)
@@ -61,6 +71,10 @@ namespace LECOMS.Service.Services
             var courses = await _uow.Courses.Query()
                 .Include(c => c.Category)
                 .Include(c => c.Shop)
+                .Where(c =>
+                    c.Active == 1 &&
+                    c.ApprovalStatus == ApprovalStatus.Approved
+                )
                 .ToListAsync();
 
             int synced = 0;
@@ -157,7 +171,12 @@ namespace LECOMS.Service.Services
                 .Include(p => p.Images)
                 .Include(p => p.Category)
                 .Include(p => p.Shop)
-                .Where(p => ids.Contains(p.Id))
+                .Where(p =>
+                    ids.Contains(p.Id) &&
+                    p.Active == 1 &&
+                    p.Status == ProductStatus.Published &&
+                    p.ApprovalStatus == ApprovalStatus.Approved
+                )
                 .ToListAsync();
 
             return _mapper.Map<IEnumerable<ProductDTO>>(products);
@@ -218,7 +237,12 @@ namespace LECOMS.Service.Services
             var courses = await _uow.Courses.Query()
                 .Include(c => c.Category)
                 .Include(c => c.Shop)
-                .Where(c => ids.Contains(c.Id))
+                .Where(c =>
+                ids.Contains(c.Id) &&
+                c.Active == 1 &&
+                c.ApprovalStatus == ApprovalStatus.Approved
+                )
+
                 .ToListAsync();
 
             return _mapper.Map<IEnumerable<CourseDTO>>(courses);
