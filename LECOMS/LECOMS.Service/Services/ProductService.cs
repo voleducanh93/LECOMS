@@ -129,38 +129,33 @@ namespace LECOMS.Service.Services
             var product = await _uow.Products.GetAsync(p => p.Id == id, includeProperties: "Images");
             if (product == null) throw new KeyNotFoundException("Product không tìm thấy.");
 
-            // Update basic fields
+            // Update fields
             if (!string.IsNullOrEmpty(dto.Name))
             {
                 product.Name = dto.Name.Trim();
                 product.Slug = GenerateSlug(dto.Name);
             }
 
-            if (!string.IsNullOrEmpty(dto.Description)) product.Description = dto.Description;
-            if (!string.IsNullOrEmpty(dto.CategoryId)) product.CategoryId = dto.CategoryId;
-            if (dto.Price.HasValue) product.Price = dto.Price.Value;
-            if (dto.Stock.HasValue) product.Stock = dto.Stock.Value;
+            if (!string.IsNullOrEmpty(dto.Description))
+                product.Description = dto.Description;
 
-            // 🔥 Nếu seller tự đổi trạng thái → Published
-            if (dto.Status.HasValue)
-            {
-                // Seller muốn publish lại → cần duyệt
-                if (dto.Status.Value == ProductStatus.Published)
-                {
-                    product.Status = ProductStatus.Draft;  // Tạm là Draft
-                    product.ApprovalStatus = ApprovalStatus.Pending;
-                    product.ModeratorNote = null;
-                }
-                else
-                {
-                    // Những trạng thái khác seller đổi trực tiếp
-                    product.Status = dto.Status.Value;
-                }
-            }
+            if (!string.IsNullOrEmpty(dto.CategoryId))
+                product.CategoryId = dto.CategoryId;
+
+            if (dto.Price.HasValue)
+                product.Price = dto.Price.Value;
+
+            if (dto.Stock.HasValue)
+                product.Stock = dto.Stock.Value;
+
+            // ⭐⭐ QUAN TRỌNG: Mọi update → quay về Pending + Status = Draft ⭐⭐
+            product.ApprovalStatus = ApprovalStatus.Pending;
+            product.Status = ProductStatus.Draft;
+            product.ModeratorNote = null;
 
             product.LastUpdatedAt = DateTime.UtcNow;
 
-            // 🔥 Handle images
+            // UPDATE IMAGES
             if (dto.Images != null)
             {
                 await _uow.ProductImages.DeleteAllByProductIdAsync(product.Id);
@@ -181,7 +176,6 @@ namespace LECOMS.Service.Services
             await _uow.Products.UpdateAsync(product);
             await _uow.CompleteAsync();
 
-            // Load lại sau update
             var loaded = await _uow.Products.GetAsync(
                 p => p.Id == id,
                 includeProperties: "Category,Images"
@@ -189,6 +183,7 @@ namespace LECOMS.Service.Services
 
             return _mapper.Map<ProductDTO>(loaded);
         }
+
 
 
         /// <summary>
