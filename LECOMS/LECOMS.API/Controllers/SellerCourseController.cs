@@ -298,7 +298,7 @@ namespace LECOMS.API.Controllers
             try
             {
                 // Lấy danh sách section theo course
-                var sections = await _service.GetSectionsByCourseAsync(courseId);
+                var sections = await _service.GetSectionsByCourseAsync(courseId, isSellerOwner: true);
 
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = sections;
@@ -318,7 +318,7 @@ namespace LECOMS.API.Controllers
             var response = new APIResponse();
             try
             {
-                var lessons = await _service.GetLessonsBySectionAsync(sectionId);
+                var lessons = await _service.GetLessonsBySectionAsync(sectionId, isSellerOwner: true);
 
                 response.StatusCode = HttpStatusCode.OK;
                 response.Result = lessons;

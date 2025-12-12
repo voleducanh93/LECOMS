@@ -464,12 +464,20 @@ namespace LECOMS.Service.Services
             return slug;
         }
 
-        public async Task<IEnumerable<SectionDTO>> GetSectionsByCourseAsync(string courseId)
+        public async Task<IEnumerable<SectionDTO>> GetSectionsByCourseAsync(string courseId, bool isSellerOwner = false)
         {
             var sections = await _unitOfWork.Sections.GetAllAsync(
                 s => s.CourseId == courseId,
                 includeProperties: "Lessons"
             );
+
+            if (!isSellerOwner)
+            {
+                // CHỈ HIỂN THỊ SECTION ĐÃ APPROVED
+                sections = sections
+                    .Where(s => s.ApprovalStatus == ApprovalStatus.Approved)
+                    .ToList();
+            }
 
             var result = new List<SectionDTO>();
 
@@ -480,41 +488,34 @@ namespace LECOMS.Service.Services
                     Id = section.Id,
                     Title = section.Title,
                     OrderIndex = section.OrderIndex,
-                    ApprovalStatus = section.ApprovalStatus,   // ⭐ NEW
-                    ModeratorNote = section.ModeratorNote,     // ⭐ NEW
+                    ApprovalStatus = section.ApprovalStatus,
+                    ModeratorNote = section.ModeratorNote,
                     Lessons = new List<LessonDto>()
                 };
 
-                foreach (var lesson in section.Lessons.OrderBy(l => l.OrderIndex))
+                // Lấy lessons
+                var lessons = section.Lessons;
+
+                if (!isSellerOwner)
                 {
-                    // 🔹 Lấy danh sách sản phẩm liên kết
-                    var linkedList = await _unitOfWork.LessonProducts.GetAllAsync(
-                        lp => lp.LessonId == lesson.Id,
-                        includeProperties: "Product,Product.Images,Product.Shop"
-                    );
+                    // CHỈ HIỂN THỊ BÀI HỌC ĐÃ APPROVED
+                    lessons = lessons
+                        .Where(l => l.ApprovalStatus == ApprovalStatus.Approved)
+                        .ToList();
+                }
 
-                    // 🔹 Map sang DTO
-                    var linkedProducts = linkedList.Select(lp => new LessonLinkedProductDTO
-                    {
-                        Id = lp.Product.Id,
-                        Name = lp.Product.Name,
-                        Price = lp.Product.Price,
-                        ThumbnailUrl = lp.Product.Images.FirstOrDefault(i => i.IsPrimary)?.Url,
-                        ShopName = lp.Product.Shop?.Name
-                    }).ToList();
-
+                foreach (var lesson in lessons.OrderBy(l => l.OrderIndex))
+                {
                     sectionDto.Lessons.Add(new LessonDto
                     {
                         Id = lesson.Id,
-                        CourseSectionId = lesson.CourseSectionId,
                         Title = lesson.Title,
                         Type = lesson.Type,
-                        DurationSeconds = lesson.DurationSeconds,
                         ContentUrl = lesson.ContentUrl,
+                        DurationSeconds = lesson.DurationSeconds,
                         OrderIndex = lesson.OrderIndex,
-                        ApprovalStatus = lesson.ApprovalStatus,      // ⭐ NEW
-                        ModeratorNote = lesson.ModeratorNote,        // ⭐ NEW
-                        LinkedProducts = linkedProducts.Any() ? linkedProducts : null
+                        ApprovalStatus = lesson.ApprovalStatus,
+                        ModeratorNote = lesson.ModeratorNote
                     });
                 }
 
@@ -524,11 +525,19 @@ namespace LECOMS.Service.Services
             return result;
         }
 
-        public async Task<IEnumerable<LessonDto>> GetLessonsBySectionAsync(string sectionId)
+        public async Task<IEnumerable<LessonDto>> GetLessonsBySectionAsync(string sectionId, bool isSellerOwner = false)
         {
             var lessons = await _unitOfWork.Lessons.GetAllAsync(
                 l => l.CourseSectionId == sectionId
             );
+
+            if (!isSellerOwner)
+            {
+                // Customer chỉ nhìn thấy bài đã duyệt
+                lessons = lessons
+                    .Where(l => l.ApprovalStatus == ApprovalStatus.Approved)
+                    .ToList();
+            }
 
             return lessons
                 .OrderBy(l => l.OrderIndex)
@@ -541,10 +550,11 @@ namespace LECOMS.Service.Services
                     DurationSeconds = l.DurationSeconds,
                     ContentUrl = l.ContentUrl,
                     OrderIndex = l.OrderIndex,
-                    ApprovalStatus = l.ApprovalStatus,    // ⭐ NEW
-                    ModeratorNote = l.ModeratorNote       // ⭐ NEW
+                    ApprovalStatus = l.ApprovalStatus,
+                    ModeratorNote = l.ModeratorNote
                 });
         }
+
 
         /// <summary>
         /// Lấy course public theo slug (chỉ Approved)
