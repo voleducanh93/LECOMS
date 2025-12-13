@@ -2,6 +2,7 @@
 using LECOMS.Data.DTOs.Course;
 using LECOMS.Data.DTOs.Product;
 using LECOMS.Data.DTOs.Seller;
+using LECOMS.Data.DTOs.Shop;
 using LECOMS.Data.Entities;
 using LECOMS.Data.Enum;
 using LECOMS.RepositoryContract.Interfaces;
@@ -10,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 
 namespace LECOMS.Service.Services
@@ -272,6 +274,48 @@ namespace LECOMS.Service.Services
                 courses = _mapper.Map<IEnumerable<CourseDTO>>(courses)
             };
         }
+
+        public async Task ConnectGHNAsync(string sellerId, ConnectGHNRequestDTO dto)
+        {
+            var shop = await _uow.Shops.GetAsync(s => s.SellerId == sellerId)
+                ?? throw new InvalidOperationException("Shop không tồn tại.");
+
+            // Test GHN token + shopId
+            using var client = new HttpClient
+            {
+                BaseAddress = new Uri("https://online-gateway.ghn.vn/shiip/public-api/")
+            };
+
+            client.DefaultRequestHeaders.Clear();
+            client.DefaultRequestHeaders.Add("Token", dto.GHNToken.Trim());
+            client.DefaultRequestHeaders.Add("ShopId", dto.GHNShopId.Trim());
+
+            var testRequest = new
+            {
+                from_district_id = 1442,
+                to_district_id = 1442,
+                weight = 500,
+                service_type_id = 2
+            };
+
+            var res = await client.PostAsJsonAsync(
+                "v2/shipping-order/fee",
+                testRequest);
+
+            if (!res.IsSuccessStatusCode)
+            {
+                var raw = await res.Content.ReadAsStringAsync();
+                throw new InvalidOperationException(
+                    $"GHN Token hoặc ShopId không hợp lệ: {raw}");
+            }
+
+            shop.GHNToken = dto.GHNToken.Trim();
+            shop.GHNShopId = dto.GHNShopId.Trim();
+
+            await _uow.Shops.UpdateAsync(shop);
+            await _uow.CompleteAsync();
+        }
+
     }
 }
     

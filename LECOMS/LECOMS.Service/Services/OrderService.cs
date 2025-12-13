@@ -25,6 +25,7 @@ namespace LECOMS.Service.Services
         private readonly IGamificationService _gamification; // ⭐ thêm
         private readonly INotificationService _notification;
         private readonly IAchievementService _achievement;
+        private readonly IShippingService _shippingService;  // ⭐ THÊM
         private const decimal FIXED_SHIPPING_FEE = 30000m;
 
         public OrderService(
@@ -37,7 +38,8 @@ namespace LECOMS.Service.Services
             IPlatformWalletService platformWalletService,
             IGamificationService gamification,
             INotificationService notification,
-            IAchievementService achievement)
+            IAchievementService achievement,
+            IShippingService shippingService)
         {
             _uow = uow;
             _paymentService = paymentService;
@@ -49,6 +51,7 @@ namespace LECOMS.Service.Services
             _gamification = gamification;
             _notification = notification;
             _achievement = achievement;
+            _shippingService = shippingService;
         }
 
         // =====================================================================
@@ -60,13 +63,35 @@ namespace LECOMS.Service.Services
 
             try
             {
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // STEP 1: Validate địa chỉ giao hàng (GHN format)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                if (checkout.ToDistrictId <= 0)
+                {
+                    throw new InvalidOperationException(
+                        "Vui lòng chọn Quận/Huyện giao hàng.");
+                }
+
+                if (string.IsNullOrWhiteSpace(checkout.ToWardCode))
+                {
+                    throw new InvalidOperationException(
+                        "Vui lòng chọn Phường/Xã giao hàng.");
+                }
+
+                _logger.LogInformation(
+                    "🛒 Starting checkout for user {UserId} to District={District}, Ward={Ward}",
+                    userId, checkout.ToDistrictId, checkout.ToWardCode);
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // STEP 2: Load giỏ hàng
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 var cart = await _uow.Carts.GetByUserIdAsync(
                     userId,
                     includeProperties:
                     "Items,Items.Product,Items.Product.Images,Items.Product.Category,Items.Product.Shop");
 
                 if (cart == null || !cart.Items.Any())
-                    throw new InvalidOperationException("Cart empty.");
+                    throw new InvalidOperationException("Giỏ hàng trống.");
 
                 var selectedItems =
                     (checkout.SelectedProductIds?.Any() ?? false)
@@ -74,8 +99,11 @@ namespace LECOMS.Service.Services
                         : cart.Items.ToList();
 
                 if (!selectedItems.Any())
-                    throw new InvalidOperationException("No valid products selected.");
+                    throw new InvalidOperationException("Không có sản phẩm nào được chọn.");
 
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // STEP 3: Validate không mua hàng từ shop của chính mình
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 var userShopIds = selectedItems
                    .Select(i => i.Product.ShopId)
                    .Distinct()
@@ -91,46 +119,197 @@ namespace LECOMS.Service.Services
                     }
                 }
 
-                // Group theo shop
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // STEP 4: Group theo shop và tạo orders
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 var grouped = selectedItems.GroupBy(i => i.Product.ShopId).ToList();
                 var createdOrders = new List<Order>();
 
+                _logger.LogInformation(
+                    "📦 Creating orders for {ShopCount} shops with {ProductCount} products",
+                    grouped.Count, selectedItems.Count);
+
                 foreach (var group in grouped)
                 {
+                    int shopId = group.Key;
                     var items = group.ToList();
+                    var shopName = items.First().Product.Shop?.Name ?? $"Shop {shopId}";
+
+                    var shop = await _uow.Shops.GetAsync(s => s.Id == shopId)
+                         ?? throw new InvalidOperationException($"Shop {shopId} không tồn tại.");
+
+                    if (!shop.IsGHNConnected)
+                    {
+                        throw new InvalidOperationException(
+                            $"Shop '{shop.Name}' chưa kết nối GHN.");
+                    }
+
+                    _logger.LogInformation("🏪 Processing shop {ShopId} ({ShopName})", shopId, shopName);
+
+                    // ─────────────────────────────────────────────────
+                    // 4.1: Tính subtotal và tổng trọng lượng
+                    // ─────────────────────────────────────────────────
                     decimal subtotal = 0;
+                    int totalWeight = 0;
+                    int? maxLength = null;
+                    int? maxWidth = null;
+                    int? maxHeight = null;
 
                     foreach (var item in items)
                     {
+                        // Validate stock
                         if (item.Product.Stock < item.Quantity)
-                            throw new InvalidOperationException($"Not enough stock for {item.Product.Name}");
+                        {
+                            throw new InvalidOperationException(
+                                $"Sản phẩm '{item.Product.Name}' không đủ hàng. " +
+                                $"Còn {item.Product.Stock}, bạn đặt {item.Quantity}.");
+                        }
 
                         subtotal += item.Product.Price * item.Quantity;
+
+                        // ⭐ Tính trọng lượng (nếu Product có Weight, không thì default 500g)
+                        int productWeight = item.Product.Weight > 0
+                            ? item.Product.Weight
+                            : 500;
+                        totalWeight += productWeight * item.Quantity;
+
+                        // ⭐ Lấy kích thước lớn nhất (nếu có)
+                        if (item.Product.Length.HasValue && item.Product.Length.Value > (maxLength ?? 0))
+                            maxLength = item.Product.Length;
+                        if (item.Product.Width.HasValue && item.Product.Width.Value > (maxWidth ?? 0))
+                            maxWidth = item.Product.Width;
+                        if (item.Product.Height.HasValue && item.Product.Height.Value > (maxHeight ?? 0))
+                            maxHeight = item.Product.Height;
                     }
 
+                    _logger.LogInformation(
+                        "💰 Shop {ShopId}:  Subtotal={Subtotal}đ, Weight={Weight}g",
+                        shopId, subtotal, totalWeight);
+
+                    // ─────────────────────────────────────────────────
+                    // 4.2: Lấy địa chỉ kho của shop
+                    // ─────────────────────────────────────────────────
+                    var shopAddress = await _uow.ShopAddresses.GetAsync(
+                        sa => sa.ShopId == shopId && sa.IsDefault,
+                        includeProperties: "Shop");
+
+                    if (shopAddress == null)
+                    {
+                        _logger.LogWarning(
+                            "⚠️ Shop {ShopId} ({ShopName}) chưa thiết lập địa chỉ kho",
+                            shopId, shopName);
+
+                        throw new InvalidOperationException(
+                            $"Shop '{shopName}' chưa thiết lập địa chỉ kho. " +
+                            $"Vui lòng liên hệ shop hoặc chọn sản phẩm khác.");
+                    }
+
+                    // ─────────────────────────────────────────────────
+                    // 4. 3:  🚚 GỌI GHN API TÍNH PHÍ SHIP (BẮT BUỘC)
+                    // ─────────────────────────────────────────────────
+                    decimal shippingFee;
+                    string estimatedDeliveryText;
+
+                    try
+                    {
+                        var shippingResult = await _shippingService.GetShippingDetailsAsync(
+                            ghnToken: shop.GHNToken!,
+                            ghnShopId: shop.GHNShopId!,
+                            fromDistrictId: shopAddress.DistrictId,
+                            fromWardCode: shopAddress.WardCode,
+                            toDistrictId: checkout.ToDistrictId,
+                            toWardCode: checkout.ToWardCode,
+                            weight: totalWeight,
+                            orderValue: subtotal,
+                            serviceTypeId: checkout.ServiceTypeId,
+                            length: maxLength,
+                            width: maxWidth,
+                            height: maxHeight
+                        );
+
+                        if (shippingResult == null)
+                        {
+                            _logger.LogError(
+                                "❌ GHN API returned null for Shop {ShopId} ({ShopName}). " +
+                                "Cannot calculate shipping fee.",
+                                shopId, shopName);
+
+                            throw new InvalidOperationException(
+                                $"Không thể tính phí vận chuyển cho shop '{shopName}'.  " +
+                                $"Vui lòng thử lại sau hoặc liên hệ hỗ trợ.");
+                        }
+
+                        shippingFee = shippingResult.ShippingFee;
+                        estimatedDeliveryText = shippingResult.ExpectedDeliveryTime;
+
+                        _logger.LogInformation(
+                            "✅ GHN Shipping calculated for Shop {ShopId}:  {Fee}đ, ETA: {ETA}",
+                            shopId, shippingFee, estimatedDeliveryText);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex,
+                            "❌ Error calling GHN API for Shop {ShopId} ({ShopName}). " +
+                            "From:  {FromDistrict}/{FromWard} → To: {ToDistrict}/{ToWard}",
+                            shopId, shopName,
+                            shopAddress.DistrictId, shopAddress.WardCode,
+                            checkout.ToDistrictId, checkout.ToWardCode);
+
+                        throw new InvalidOperationException(
+                            $"Không thể tính phí vận chuyển cho shop '{shopName}'. " +
+                            $"Chi tiết lỗi: {ex.Message}.  Vui lòng kiểm tra lại địa chỉ giao hàng hoặc liên hệ hỗ trợ.",
+                            ex);
+                    }
+
+                    // ─────────────────────────────────────────────────
+                    // 4.4: Tạo Order entity
+                    // ─────────────────────────────────────────────────
                     var order = new Order
                     {
                         Id = Guid.NewGuid().ToString(),
                         OrderCode = await GenerateOrderCodeAsync(),
                         UserId = userId,
-                        ShopId = group.Key,
+                        ShopId = shopId,
+
+                        // Địa chỉ giao hàng
                         ShipToName = checkout.ShipToName,
                         ShipToPhone = checkout.ShipToPhone,
                         ShipToAddress = checkout.ShipToAddress,
 
-                        Subtotal = subtotal,
-                        ShippingFee = FIXED_SHIPPING_FEE,
-                        Discount = 0,
-                        Total = subtotal + FIXED_SHIPPING_FEE,
+                        // ⭐ GHN Address Format
+                        ToProvinceId = checkout.ToProvinceId,
+                        ToProvinceName = checkout.ToProvinceName,
+                        ToDistrictId = checkout.ToDistrictId,
+                        ToDistrictName = checkout.ToDistrictName,
+                        ToWardCode = checkout.ToWardCode,
+                        ToWardName = checkout.ToWardName,
+                        ServiceTypeId = checkout.ServiceTypeId,
 
+                        // Pricing
+                        Subtotal = subtotal,
+                        ShippingFee = shippingFee,  // ⭐ PHÍ SHIP ĐỘNG TỪ GHN
+                        Discount = 0,
+                        Total = subtotal + shippingFee,
+
+                        // Status
                         Status = OrderStatus.Pending,
                         PaymentStatus = PaymentStatus.Pending,
                         BalanceReleased = false,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.UtcNow,
+
+                        // ⭐ Thông tin giao hàng
+                        EstimatedDeliveryText = estimatedDeliveryText
                     };
 
                     await _uow.Orders.AddAsync(order);
 
+                    _logger.LogInformation(
+                        "📝 Order {OrderCode} created:  {Subtotal}đ + {Ship}đ = {Total}đ",
+                        order.OrderCode, subtotal, shippingFee, order.Total);
+
+                    // ─────────────────────────────────────────────────
+                    // 4.5: Tạo OrderDetails và giảm stock
+                    // ─────────────────────────────────────────────────
                     foreach (var item in items)
                     {
                         await _uow.OrderDetails.AddAsync(new OrderDetail
@@ -144,28 +323,39 @@ namespace LECOMS.Service.Services
 
                         item.Product.Stock -= item.Quantity;
                         await _uow.Products.UpdateAsync(item.Product);
+
+                        _logger.LogDebug(
+                            "  - {ProductName} x{Qty} @ {Price}đ",
+                            item.Product.Name, item.Quantity, item.Product.Price);
                     }
 
                     createdOrders.Add(order);
                 }
 
-                // ===========================
-                // APPLY VOUCHER (nếu có)
-                // ===========================
+                await _uow.CompleteAsync();
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // STEP 5: Áp dụng Voucher (nếu có)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 VoucherApplyResultDTO? voucherResult = null;
                 var voucherCode = (checkout.VoucherCode ?? string.Empty).Trim();
 
                 if (!string.IsNullOrWhiteSpace(voucherCode))
                 {
+                    _logger.LogInformation("🎫 Applying voucher: {Code}", voucherCode);
+
                     voucherResult = await _voucherService.ValidateAndPreviewAsync(userId, voucherCode, createdOrders);
 
                     if (!voucherResult.IsValid)
                     {
+                        _logger.LogWarning("⚠️ Voucher invalid: {Code} - {Error}",
+                            voucherCode, voucherResult.ErrorMessage);
+
                         throw new InvalidOperationException(
-                            voucherResult.ErrorMessage ?? "Voucher is not valid.");
+                            voucherResult.ErrorMessage ?? "Voucher không hợp lệ.");
                     }
 
-                    // gán Discount cho từng order
+                    // Gán Discount cho từng order
                     foreach (var od in createdOrders)
                     {
                         var discount = voucherResult.OrderDiscounts
@@ -173,37 +363,57 @@ namespace LECOMS.Service.Services
 
                         od.Discount = discount;
                         od.Total = od.Subtotal + od.ShippingFee - od.Discount;
+                        od.VoucherCodeUsed = voucherCode;
+
+                        await _uow.Orders.UpdateAsync(od);
+
+                        _logger.LogInformation(
+                            "  ✅ Order {OrderCode}:  Discount={Discount}đ, NewTotal={Total}đ",
+                            od.OrderCode, discount, od.Total);
                     }
                 }
 
+                await _uow.CompleteAsync();
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // STEP 6: Tính tổng
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 decimal totalShipping = createdOrders.Sum(o => o.ShippingFee);
                 decimal grandTotal = createdOrders.Sum(o => o.Total);
                 decimal totalDiscount = createdOrders.Sum(o => o.Discount);
 
+                _logger.LogInformation(
+                    "💰 Grand Total: {Total}đ (Shipping: {Ship}đ, Discount: {Discount}đ)",
+                    grandTotal, totalShipping, totalDiscount);
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // STEP 7: Xử lý Payment
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 string method = (checkout.PaymentMethod ?? "PAYOS").ToUpper();
                 string? paymentUrl = null;
                 decimal walletUsed = 0;
                 decimal payOSRequired = grandTotal;
 
-                // ==================== WALLET ====================
                 if (method == "WALLET")
                 {
+                    // ==================== WALLET ====================
                     bool ok = await _customerWalletService.HasSufficientBalanceAsync(userId, grandTotal);
                     if (!ok)
-                        throw new InvalidOperationException("Insufficient wallet balance.");
+                        throw new InvalidOperationException("Số dư ví không đủ.");
 
                     await _customerWalletService.DeductBalanceAsync(
                         userId, grandTotal, WalletTransactionType.Payment,
                         string.Join(",", createdOrders.Select(o => o.Id)),
-                        $"Thanh toán đơn hàng {string.Join(",", createdOrders.Select(o => o.OrderCode))}");
+                        $"Thanh toán {createdOrders.Count} đơn hàng");
 
                     foreach (var o in createdOrders)
                     {
                         o.PaymentStatus = PaymentStatus.Paid;
                         o.Status = OrderStatus.Paid;
+                        await _uow.Orders.UpdateAsync(o);
                     }
 
-                    // Tạo transaction WALLET
+                    // Tạo transaction
                     var txObj = await CreateTransactionAsync(
                         createdOrders,
                         grandTotal,
@@ -211,21 +421,22 @@ namespace LECOMS.Service.Services
                         string.IsNullOrWhiteSpace(voucherCode) ? null : voucherCode);
 
                     txObj.Status = TransactionStatus.Completed;
-
+                    txObj.CompletedAt = DateTime.UtcNow;
                     await _uow.Transactions.UpdateAsync(txObj);
                     await _uow.CompleteAsync();
 
+                    // Distribute revenue
                     await DistributeRevenueToShopsAsync(createdOrders, txObj);
 
-                    // ⭐⭐ NEW — PLATFORM NHẬN HOA HỒNG CHO WALLET PAYMENT
+                    // Platform nhận hoa hồng
                     await _platformWalletService.AddCommissionAsync(
                         txObj.PlatformFeeAmount,
                         txObj.Id,
                         string.Join(",", createdOrders.Select(o => o.OrderCode))
                     );
 
-                    // Voucher
-                    if (!string.IsNullOrWhiteSpace(voucherCode) && voucherResult != null && voucherResult.IsValid)
+                    // Mark voucher used
+                    if (voucherResult?.IsValid == true && !string.IsNullOrWhiteSpace(voucherCode))
                     {
                         await _voucherService.MarkVoucherUsedAsync(
                             userId,
@@ -236,14 +447,16 @@ namespace LECOMS.Service.Services
 
                     walletUsed = grandTotal;
                     payOSRequired = 0;
-                    // ⭐⭐⭐ GAMIFICATION EVENT — thêm ngay tại đây ⭐⭐⭐
+
+                    // ⭐ Gamification Event
                     await _gamification.HandleEventAsync(userId, new GamificationEventDTO
                     {
-                        Action = "PurchaseProduct", // phải trùng EarnRule.Action + QuestDefinition.Code
+                        Action = "PurchaseProduct",
                         ReferenceId = string.Join(",", createdOrders.Select(o => o.Id))
                     });
-                }
 
+                    _logger.LogInformation("✅ Paid by WALLET: {Amount}đ", grandTotal);
+                }
                 else
                 {
                     // ==================== PAYOS ====================
@@ -254,22 +467,27 @@ namespace LECOMS.Service.Services
                         string.IsNullOrWhiteSpace(voucherCode) ? null : voucherCode);
 
                     paymentUrl = await _paymentService.CreatePaymentLinkForMultipleOrdersAsync(txObj.Id, createdOrders);
+
+                    _logger.LogInformation("💳 PayOS payment URL created");
                 }
 
-                // Xóa cart items
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // STEP 8: Xóa cart items
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 foreach (var item in selectedItems)
                     await _uow.CartItems.DeleteAsync(item);
 
-                // Load lại User để có FullName => tránh CustomerName = null
+                // Load lại User để có FullName
                 var user = await _uow.Users.GetAsync(u => u.Id == userId);
                 foreach (var o in createdOrders)
                     o.User = user;
 
                 await _uow.CompleteAsync();
                 await tx.CommitAsync();
-                // =============================
-                // 🔔 NOTIFICATION — NEW ORDER FOR SELLER
-                // =============================
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // STEP 9: Gửi thông báo
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 foreach (var order in createdOrders)
                 {
                     var shop = await _uow.Shops.GetAsync(s => s.Id == order.ShopId);
@@ -279,17 +497,25 @@ namespace LECOMS.Service.Services
                             shop.SellerId,
                             "OrderNew",
                             $"Bạn có đơn hàng mới #{order.OrderCode}",
-                            $"Khách hàng {order.User?.FullName ?? order.UserId} đã đặt đơn hàng tổng {order.Total:N0}đ."
+                            $"Khách hàng {order.User?.FullName ?? order.UserId} đã đặt đơn tổng {order.Total:N0}đ (ship: {order.ShippingFee:N0}đ)."
                         );
                     }
                 }
-                // ================================
-                // ⭐ ACHIEVEMENTS — PURCHASE EVENTS
-                // ================================
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // STEP 10: Achievements
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 await _achievement.IncreaseProgressAsync(userId, "ACHV_FIRST_PURCHASE", 1);
                 await _achievement.IncreaseProgressAsync(userId, "ACHV_5_PURCHASES", 1);
                 await _achievement.IncreaseProgressAsync(userId, "ACHV_10_PURCHASES", 1);
 
+                _logger.LogInformation(
+                    "🎉 Checkout completed:  {OrderCount} orders, Total: {Total}đ",
+                    createdOrders.Count, grandTotal);
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // STEP 11: Return result
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 return new CheckoutResultDTO
                 {
                     Orders = createdOrders.Select(MapToDTO).ToList(),
@@ -300,12 +526,13 @@ namespace LECOMS.Service.Services
                     WalletAmountUsed = walletUsed,
                     PayOSAmountRequired = payOSRequired,
                     DiscountApplied = totalDiscount,
-                    VoucherCodeUsed = string.IsNullOrWhiteSpace(voucherCode) ? null : voucherCode
+                    VoucherCodeUsed = voucherResult?.IsValid == true ? voucherCode : null
                 };
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync();
+                _logger.LogError(ex, "❌ Checkout failed for user {UserId}", userId);
                 throw;
             }
         }
@@ -548,6 +775,15 @@ namespace LECOMS.Service.Services
                 ShipToName = o.ShipToName,
                 ShipToPhone = o.ShipToPhone,
                 ShipToAddress = o.ShipToAddress,
+
+                // ⭐ THÊM:  GHN address info
+                ToProvinceId = o.ToProvinceId,
+                ToProvinceName = o.ToProvinceName,
+                ToDistrictId = o.ToDistrictId,
+                ToDistrictName = o.ToDistrictName,
+                ToWardCode = o.ToWardCode,
+                ToWardName = o.ToWardName,
+
                 Subtotal = o.Subtotal,
                 ShippingFee = o.ShippingFee,
                 Discount = o.Discount,
@@ -557,6 +793,13 @@ namespace LECOMS.Service.Services
                 BalanceReleased = o.BalanceReleased,
                 CreatedAt = o.CreatedAt,
                 CompletedAt = o.CompletedAt,
+
+                // ⭐ THÊM: Shipping info
+                EstimatedDeliveryText = o.EstimatedDeliveryText,
+                EstimatedDeliveryDate = o.EstimatedDeliveryDate,
+                ShippingTrackingCode = o.ShippingTrackingCode,
+                ShippingStatus = o.ShippingStatus,
+
                 Details = o.Details.Select(d => new OrderDetailDTO
                 {
                     Id = d.Id,

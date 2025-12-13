@@ -74,6 +74,7 @@ namespace LECOMS.RepositoryContract.Interfaces
         // ACHIEVEMENTS (NEW)
         IRepository<AchievementDefinition> AchievementDefinitions { get; }
         IRepository<UserAchievementProgress> UserAchievementProgresses { get; }
+        IShopAddressRepository ShopAddresses { get; }
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
         bool HasActiveTransaction { get; }

@@ -65,6 +65,28 @@ namespace LECOMS.Data.Entities
         [ForeignKey(nameof(SellerId))]
         public virtual User Seller { get; set; } = null!;
 
+        // ================= GHN CONFIG =================
+
+        /// <summary>
+        /// GHN API Token của shop (seller tự cung cấp)
+        /// </summary>
+        [MaxLength(200)]
+        public string? GHNToken { get; set; }
+
+        /// <summary>
+        /// GHN ShopId tương ứng với token
+        /// </summary>
+        [MaxLength(50)]
+        public string? GHNShopId { get; set; }
+
+        /// <summary>
+        /// Shop đã kết nối GHN hay chưa
+        /// </summary>
+        [NotMapped]
+        public bool IsGHNConnected =>
+            !string.IsNullOrWhiteSpace(GHNToken)
+            && !string.IsNullOrWhiteSpace(GHNShopId);
+
         // ============ NAVIGATION PROPERTIES ⭐ MỚI ============
 
         /// <summary>

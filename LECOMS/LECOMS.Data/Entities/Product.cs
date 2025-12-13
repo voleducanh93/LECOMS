@@ -26,6 +26,26 @@ namespace LECOMS.Data.Entities
         [Precision(18, 2)] public decimal Price { get; set; }
         public int Stock { get; set; }
 
+        /// <summary>
+        /// Trọng lượng sản phẩm (gram). Mặc định 500g
+        /// </summary>
+        public int Weight { get; set; } = 500;
+
+        /// <summary>
+        /// Chiều dài (cm) - dùng để tính phí ship nếu sản phẩm quá to
+        /// </summary>
+        public int? Length { get; set; }
+
+        /// <summary>
+        /// Chiều rộng (cm)
+        /// </summary>
+        public int? Width { get; set; }
+
+        /// <summary>
+        /// Chiều cao (cm)
+        /// </summary>
+        public int? Height { get; set; }
+
         public ProductStatus Status { get; set; } = ProductStatus.Draft;
         public DateTime LastUpdatedAt { get; set; } = DateTime.UtcNow;
 

@@ -4,6 +4,7 @@ using LECOMS.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LECOMS.Data.Migrations
 {
     [DbContext(typeof(LecomDbContext))]
-    partial class LecomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251213065109_AddFielConnectGHNToShop")]
+    partial class AddFielConnectGHNToShop
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

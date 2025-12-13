@@ -15,6 +15,42 @@ namespace LECOMS.Data.DTOs.Order
         [Required, MaxLength(500)]
         public string ShipToAddress { get; set; } = null!;
 
+        // ⭐⭐⭐ THÊM MỚI: GHN Address
+        /// <summary>
+        /// Mã tỉnh/thành phố (GHN ProvinceID) - Optional
+        /// </summary>
+        public int? ToProvinceId { get; set; }
+
+        /// <summary>
+        /// Tên tỉnh/thành phố
+        /// </summary>
+        public string? ToProvinceName { get; set; }
+
+        /// <summary>
+        /// Mã quận/huyện (GHN DistrictID) - BẮT BUỘC
+        /// </summary>
+        public int ToDistrictId { get; set; }
+
+        /// <summary>
+        /// Tên quận/huyện
+        /// </summary>
+        public string? ToDistrictName { get; set; }
+
+        /// <summary>
+        /// Mã phường/xã (GHN WardCode) - BẮT BUỘC
+        /// </summary>
+        public string ToWardCode { get; set; } = null!;
+
+        /// <summary>
+        /// Tên phường/xã
+        /// </summary>
+        public string? ToWardName { get; set; }
+
+        /// <summary>
+        /// Loại dịch vụ vận chuyển:  2 = Express, 5 = Standard
+        /// </summary>
+        public int ServiceTypeId { get; set; } = 2;
+
         // ============ VOUCHER (Optional) ============
 
         [MaxLength(50)]

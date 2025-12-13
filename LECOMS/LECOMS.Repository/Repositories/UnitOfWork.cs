@@ -72,6 +72,8 @@ namespace LECOMS.Repository.Repositories
         public IRepository<UserBadge> UserBadges { get; }
         public IRepository<AchievementDefinition> AchievementDefinitions { get; }
         public IRepository<UserAchievementProgress> UserAchievementProgresses { get; }
+        public IShopAddressRepository ShopAddresses { get; }
+
 
         public INotificationRepository Notifications { get; }
 
@@ -98,7 +100,7 @@ namespace LECOMS.Repository.Repositories
     ICommunityPostRepository communityPostRepository, ICommentRepository commentRepository, ITransactionOrderRepository transactionOrderRepository, 
     ITransactionOrderBreakdownRepository transactionOrderBreakdownRepository, IPlatformWalletRepository platformWalletRepository, 
     IPlatformWalletTransactionRepository platformWalletTransactionRepository, IFeedbackRepository feedbackRepository, 
-    IFeedbackReplyRepository feedbackReplyRepository, IFeedbackImageRepository feedbackImageRepository, INotificationRepository notificationRepository)
+    IFeedbackReplyRepository feedbackReplyRepository, IFeedbackImageRepository feedbackImageRepository, INotificationRepository notificationRepository, IShopAddressRepository shopAddressRepository)
 
         {
             _context = context;
@@ -161,6 +163,7 @@ namespace LECOMS.Repository.Repositories
             UserAchievementProgresses = new Repository<UserAchievementProgress>(context);
 
             Notifications = notificationRepository;
+            ShopAddresses = shopAddressRepository;
 
         }
         public async Task<int> CompleteAsync()

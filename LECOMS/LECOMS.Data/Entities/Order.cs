@@ -61,6 +61,37 @@ namespace LECOMS.Data.Entities
         [Required, MaxLength(500)]
         public string ShipToAddress { get; set; } = null!;
 
+        // ⭐⭐⭐ THÊM MỚI:  Địa chỉ GHN Format (SỬA TẤT CẢ LỖI CS0117)
+        /// <summary>
+        /// Mã tỉnh/thành phố (GHN ProvinceID)
+        /// </summary>
+        public int? ToProvinceId { get; set; }
+
+        [MaxLength(200)]
+        public string? ToProvinceName { get; set; }
+
+        /// <summary>
+        /// Mã quận/huyện (GHN DistrictID) - BẮT BUỘC để tính ship
+        /// </summary>
+        public int ToDistrictId { get; set; }
+
+        [MaxLength(200)]
+        public string? ToDistrictName { get; set; }
+
+        /// <summary>
+        /// Mã phường/xã (GHN WardCode) - BẮT BUỘC để tính ship
+        /// </summary>
+        [Required, MaxLength(50)]
+        public string ToWardCode { get; set; } = null!;
+
+        [MaxLength(200)]
+        public string? ToWardName { get; set; }
+
+        /// <summary>
+        /// Service Type:  2 = Express (nhanh), 5 = Standard (tiêu chuẩn)
+        /// </summary>
+        public int ServiceTypeId { get; set; } = 2;
+
         // ============ PRICING ============
 
         /// <summary>
@@ -101,6 +132,31 @@ namespace LECOMS.Data.Entities
         /// Dùng để tính holding period
         /// </summary>
         public DateTime? CompletedAt { get; set; }
+
+        //============= Thời gian giao hàng dự kiến ================
+        /// <summary>
+        /// Thời gian dự kiến giao hàng (từ GHN API)
+        /// </summary>
+        public DateTime? EstimatedDeliveryDate { get; set; }
+
+        /// <summary>
+        /// Mô tả thời gian giao hàng (VD: "2-3 ngày")
+        /// </summary>
+        [MaxLength(100)]
+        public string? EstimatedDeliveryText { get; set; }
+
+        // ⭐ Mã vận đơn tracking
+        /// <summary>
+        /// Mã vận đơn từ GHN (order_code) để tracking
+        /// </summary>
+        [MaxLength(100)]
+        public string? ShippingTrackingCode { get; set; }
+
+        /// <summary>
+        /// Trạng thái vận đơn từ GHN
+        /// </summary>
+        [MaxLength(50)]
+        public string? ShippingStatus { get; set; }
 
         // ============ WALLET MANAGEMENT ============
 

@@ -1,4 +1,5 @@
 ﻿using LECOMS.Data.DTOs.Seller;
+using LECOMS.Data.DTOs.Shop;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -16,6 +17,7 @@ namespace LECOMS.ServiceContract.Interfaces
         Task<ShopDTO> RejectShopAsync(int id, string adminId, string reason);
         Task<bool> HasShopAsync(string sellerId);
         Task<object> GetPublicShopDetailAsync(int shopId);
+        Task ConnectGHNAsync(string sellerId, ConnectGHNRequestDTO dto);
 
     }
 }

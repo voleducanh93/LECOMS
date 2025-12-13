@@ -64,6 +64,8 @@
             services.AddTransient<IAchievementService, AchievementService>();
             services.AddTransient<INotificationService, NotificationService>();
             services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+            services.AddHttpClient<IShippingService, GHNShippingService>();
+            services.AddScoped<IShopAddressService, ShopAddressService>();
             return services;
             }
         }

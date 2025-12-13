@@ -86,6 +86,7 @@ namespace LECOMS.Data.Models
         public DbSet<UserLessonProgress> UserLessonProgresses { get; set; }
         public DbSet<AchievementDefinition> AchievementDefinitions { get; set; }
         public DbSet<UserAchievementProgress> UserAchievementProgresses { get; set; }
+        public DbSet<ShopAddress> ShopAddresses { get; set; }
 
         // =====================================================================
         // ==== MODEL CONFIGURATION ====
@@ -555,6 +556,23 @@ namespace LECOMS.Data.Models
                  .WithMany(w => w.Transactions)
                  .HasForeignKey(x => x.PlatformWalletId)
                  .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // =====================================================================
+            // ⭐ ShopAddress Configuration
+            // =====================================================================
+            b.Entity<ShopAddress>(e =>
+            {
+                e.ToTable("ShopAddresses");
+                e.HasKey(x => x.Id);
+
+                e.HasIndex(x => x.ShopId);
+                e.HasIndex(x => new { x.ShopId, x.IsDefault });
+
+                e.HasOne(sa => sa.Shop)
+                 .WithMany()
+                 .HasForeignKey(sa => sa.ShopId)
+                 .OnDelete(DeleteBehavior.Cascade);  // Xóa shop → xóa address
             });
 
         }
